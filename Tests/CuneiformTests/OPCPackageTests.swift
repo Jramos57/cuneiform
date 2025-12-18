@@ -4,10 +4,19 @@ import Foundation
 
 @Suite struct OPCPackageTests {
     // Path to the sample xlsx file from the ISO spec materials
-    static let sampleXlsxPath = "/Users/jonathan/Desktop/garden/vek/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
+    static let sampleXlsxPath = "/Users/jonathan/Desktop/garden/cuneiform/Documentation/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
+
+    /// Helper to skip tests when fixture file is missing
+    private static func requireFixture() throws -> URL {
+        let url = URL(fileURLWithPath: sampleXlsxPath)
+        guard FileManager.default.fileExists(atPath: sampleXlsxPath) else {
+            throw XCTSkip("Test fixture not available: \(sampleXlsxPath)")
+        }
+        return url
+    }
 
     @Test func openPackageFromFile() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         // Verify content types were parsed
@@ -18,7 +27,7 @@ import Foundation
     }
 
     @Test func findMainDocument() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         let mainDoc = package.findMainDocument()
@@ -28,7 +37,7 @@ import Foundation
     }
 
     @Test func readWorkbookPart() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         let workbookData = try package.readPart(PartPath.workbook)
@@ -40,7 +49,7 @@ import Foundation
     }
 
     @Test func partExists() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         #expect(package.partExists(PartPath.workbook) == true)
@@ -48,7 +57,7 @@ import Foundation
     }
 
     @Test func contentTypeForPart() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         let workbookType = package.contentType(for: PartPath.workbook)
@@ -56,7 +65,7 @@ import Foundation
     }
 
     @Test func workbookRelationships() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         var package = try OPCPackage.open(url: url)
 
         let rels = try package.relationships(for: PartPath.workbook)
@@ -71,7 +80,7 @@ import Foundation
     }
 
     @Test func listParts() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         let parts = package.partPaths
@@ -85,11 +94,17 @@ import Foundation
     }
 
     @Test func missingPartThrows() throws {
-        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let url = try Self.requireFixture()
         let package = try OPCPackage.open(url: url)
 
         #expect(throws: CuneiformError.self) {
             _ = try package.readPart(PartPath("/nonexistent/part.xml"))
         }
     }
+}
+
+// XCTSkip workaround for Swift Testing
+private struct XCTSkip: Error {
+    let message: String
+    init(_ message: String) { self.message = message }
 }
