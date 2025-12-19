@@ -1,6 +1,6 @@
-# Parser Implementation Verification Checklist
+# Cuneiform Implementation Verification Checklist
 
-Use this checklist to verify the delegated work is complete and correct.
+Use this checklist to verify work is complete and correct.
 
 ## Quick Verification Commands
 
@@ -12,18 +12,74 @@ swift test    # All tests must pass
 
 ---
 
-## Status Summary (Dec 17, 2025)
+## Status Summary (Dec 18, 2025)
 
-**STATUS: COMPLETE** - All 45 tests pass.
+**STATUS: GREEN** - All 107 tests pass.
 
-Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We've retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
+Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
-- [x] All new parser tests pass
+- [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (45/45)
+- [x] Entire test suite passes (107/107)
 
 ---
+
+## New Additions (Dec 18, 2025)
+
+Write-side styling and formatting are implemented and verified.
+
+- [x] StylesBuilder for `styles.xml` (fonts, fills, borders, number formats, xf cell formats)
+- [x] `WorksheetBuilder` supports style indices per cell (`s` attribute)
+- [x] `WorkbookWriter` now adds `xl/styles.xml` and a workbook styles relationship
+- [x] Round-trip styling tests added: bold text, fills/colors, borders, date formats, large mixed-format datasets
+- [x] Alignment fixes in tests to match `CellValue` API
+
+### Files Updated/Added
+- [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (added `StylesBuilder`, style-aware cells)
+- [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (integrated `styles.xml` and relationships)
+- [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (date detection via styles retained)
+- [x] `Tests/CuneiformTests/StylingTests.swift` (new write-side styling tests)
+
+### Verification
+- [x] `swift build` succeeds
+- [x] `swift test` succeeds: 107 tests passing including new styling suite and performance benchmarks
+
+---
+
+## Phase 2 Test Suites
+
+### WorkbookIntegrationTests
+- [x] High-level `Workbook.open(url:)` API
+- [x] Sheet access by name and index
+- [x] Cell value resolution (shared strings, numbers, dates)
+
+### AdvancedQueryTests
+- [x] `Sheet.range(_:)` extracts cell ranges
+- [x] `Sheet.column(_:)` retrieves column data
+- [x] `Sheet.rows(where:)` filters rows by predicate
+- [x] `Sheet.find` / `Sheet.findAll` cell search
+
+### WorkbookWriterTests
+- [x] Create new workbook with sheets
+- [x] Write numbers, strings, booleans, formulas
+- [x] Round-trip: write then read back
+
+### StylingTests
+- [x] Bold text styling
+- [x] Fill colors and patterns
+- [x] Border styles
+- [x] Date number formats
+- [x] Large mixed-format datasets
+
+### PerformanceBenchmarks
+- [x] Lazy sheet loading performance
+- [x] Streaming row iteration
+- [x] Large file handling
+
+---
+
+## Phase 1: Parser Tasks
 
 ## Task 1: SharedStrings Parser
 
@@ -235,9 +291,9 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (45/45)
+- [x] **Tests pass**: `swift test` shows all green (107/107)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 
-**Verified by:** Vek
-**Date:** December 17, 2025
+**Phase 1 Verified by:** Vek (December 17, 2025)
+**Phase 2 Verified by:** Vek (December 18, 2025)

@@ -1,9 +1,9 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1 Complete ✓
+## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
-**Implemented:** December 17, 2025
-**Verified:** All 45 tests pass
+**Phase 1 Implemented:** December 17, 2025
+**Current Verification:** All 107 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -753,7 +753,7 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 After implementation, verify:
 
 - [x] `swift build` succeeds with no warnings
-- [x] `swift test` passes all tests (45/45)
+- [x] `swift test` passes all tests (107/107)
 - [x] All types are `Sendable`
 - [x] All public APIs have doc comments
 - [x] Error cases throw appropriate `CuneiformError` variants
@@ -790,14 +790,33 @@ Do not deviate from the specified APIs without documenting why.
 
 ---
 
-## Next Phase: High-Level Workbook API
+## Phase 2: High-Level API, Writing, Queries, Performance, Styling
 
-With parsers complete, the next milestone is a user-friendly `Workbook` API that:
+The following Phase 2 items are implemented and verified:
 
-1. **Unified reading** - `Workbook.open(url:)` that handles OPC, parsing, and string resolution
-2. **Sheet access** - `workbook.sheet(named:)` returning a `Sheet` with resolved cell values
-3. **Cell value resolution** - Convert `RawCellValue` to `CellValue` (resolve shared strings, detect dates)
-4. **Query API** - Range access, row/column iteration, find/filter operations
-5. **Writing support** - `WorkbookWriter` for creating new .xlsx files
+- [x] High-level read API: `Workbook.open(url:)`, `workbook.sheet(named:)`, `Sheet.cell(at:)`
+- [x] `CellValue` resolution (shared strings, numbers, booleans, inline strings, errors, dates via styles)
+- [x] Advanced queries: `Sheet.range(_:)`, `Sheet.column(_:)`, `Sheet.rows(where:)`, `Sheet.find`, `Sheet.findAll`
+- [x] Performance: lazy sheet loading, streaming `RowIterator` for rows; benchmarks added
+- [x] Write API: `WorkbookWriter`, worksheet XML emitting (numbers, strings, booleans, formulas)
+- [x] Write-side styling: `StylesBuilder` for `styles.xml`; style indices threaded into cells (`s` attribute)
+- [x] Round-trip tests for write + styling (bold, fills, borders, dates, large datasets)
 
-See [Cuneiform.swift](Sources/Cuneiform/Cuneiform.swift) doc comments for the target API design.
+### Upcoming Tasks
+
+- [ ] Merged cells on write (`mergeCells`) + readback helpers
+- [ ] Data validation on write (`dataValidations`) with constraints (lists, ranges)
+- [ ] Named ranges (`definedNames`) + query helpers
+- [ ] Hyperlinks and cell comments (read/write minimal)
+- [ ] Charts/drawings metadata parsing; optional write stubs for relationships
+- [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
+- [ ] Release prep: version bump, CI (macOS/Linux), DocC preview, README polish, CHANGELOG
+
+### References
+
+- Read API and queries: `Sources/Cuneiform/SpreadsheetML/Workbook.swift`, `Sheet.swift`
+- Writing: `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift`, `SpreadsheetMLBuilders.swift`
+- Styling: `StylesBuilder` in `SpreadsheetMLBuilders.swift`; `StylesParser.swift` for read-side date detection
+- Tests: `Tests/CuneiformTests/StylingTests.swift`, `WorkbookWriterTests.swift`, `AdvancedQueryTests.swift`, `PerformanceBenchmarks.swift`
+
+---
