@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 120 tests pass.
+**STATUS: GREEN** - All 121 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -40,6 +40,7 @@ Additional write-side features:
 - [x] Data validations: `<dataValidations>` section with list and numeric constraints, including operator and dual-formula support
 - [x] Named ranges: `<definedNames>` emitted in `workbook.xml`
 - [x] Hyperlinks (read-side): `<hyperlinks>` parsed with `ref`, `r:id`, `display`, `tooltip`, `location`
+ - [x] Hyperlinks (write-side): `<hyperlinks>` emitted in worksheet XML; worksheet relationships `_rels/sheetN.xml.rels` include `Type=hyperlink` entries with `TargetMode="External"` for external URLs; internal hyperlinks use `location` only (no relationship)
 
 New validation variants:
 - [x] Decimal validation with `greaterThanOrEqual`
@@ -64,10 +65,12 @@ New validation variants:
  - [x] `Tests/CuneiformTests/HyperlinksReadTests.swift` (parse worksheet `<hyperlink>` entries)
  - [x] `Sources/Cuneiform/SpreadsheetML/WorksheetParser.swift` (hyperlinks parsing)
  - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (hyperlinks exposure via `Sheet.hyperlinks` and `hyperlinks(at:)`)
+ - [x] `Tests/CuneiformTests/HyperlinksWriteTests.swift` (write-side `<hyperlinks>` emission and worksheet `.rels` external hyperlink relationships)
+ - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (worksheet-level `.rels` emission for external hyperlinks; `SheetWriter.addHyperlinkExternal` / `addHyperlinkInternal` APIs)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 120 tests passing including new styling suite, write extras, named ranges, hyperlinks (read-side), expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 121 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 
@@ -336,7 +339,7 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (118/118)
+- [x] **Tests pass**: `swift test` shows all green (121/121)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 

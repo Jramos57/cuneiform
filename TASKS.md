@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 120 tests pass (Dec 18, 2025)
+**Current Verification:** All 121 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -20,6 +20,7 @@ Developer-facing helpers to make parsed data easier to use:
 - [x] `Workbook.definedName(_:)` and `Workbook.definedNameRange(_:)` to fetch named ranges and resolve `Sheet!$A$1:$B$10` into `(sheet, range)`.
  - [x] README updated with examples for these helpers (see Ergonomic Helpers section).
  - [x] Hyperlinks (read-side minimal): parse `<hyperlink>` entries (`ref`, `r:id`, `location`, `display`, `tooltip`) and expose via `Sheet.hyperlinks`.
+ - [x] Hyperlinks (write-side minimal): emit `<hyperlinks>` in worksheet XML and add worksheet relationships `_rels/sheetN.xml.rels` with `Type=hyperlink` + `TargetMode="External"` for external URLs; APIs: `SheetWriter.addHyperlinkExternal(at:url:display:tooltip:)`, `SheetWriter.addHyperlinkInternal(at:location:display:tooltip:)`.
 
 ## Swift Style Requirements
 

@@ -142,7 +142,7 @@ swift build
 swift test
 ```
 
-**Status:** All 118 tests pass.
+**Status:** All 121 tests pass.
 
 ## Components
 
@@ -216,6 +216,26 @@ let atB2 = sheet.validations(at: "B2")
 // Example: check kinds present (e.g., .list, .whole)
 let kinds = Set(v.map(\.kind))
 print(kinds)
+```
+
+### Hyperlinks
+
+```swift
+// External hyperlink
+writer.modifySheet(at: sheetIndex) { sheet in
+    sheet.addHyperlinkExternal(at: "B2",
+                               url: "https://example.com",
+                               display: "Example",
+                               tooltip: "Open example.com")
+}
+
+// Internal hyperlink (to a location within the workbook)
+writer.modifySheet(at: sheetIndex) { sheet in
+    sheet.addHyperlinkInternal(at: "C3",
+                               location: "Sheet2!A1",
+                               display: "Go to Sheet2 A1",
+                               tooltip: "Jump to cell")
+}
 ```
 
 ## Documentation
