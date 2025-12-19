@@ -1,9 +1,11 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1 Complete ✓ / Phase 2 In Progress
+## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 137 tests pass (Dec 18, 2025)
+**Phase 2 Implemented:** December 18, 2025
+**Phase 3 In Progress:** December 18, 2025 (Charts parsing started)
+**Current Verification:** All 143 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -26,6 +28,30 @@ Developer-facing helpers to make parsed data easier to use:
  - [x] Comments (display via VML): emit `/xl/drawings/vmlDrawingN.vml` with legacy VML shapes anchored to each comment; add worksheet `Type=vmlDrawing` relationship and `<legacyDrawing r:id>` element in worksheet XML so Excel renders comment indicators and bubbles.
  - [x] Sheet protection (read-side): parse `<sheetProtection>` element exposing all protection flags and password hash via `Sheet.protection`.
  - [x] Sheet protection (write-side): emit `<sheetProtection>` element in worksheet XML with customizable flags; API: `SheetWriter.protectSheet(password:options:)` with `SheetProtectionOptions` struct supporting `.default`, `.strict`, and `.readonly` presets.
+
+## Phase 3 Advanced Features
+
+### Phase 3.1: Sheet Protection ✓
+Completed (Dec 18, 2025):
+- [x] Sheet protection (read-side): Parse `<sheetProtection>` with 16 flags + password hash
+- [x] Sheet protection (write-side): Emit `<sheetProtection>` with `SheetWriter.protectSheet(password:options:)` API
+- [x] 13 new tests; total 143 tests passing
+
+### Phase 3.2: Charts (In Progress)
+- [x] Chart parser: Parse `/xl/charts/chart*.xml` to extract type, title, series count, data ranges
+- [x] ChartData struct: type (enum: column, bar, line, pie, area, etc.), title, seriesCount, dataRange
+- [x] Content types: Added `.chart` and `.drawing` to ContentType
+- [x] Relationship types: Added `.chart` and `.drawing` to RelationshipType
+- [x] 6 new tests (chart type parsing); total 143 tests passing
+- [ ] **Upcoming**: Integrate charts into WorksheetParser to expose via `Sheet.charts` property
+- [ ] **Upcoming**: Add chart discovery via `/xl/drawings/drawing*.xml` relationships
+- [ ] **Upcoming**: Extended chart data extraction (series names, data ranges, formatting)
+
+### Phase 3.3+: Future Phase 3 Items
+- [ ] Workbook protection (read/write)
+- [ ] Pivot tables (metadata read-side only)
+- [ ] Themes and advanced styling
+- [ ] Conditional formatting
 
 ## Swift Style Requirements
 

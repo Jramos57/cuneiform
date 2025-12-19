@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 137 tests pass.
+**STATUS: GREEN** - All 143 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
-- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
+- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts (basic)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (123/123)
+- [x] Entire test suite passes (143/143)
 
 ---
 
@@ -81,9 +81,23 @@ New validation variants:
  - [x] `Tests/CuneiformTests/SheetProtectionParserTests.swift` (6 tests for read-side protection parsing)
  - [x] `Tests/CuneiformTests/SheetProtectionWriteTests.swift` (7 tests for write-side protection emission and round-trip)
 
+### Phase 3.1: Sheet Protection (Dec 18, 2025) ✓
+- [x] `Sources/Cuneiform/SpreadsheetML/WorksheetParser.swift` (sheet protection parsing from `<sheetProtection>` element)
+- [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (Sheet.protection property)
+- [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (WorksheetBuilder protection support, XML emission)
+- [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (SheetProtectionOptions struct and SheetWriter.protectSheet API)
+- [x] `Tests/CuneiformTests/SheetProtectionParserTests.swift` (6 tests for read-side protection parsing)
+- [x] `Tests/CuneiformTests/SheetProtectionWriteTests.swift` (7 tests for write-side protection emission and round-trip)
+
+### Phase 3.2: Charts - Basic Parser (Dec 18, 2025)
+- [x] `Sources/Cuneiform/SpreadsheetML/ChartParser.swift` (parse `/xl/charts/chart*.xml`)
+- [x] `Sources/Cuneiform/Core/ContentType.swift` (added `.chart`, `.drawing` content types)
+- [x] `Sources/Cuneiform/Core/Relationship.swift` (added `.chart`, `.drawing` relationship types)
+- [x] `Tests/CuneiformTests/ChartParserTests.swift` (6 tests for chart type parsing: column, line, pie, area, bar, unknown)
+
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 137 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write, VML display), sheet protection (read/write), expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 143 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), and Phase 3.1/3.2 (protection read/write, chart parsing)
 
 ---
 
