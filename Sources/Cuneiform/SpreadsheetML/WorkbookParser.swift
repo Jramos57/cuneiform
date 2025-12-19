@@ -27,10 +27,26 @@ public struct WorkbookInfo: Sendable {
     /// All sheets in workbook order
     public let sheets: [SheetInfo]
 
+    /// Defined names (named ranges) declared in the workbook
+    public let definedNames: [DefinedName]
+
     /// Get sheet by name
     public func sheet(named name: String) -> SheetInfo? {
         sheets.first { $0.name == name }
     }
+}
+
+/// A workbook-level defined name (named range)
+///
+/// Represents a `<definedName>` entry from `workbook.xml`. The `refersTo` value
+/// typically has the form `Sheet!$A$1:$B$10` (quotes around sheet name if needed).
+/// Use `Workbook.definedName(_:)` to fetch by name and `Workbook.definedNameRange(_:)`
+/// to split into `(sheet, range)` components.
+public struct DefinedName: Sendable, Equatable {
+    /// The user-facing name of the range (e.g., "SalesData")
+    public let name: String
+    /// The formula-like reference describing the target cells (e.g., "Sheet1!$A$1:$B$10")
+    public let refersTo: String
 }
 
 /// Parser for workbook.xml
@@ -48,7 +64,7 @@ public enum WorkbookParser {
             )
         }
 
-        return WorkbookInfo(sheets: delegate.sheets)
+        return WorkbookInfo(sheets: delegate.sheets, definedNames: delegate.definedNames)
     }
 }
 
@@ -56,7 +72,12 @@ public enum WorkbookParser {
 
 final class _WorkbookParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var sheets: [SheetInfo] = []
+    private(set) var definedNames: [DefinedName] = []
     fileprivate var error: CuneiformError?
+
+    private var inDefinedName = false
+    private var currentDefinedNameName: String = ""
+    private var currentDefinedNameBuffer: String = ""
 
     func parser(
         _ parser: XMLParser,
@@ -65,38 +86,68 @@ final class _WorkbookParser: NSObject, XMLParserDelegate, @unchecked Sendable {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {
-        guard elementName == "sheet" else { return }
+        switch elementName {
+        case "sheet":
+            // Required: name and r:id
+            guard let name = attributeDict["name"], !name.isEmpty else {
+                error = CuneiformError.missingRequiredElement(element: "sheet@name", inPart: "/xl/workbook.xml")
+                parser.abortParsing()
+                return
+            }
 
-        // Required: name and r:id
-        guard let name = attributeDict["name"], !name.isEmpty else {
-            error = CuneiformError.missingRequiredElement(element: "sheet@name", inPart: "/xl/workbook.xml")
-            parser.abortParsing()
-            return
-        }
+            // r:id lives in the relationships namespace
+            guard let rid = attributeDict["r:id"], !rid.isEmpty else {
+                error = CuneiformError.missingRequiredElement(element: "sheet@r:id", inPart: "/xl/workbook.xml")
+                parser.abortParsing()
+                return
+            }
 
-        // r:id lives in the relationships namespace
-        guard let rid = attributeDict["r:id"], !rid.isEmpty else {
-            error = CuneiformError.missingRequiredElement(element: "sheet@r:id", inPart: "/xl/workbook.xml")
-            parser.abortParsing()
-            return
-        }
+            let sheetIdStr = attributeDict["sheetId"] ?? "0"
+            let sheetId = Int(sheetIdStr) ?? 0
 
-        let sheetIdStr = attributeDict["sheetId"] ?? "0"
-        let sheetId = Int(sheetIdStr) ?? 0
+            let stateStr = attributeDict["state"]?.lowercased()
+            let state: SheetState
+            switch stateStr {
+            case nil: state = .visible
+            case "visible": state = .visible
+            case "hidden": state = .hidden
+            case "veryhidden": state = .veryHidden
+            default:
+                // Unknown values treated as visible
+                state = .visible
+            }
 
-        let stateStr = attributeDict["state"]?.lowercased()
-        let state: SheetState
-        switch stateStr {
-        case nil: state = .visible
-        case "visible": state = .visible
-        case "hidden": state = .hidden
-        case "veryhidden": state = .veryHidden
+            sheets.append(SheetInfo(name: name, sheetId: sheetId, relationshipId: rid, state: state))
+
+        case "definedName":
+            inDefinedName = true
+            currentDefinedNameName = attributeDict["name"] ?? ""
+            currentDefinedNameBuffer.removeAll(keepingCapacity: true)
+
         default:
-            // Unknown values treated as visible
-            state = .visible
+            break
         }
+    }
 
-        sheets.append(SheetInfo(name: name, sheetId: sheetId, relationshipId: rid, state: state))
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if inDefinedName {
+            currentDefinedNameBuffer += string
+        }
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        if elementName == "definedName" {
+            inDefinedName = false
+            let refers = currentDefinedNameBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            definedNames.append(DefinedName(name: currentDefinedNameName, refersTo: refers))
+            currentDefinedNameName = ""
+            currentDefinedNameBuffer.removeAll(keepingCapacity: true)
+        }
     }
 
     func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {

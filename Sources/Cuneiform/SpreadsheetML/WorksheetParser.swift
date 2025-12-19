@@ -78,6 +78,7 @@ public struct RawCell: Sendable {
     public let reference: CellReference
     public let value: RawCellValue
     public let styleIndex: Int?  // References styles.xml
+    public let formula: CellFormula?  // Formula if present
 }
 
 /// A parsed row
@@ -97,6 +98,9 @@ public struct WorksheetData: Sendable {
     /// Merged cell ranges
     public let mergedCells: [String]  // "A1:C3" format
 
+    /// Data validations defined in the worksheet
+    public let dataValidations: [DataValidation]
+
     /// Get cell by reference
     public func cell(at ref: CellReference) -> RawCell? {
         rows.lazy.flatMap(\.cells).first { $0.reference == ref }
@@ -105,6 +109,35 @@ public struct WorksheetData: Sendable {
     public func cell(at ref: String) -> RawCell? {
         guard let parsed = CellReference(ref) else { return nil }
         return cell(at: parsed)
+    }
+
+    /// Data validation rule (read-side)
+    ///
+    /// Represents a single `<dataValidation>` entry from a worksheet, including
+    /// its type, whether blanks are allowed, the set of target cell ranges
+    /// (`sqref`), and any associated formulas/operators used to define the rule.
+    /// Use `Sheet.validations(for:)` or `Sheet.validations(at:)` to filter these
+    /// rules by A1 range or single cell.
+    public struct DataValidation: Sendable, Equatable {
+        public enum Kind: String, Sendable {
+            case list
+            case whole
+            case decimal
+            case date
+            case custom
+        }
+        /// Validation kind (e.g., list, whole, decimal, date, custom)
+        public let type: Kind
+        /// Whether blank cells are allowed to pass validation
+        public let allowBlank: Bool
+        /// Space-separated A1 references and ranges this rule applies to (e.g., "A1 A3:B7")
+        public let sqref: String
+        /// First formula/expression (meaning depends on `type` and `op`)
+        public let formula1: String?
+        /// Second formula/expression (only for operators like `between`)
+        public let formula2: String?
+        /// Operator for numeric/date validations (e.g., `between`, `greaterThanOrEqual`)
+        public let op: String?
     }
 }
 
@@ -126,7 +159,8 @@ public enum WorksheetParser {
         return WorksheetData(
             dimension: delegate.dimension,
             rows: delegate.rows,
-            mergedCells: delegate.mergedCells
+            mergedCells: delegate.mergedCells,
+            dataValidations: delegate.dataValidations
         )
     }
 }
@@ -139,6 +173,7 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var dimension: String?
     private(set) var rows: [RawRow] = []
     private(set) var mergedCells: [String] = []
+    private(set) var dataValidations: [WorksheetData.DataValidation] = []
 
     // Row accumulation
     private var currentRowIndex: Int = 0
@@ -148,8 +183,22 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private var currentCellRef: CellReference?
     private var currentCellType: String?
     private var currentCellStyle: Int?
+    private var currentCellFormula: CellFormula?
     private var inValue = false
+    private var inFormula = false
     private var valueBuffer = ""
+    private var formulaBuffer = ""
+
+    // Data validation accumulation
+    private var inDataValidation = false
+    private var currentDVType: WorksheetData.DataValidation.Kind = .whole
+    private var currentDVAllowBlank: Bool = true
+    private var currentDVSqref: String = ""
+    private var currentDVOp: String?
+    private var inFormula1 = false
+    private var inFormula2 = false
+    private var formula1Buffer = ""
+    private var formula2Buffer = ""
 
     func parser(
         _ parser: XMLParser,
@@ -187,9 +236,33 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             inValue = true
             valueBuffer.removeAll(keepingCapacity: true)
 
+        case "f":
+            inFormula = true
+            formulaBuffer.removeAll(keepingCapacity: true)
+
         case "mergeCell":
             if let ref = attributeDict["ref"], !ref.isEmpty {
                 mergedCells.append(ref)
+            }
+
+        case "dataValidation":
+            inDataValidation = true
+            let typeStr = attributeDict["type"] ?? "whole"
+            currentDVType = WorksheetData.DataValidation.Kind(rawValue: typeStr) ?? .whole
+            currentDVAllowBlank = (attributeDict["allowBlank"] == "1")
+            currentDVSqref = attributeDict["sqref"] ?? ""
+            currentDVOp = attributeDict["operator"]
+
+        case "formula1":
+            if inDataValidation {
+                inFormula1 = true
+                formula1Buffer.removeAll(keepingCapacity: true)
+            }
+
+        case "formula2":
+            if inDataValidation {
+                inFormula2 = true
+                formula2Buffer.removeAll(keepingCapacity: true)
             }
 
         default:
@@ -200,6 +273,13 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     func parser(_ parser: XMLParser, foundCharacters string: String) {
         if inValue {
             valueBuffer += string
+        }
+        if inFormula {
+            formulaBuffer += string
+        }
+        if inDataValidation {
+            if inFormula1 { formula1Buffer += string }
+            if inFormula2 { formula2Buffer += string }
         }
     }
 
@@ -212,6 +292,12 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
         switch elementName {
         case "v":
             inValue = false
+
+        case "f":
+            inFormula = false
+            if !formulaBuffer.isEmpty {
+                currentCellFormula = CellFormula(formulaBuffer)
+            }
 
         case "c":
             guard let ref = currentCellRef else { break }
@@ -244,16 +330,45 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
                 }
             }
 
-            currentCells.append(RawCell(reference: ref, value: value, styleIndex: s))
+            currentCells.append(RawCell(reference: ref, value: value, styleIndex: s, formula: currentCellFormula))
             // Reset cell state
             currentCellRef = nil
             currentCellType = nil
             currentCellStyle = nil
+            currentCellFormula = nil
             valueBuffer.removeAll(keepingCapacity: true)
+            formulaBuffer.removeAll(keepingCapacity: true)
 
         case "row":
             rows.append(RawRow(index: currentRowIndex, cells: currentCells))
             currentCells.removeAll(keepingCapacity: true)
+
+        case "formula1":
+            inFormula1 = false
+
+        case "formula2":
+            inFormula2 = false
+
+        case "dataValidation":
+            inDataValidation = false
+            let f1 = formula1Buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let f2 = formula2Buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dv = WorksheetData.DataValidation(
+                type: currentDVType,
+                allowBlank: currentDVAllowBlank,
+                sqref: currentDVSqref,
+                formula1: f1.isEmpty ? nil : f1,
+                formula2: f2.isEmpty ? nil : f2,
+                op: currentDVOp
+            )
+            dataValidations.append(dv)
+            // Reset DV buffers
+            formula1Buffer.removeAll(keepingCapacity: true)
+            formula2Buffer.removeAll(keepingCapacity: true)
+            currentDVSqref = ""
+            currentDVOp = nil
+            currentDVAllowBlank = true
+            currentDVType = .whole
 
         default:
             break
