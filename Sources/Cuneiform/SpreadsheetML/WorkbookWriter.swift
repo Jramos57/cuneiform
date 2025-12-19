@@ -1,5 +1,112 @@
 import Foundation
 
+/// Sheet protection options for customizing which operations are allowed
+public struct SheetProtectionOptions: Sendable {
+    public var formatCells: Bool = true
+    public var formatColumns: Bool = true
+    public var formatRows: Bool = true
+    public var insertColumns: Bool = true
+    public var insertRows: Bool = true
+    public var insertHyperlinks: Bool = true
+    public var deleteColumns: Bool = true
+    public var deleteRows: Bool = true
+    public var selectLockedCells: Bool = true
+    public var selectUnlockedCells: Bool = true
+    public var sort: Bool = true
+    public var autoFilter: Bool = true
+    public var pivotTables: Bool = true
+
+    public init(
+        formatCells: Bool = true,
+        formatColumns: Bool = true,
+        formatRows: Bool = true,
+        insertColumns: Bool = true,
+        insertRows: Bool = true,
+        insertHyperlinks: Bool = true,
+        deleteColumns: Bool = true,
+        deleteRows: Bool = true,
+        selectLockedCells: Bool = true,
+        selectUnlockedCells: Bool = true,
+        sort: Bool = true,
+        autoFilter: Bool = true,
+        pivotTables: Bool = true
+    ) {
+        self.formatCells = formatCells
+        self.formatColumns = formatColumns
+        self.formatRows = formatRows
+        self.insertColumns = insertColumns
+        self.insertRows = insertRows
+        self.insertHyperlinks = insertHyperlinks
+        self.deleteColumns = deleteColumns
+        self.deleteRows = deleteRows
+        self.selectLockedCells = selectLockedCells
+        self.selectUnlockedCells = selectUnlockedCells
+        self.sort = sort
+        self.autoFilter = autoFilter
+        self.pivotTables = pivotTables
+    }
+
+    /// Default: allow all operations (locked content, no protection)
+    public static let `default` = SheetProtectionOptions()
+
+    /// Strict: prevent all modifications
+    public static let strict = SheetProtectionOptions(
+        formatCells: false,
+        formatColumns: false,
+        formatRows: false,
+        insertColumns: false,
+        insertRows: false,
+        insertHyperlinks: false,
+        deleteColumns: false,
+        deleteRows: false,
+        selectLockedCells: true,
+        selectUnlockedCells: true,
+        sort: false,
+        autoFilter: false,
+        pivotTables: false
+    )
+
+    /// Readonly: allow only viewing and navigating
+    public static let readonly = SheetProtectionOptions(
+        formatCells: false,
+        formatColumns: false,
+        formatRows: false,
+        insertColumns: false,
+        insertRows: false,
+        insertHyperlinks: false,
+        deleteColumns: false,
+        deleteRows: false,
+        selectLockedCells: true,
+        selectUnlockedCells: false,
+        sort: false,
+        autoFilter: false,
+        pivotTables: false
+    )
+
+    fileprivate func toProtection(passwordHash: String?) -> WorksheetData.Protection {
+        WorksheetData.Protection(
+            sheet: true,
+            content: true,
+            objects: false,
+            scenarios: false,
+            formatCells: formatCells,
+            formatColumns: formatColumns,
+            formatRows: formatRows,
+            insertColumns: insertColumns,
+            insertRows: insertRows,
+            insertHyperlinks: insertHyperlinks,
+            deleteColumns: deleteColumns,
+            deleteRows: deleteRows,
+            selectLockedCells: selectLockedCells,
+            selectUnlockedCells: selectUnlockedCells,
+            sort: sort,
+            autoFilter: autoFilter,
+            pivotTables: pivotTables,
+            passwordHash: passwordHash
+        )
+    }
+}
+
 /// High-level API for creating .xlsx workbooks
 public struct WorkbookWriter {
     public struct SheetWriter {
@@ -104,6 +211,12 @@ public struct WorkbookWriter {
             var cb = commentsBuilder ?? CommentsBuilder()
             cb.addComment(at: reference, text: text, author: author)
             commentsBuilder = cb
+        }
+
+        /// Protect this sheet with optional password and specified protection options
+        public mutating func protectSheet(password: String? = nil, options: SheetProtectionOptions = .default) {
+            let prot = options.toProtection(passwordHash: password)
+            builder.setProtection(prot)
         }
         
         fileprivate func build() -> Data {

@@ -161,6 +161,52 @@ public struct WorksheetData: Sendable {
         /// Internal location (e.g., "Sheet2!A1") if present
         public let location: String?
     }
+
+    /// Sheet protection metadata
+    ///
+    /// Represents `<sheetProtection>` element defining which worksheet operations are locked.
+    /// When a sheet is protected, users cannot perform locked operations without the password.
+    public struct Protection: Sendable, Equatable {
+        /// Whether sheet content is protected (default: true when protection is enabled)
+        public let sheet: Bool
+        /// Whether cell content is protected (default: true)
+        public let content: Bool
+        /// Whether object protection is enabled
+        public let objects: Bool
+        /// Whether scenarios are protected
+        public let scenarios: Bool
+        /// Whether users can format cells
+        public let formatCells: Bool
+        /// Whether users can format columns
+        public let formatColumns: Bool
+        /// Whether users can format rows
+        public let formatRows: Bool
+        /// Whether users can insert columns
+        public let insertColumns: Bool
+        /// Whether users can insert rows
+        public let insertRows: Bool
+        /// Whether users can insert hyperlinks
+        public let insertHyperlinks: Bool
+        /// Whether users can delete columns
+        public let deleteColumns: Bool
+        /// Whether users can delete rows
+        public let deleteRows: Bool
+        /// Whether users can select locked cells
+        public let selectLockedCells: Bool
+        /// Whether users can select unlocked cells
+        public let selectUnlockedCells: Bool
+        /// Whether users can sort
+        public let sort: Bool
+        /// Whether users can use autofilter
+        public let autoFilter: Bool
+        /// Whether users can use pivot tables
+        public let pivotTables: Bool
+        /// Password hash (if present in XML; empty string if unprotected)
+        public let passwordHash: String?
+    }
+
+    /// Sheet protection state (optional)
+    public var protection: Protection?
 }
 
 /// Parser for worksheet XML
@@ -178,13 +224,17 @@ public enum WorksheetParser {
             )
         }
 
-        return WorksheetData(
+        var result = WorksheetData(
             dimension: delegate.dimension,
             rows: delegate.rows,
             mergedCells: delegate.mergedCells,
             dataValidations: delegate.dataValidations,
             hyperlinks: delegate.hyperlinks
         )
+        if let protection = delegate.protection {
+            result.protection = protection
+        }
+        return result
     }
 }
 
@@ -198,6 +248,7 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var mergedCells: [String] = []
     private(set) var dataValidations: [WorksheetData.DataValidation] = []
     private(set) var hyperlinks: [WorksheetData.Hyperlink] = []
+    private(set) var protection: WorksheetData.Protection?
 
     // Row accumulation
     private var currentRowIndex: Int = 0
@@ -301,6 +352,48 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             let tooltip = attributeDict["tooltip"]
             let location = attributeDict["location"]
             hyperlinks.append(WorksheetData.Hyperlink(ref: ref, relationshipId: rid, display: display, tooltip: tooltip, location: location))
+
+        case "sheetProtection":
+            // Parse protection flags
+            let sheet = (attributeDict["sheet"] == "1")
+            let content = (attributeDict["content"] == "1")
+            let objects = (attributeDict["objects"] == "1")
+            let scenarios = (attributeDict["scenarios"] == "1")
+            let formatCells = (attributeDict["formatCells"] != "0")  // default true
+            let formatColumns = (attributeDict["formatColumns"] != "0")
+            let formatRows = (attributeDict["formatRows"] != "0")
+            let insertColumns = (attributeDict["insertColumns"] != "0")
+            let insertRows = (attributeDict["insertRows"] != "0")
+            let insertHyperlinks = (attributeDict["insertHyperlinks"] != "0")
+            let deleteColumns = (attributeDict["deleteColumns"] != "0")
+            let deleteRows = (attributeDict["deleteRows"] != "0")
+            let selectLockedCells = (attributeDict["selectLockedCells"] != "0")
+            let selectUnlockedCells = (attributeDict["selectUnlockedCells"] != "0")
+            let sort = (attributeDict["sort"] != "0")
+            let autoFilter = (attributeDict["autoFilter"] != "0")
+            let pivotTables = (attributeDict["pivotTables"] != "0")
+            let passwordHash = attributeDict["password"]
+            
+            protection = WorksheetData.Protection(
+                sheet: sheet,
+                content: content,
+                objects: objects,
+                scenarios: scenarios,
+                formatCells: formatCells,
+                formatColumns: formatColumns,
+                formatRows: formatRows,
+                insertColumns: insertColumns,
+                insertRows: insertRows,
+                insertHyperlinks: insertHyperlinks,
+                deleteColumns: deleteColumns,
+                deleteRows: deleteRows,
+                selectLockedCells: selectLockedCells,
+                selectUnlockedCells: selectUnlockedCells,
+                sort: sort,
+                autoFilter: autoFilter,
+                pivotTables: pivotTables,
+                passwordHash: passwordHash
+            )
 
         default:
             break

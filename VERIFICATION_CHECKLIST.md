@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 124 tests pass.
+**STATUS: GREEN** - All 137 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -74,10 +74,16 @@ New validation variants:
  - [x] `Sources/Cuneiform/Core/ContentType.swift` (comments content type)
  - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (comments part overrides and relationships)
  - [x] `Tests/CuneiformTests/CommentsParserTests.swift`, `Tests/CuneiformTests/CommentsWriteTests.swift`
+ - [x] `Sources/Cuneiform/SpreadsheetML/WorksheetParser.swift` (sheet protection parsing from `<sheetProtection>` element)
+ - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (Sheet.protection property)
+ - [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (WorksheetBuilder protection support, XML emission)
+ - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (SheetProtectionOptions struct and SheetWriter.protectSheet API)
+ - [x] `Tests/CuneiformTests/SheetProtectionParserTests.swift` (6 tests for read-side protection parsing)
+ - [x] `Tests/CuneiformTests/SheetProtectionWriteTests.swift` (7 tests for write-side protection emission and round-trip)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 124 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write, VML display), expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 137 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write, VML display), sheet protection (read/write), expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 

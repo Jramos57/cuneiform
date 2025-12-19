@@ -142,7 +142,7 @@ swift build
 swift test
 ```
 
-**Status:** All 124 tests pass.
+**Status:** All 137 tests pass.
 
 ## Components
 
@@ -228,6 +228,37 @@ writer.modifySheet(at: sheetIndex) { sheet in
                                display: "Example",
                                tooltip: "Open example.com")
 }
+
+### Sheet Protection
+
+```swift
+// Protect a sheet with optional password
+writer.modifySheet(at: sheetIndex) { sheet in
+    sheet.protectSheet(password: "secret123")
+}
+
+// Use preset options: default, strict (locks all), readonly
+writer.modifySheet(at: sheetIndex) { sheet in
+    sheet.protectSheet(password: "pwd", options: .strict)
+}
+
+// Custom protection options
+writer.modifySheet(at: sheetIndex) { sheet in
+    var options = SheetProtectionOptions()
+    options.formatCells = false   // Prevent cell formatting
+    options.insertRows = false    // Prevent row insertion
+    options.deleteColumns = true  // Allow column deletion
+    sheet.protectSheet(password: "pwd", options: options)
+}
+
+// Read protection state
+let workbook = try Workbook.open(url: url)
+let sheet = try workbook.sheet(at: 0)
+if let protection = sheet.protection {
+    print("Sheet is protected")
+    if protection.passwordHash != nil { print("Password-protected") }
+}
+```
 
 ### Comments
 

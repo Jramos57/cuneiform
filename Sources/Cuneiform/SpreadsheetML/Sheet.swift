@@ -23,6 +23,9 @@ public struct Sheet: Sendable {
     /// Comments (notes) defined in the worksheet
     public var comments: [Comment] { commentsList }
 
+    /// Sheet protection state (if any)
+    public var protection: WorksheetData.Protection? { rawData.protection }
+
     /// Get data validations intersecting a given A1 range (e.g., "A1:C3").
     public func validations(for range: String) -> [WorksheetData.DataValidation] {
         guard let (start, end) = parseRange(range) else { return [] }

@@ -209,6 +209,7 @@ public struct WorksheetBuilder {
 
     private var hyperlinks: [HyperlinkEntry] = []
     private var nextHyperlinkRelId: Int = 1
+    private var protection: WorksheetData.Protection?
     
     public init(sharedStringsBuilder: SharedStringsBuilder? = nil) {
         self.sharedStringsBuilder = sharedStringsBuilder
@@ -239,6 +240,11 @@ public struct WorksheetBuilder {
     /// Add an internal hyperlink (writes a `<hyperlink location=...>`)
     public mutating func addHyperlinkInternal(at reference: CellReference, location: String, display: String? = nil, tooltip: String? = nil) {
         hyperlinks.append(HyperlinkEntry(ref: reference, display: display, tooltip: tooltip, location: location, externalURL: nil, relationshipId: nil))
+    }
+
+    /// Set sheet protection with all flags
+    public mutating func setProtection(_ protection: WorksheetData.Protection) {
+        self.protection = protection
     }
     
     /// Build the XML data
@@ -352,6 +358,13 @@ public struct WorksheetBuilder {
             xml += """
 
             <legacyDrawing r:id="\(legacyRid)"/>
+            """
+        }
+
+        if let prot = protection {
+            xml += """
+
+            <sheetProtection sheet="\(prot.sheet ? "1" : "0")" content="\(prot.content ? "1" : "0")" objects="\(prot.objects ? "1" : "0")" scenarios="\(prot.scenarios ? "1" : "0")" formatCells="\(prot.formatCells ? "0" : "1")" formatColumns="\(prot.formatColumns ? "0" : "1")" formatRows="\(prot.formatRows ? "0" : "1")" insertColumns="\(prot.insertColumns ? "0" : "1")" insertRows="\(prot.insertRows ? "0" : "1")" insertHyperlinks="\(prot.insertHyperlinks ? "0" : "1")" deleteColumns="\(prot.deleteColumns ? "0" : "1")" deleteRows="\(prot.deleteRows ? "0" : "1")" selectLockedCells="\(prot.selectLockedCells ? "0" : "1")" selectUnlockedCells="\(prot.selectUnlockedCells ? "0" : "1")" sort="\(prot.sort ? "0" : "1")" autoFilter="\(prot.autoFilter ? "0" : "1")" pivotTables="\(prot.pivotTables ? "0" : "1")"\(prot.passwordHash != nil ? " password=\"\(xmlEscape(prot.passwordHash!))\"" : "")/>
             """
         }
 
