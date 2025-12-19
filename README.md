@@ -260,6 +260,34 @@ if let protection = sheet.protection {
 }
 ```
 
+### Workbook Protection
+
+```swift
+// Protect workbook structure to prevent sheet insertion/deletion
+var writer = WorkbookWriter()
+_ = writer.addSheet(named: "Sheet1")
+writer.protectWorkbook(password: "secret")
+
+// Use preset options: default (no protection), structureOnly, strict
+writer.protectWorkbook(options: .structureOnly)  // Protect structure only
+writer.protectWorkbook(options: .strict)         // Protect both structure and windows
+
+// Custom protection options
+var options = WorkbookProtectionOptions()
+options.structure = true   // Prevent sheet operations
+options.windows = true     // Prevent window/size changes
+writer.protectWorkbook(password: "pwd", options: options)
+
+// Read workbook protection state
+let workbook = try Workbook.open(url: url)
+if let protection = workbook.protection {
+    print("Workbook is protected")
+    if protection.structureProtected { print("Structure protected") }
+    if protection.windowsProtected { print("Windows protected") }
+    if protection.passwordHash != nil { print("Password-protected") }
+}
+```
+
 ### Charts
 
 ```swift

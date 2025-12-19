@@ -1,5 +1,33 @@
 import Foundation
 
+/// Workbook protection options for structure and windows
+public struct WorkbookProtectionOptions: Sendable {
+    public var structure: Bool = false
+    public var windows: Bool = false
+
+    public init(structure: Bool = false, windows: Bool = false) {
+        self.structure = structure
+        self.windows = windows
+    }
+
+    /// Default: no protection
+    public static let `default` = WorkbookProtectionOptions()
+
+    /// Strict: protect both structure and windows
+    public static let strict = WorkbookProtectionOptions(structure: true, windows: true)
+
+    /// Structure only: prevent sheet insertion/deletion
+    public static let structureOnly = WorkbookProtectionOptions(structure: true, windows: false)
+
+    fileprivate func toProtection(passwordHash: String?) -> WorkbookProtection {
+        WorkbookProtection(
+            structureProtected: structure,
+            windowsProtected: windows,
+            passwordHash: passwordHash
+        )
+    }
+}
+
 /// Sheet protection options for customizing which operations are allowed
 public struct SheetProtectionOptions: Sendable {
     public var formatCells: Bool = true
@@ -250,6 +278,7 @@ public struct WorkbookWriter {
     private var sheets: [SheetWriter] = []
     private var stylesBuilder: StylesBuilder
     private var namedRanges: [(name: String, refersTo: String)] = []
+    private var workbookProtection: WorkbookProtection?
     
     public init() {
         self.stylesBuilder = StylesBuilder()
@@ -281,6 +310,12 @@ public struct WorkbookWriter {
     /// Add a named range (definedName)
     public mutating func addNamedRange(name: String, refersTo: String) {
         namedRanges.append((name, refersTo))
+    }
+
+    /// Protect the workbook structure and/or windows with optional password
+    public mutating func protectWorkbook(password: String? = nil, options: WorkbookProtectionOptions = .default) {
+        let prot = options.toProtection(passwordHash: password)
+        workbookProtection = prot
     }
     
     /// Save the workbook to a file
@@ -339,6 +374,11 @@ public struct WorkbookWriter {
         // Add defined names
         for (name, refersTo) in namedRanges {
             workbookBuilder.addDefinedName(name: name, refersTo: refersTo)
+        }
+
+        // Add workbook protection
+        if let protection = workbookProtection {
+            workbookBuilder.setProtection(protection)
         }
         
         zipWriter.addFile(path: "xl/workbook.xml", data: workbookBuilder.build())

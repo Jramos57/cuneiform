@@ -30,6 +30,9 @@ public struct WorkbookInfo: Sendable {
     /// Defined names (named ranges) declared in the workbook
     public let definedNames: [DefinedName]
 
+    /// Workbook protection (if any)
+    public let protection: WorkbookProtection?
+
     /// Get sheet by name
     public func sheet(named name: String) -> SheetInfo? {
         sheets.first { $0.name == name }
@@ -49,6 +52,25 @@ public struct DefinedName: Sendable, Equatable {
     public let refersTo: String
 }
 
+/// Workbook-level protection settings
+///
+/// Represents a `<workbookProtection>` element from `workbook.xml`.
+/// These settings control sheet visibility, workbook window behavior, and structure changes.
+public struct WorkbookProtection: Sendable, Equatable {
+    /// Whether users can modify sheet structure (insert/delete/rename sheets)
+    public let structureProtected: Bool
+    /// Whether users can modify window settings
+    public let windowsProtected: Bool
+    /// Password hash (if present)
+    public let passwordHash: String?
+
+    public init(structureProtected: Bool = false, windowsProtected: Bool = false, passwordHash: String? = nil) {
+        self.structureProtected = structureProtected
+        self.windowsProtected = windowsProtected
+        self.passwordHash = passwordHash
+    }
+}
+
 /// Parser for workbook.xml
 public enum WorkbookParser {
     public static func parse(data: Data) throws(CuneiformError) -> WorkbookInfo {
@@ -64,7 +86,7 @@ public enum WorkbookParser {
             )
         }
 
-        return WorkbookInfo(sheets: delegate.sheets, definedNames: delegate.definedNames)
+        return WorkbookInfo(sheets: delegate.sheets, definedNames: delegate.definedNames, protection: delegate.protection)
     }
 }
 
@@ -73,6 +95,7 @@ public enum WorkbookParser {
 final class _WorkbookParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var sheets: [SheetInfo] = []
     private(set) var definedNames: [DefinedName] = []
+    private(set) var protection: WorkbookProtection?
     fileprivate var error: CuneiformError?
 
     private var inDefinedName = false
@@ -118,6 +141,13 @@ final class _WorkbookParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             }
 
             sheets.append(SheetInfo(name: name, sheetId: sheetId, relationshipId: rid, state: state))
+
+        case "workbookProtection":
+            // Excel protection attributes: sheet (lock structure), windows (lock window), password
+            let structureProtected = (attributeDict["sheet"] != "0")
+            let windowsProtected = (attributeDict["windows"] != "0")
+            let passwordHash = attributeDict["password"]
+            protection = WorkbookProtection(structureProtected: structureProtected, windowsProtected: windowsProtected, passwordHash: passwordHash)
 
         case "definedName":
             inDefinedName = true

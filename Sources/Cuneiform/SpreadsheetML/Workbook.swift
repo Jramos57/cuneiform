@@ -11,6 +11,9 @@ public struct Workbook: Sendable {
     /// All sheets in the workbook
     public var sheets: [SheetInfo] { workbookInfo.sheets }
 
+    /// Workbook-level protection (if any)
+    public var protection: WorkbookProtection? { workbookInfo.protection }
+
     /// Open an .xlsx file from a URL
     public static func open(url: URL) throws(CuneiformError) -> Workbook {
         let pkg: OPCPackage

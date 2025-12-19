@@ -75,6 +75,7 @@ public struct WorkbookBuilder {
         }
     }
     private var definedNames: [DefinedName] = []
+    private var workbookProtection: WorkbookProtection?
     
     public init() {}
     
@@ -87,12 +88,36 @@ public struct WorkbookBuilder {
     public mutating func addDefinedName(name: String, refersTo: String) {
         definedNames.append(DefinedName(name: name, refersTo: refersTo))
     }
+
+    /// Set workbook protection
+    public mutating func setProtection(_ protection: WorkbookProtection) {
+        self.workbookProtection = protection
+    }
     
     /// Build the XML data
     public func build() -> Data {
         var xml = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+        """
+        
+        // Add workbook protection if present
+        if let protection = workbookProtection {
+            xml += "\n<workbookProtection"
+            if protection.structureProtected {
+                xml += " sheet=\"1\""
+            }
+            if protection.windowsProtected {
+                xml += " windows=\"1\""
+            }
+            if let passwordHash = protection.passwordHash {
+                xml += " password=\"\(xmlEscape(passwordHash))\""
+            }
+            xml += "/>"
+        }
+        
+        xml += """
+        
         <sheets>
         """
         

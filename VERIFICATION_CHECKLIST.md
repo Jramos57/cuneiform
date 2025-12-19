@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 146 tests pass.
+**STATUS: GREEN** - All 160 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
-- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts (basic)
+- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts, Workbook Protection
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (146/146)
+- [x] Entire test suite passes (160/160)
 
 ---
 
@@ -89,7 +89,7 @@ New validation variants:
 - [x] `Tests/CuneiformTests/SheetProtectionParserTests.swift` (6 tests for read-side protection parsing)
 - [x] `Tests/CuneiformTests/SheetProtectionWriteTests.swift` (7 tests for write-side protection emission and round-trip)
 
-### Phase 3.2: Charts - Basic Parser (Dec 18, 2025)
+### Phase 3.2: Charts - Basic Parser (Dec 18, 2025) ✓
 - [x] `Sources/Cuneiform/SpreadsheetML/ChartParser.swift` (parse `/xl/charts/chart*.xml`)
 - [x] `Sources/Cuneiform/Core/ContentType.swift` (added `.chart`, `.drawing` content types)
 - [x] `Sources/Cuneiform/Core/Relationship.swift` (added `.chart`, `.drawing` relationship types)
@@ -98,9 +98,17 @@ New validation variants:
 - [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (integrated chart discovery via relationships)
 - [x] `Tests/CuneiformTests/ChartIntegrationTests.swift` (3 tests for chart discovery and integration)
 
+### Phase 3.3: Workbook Protection (Dec 18, 2025) ✓
+- [x] `Sources/Cuneiform/SpreadsheetML/WorkbookParser.swift` (parse `<workbookProtection>` element with sheet/windows/password attributes)
+- [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (protection property exposure)
+- [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (WorkbookBuilder.setProtection() and XML emission)
+- [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (WorkbookProtectionOptions struct and protectWorkbook API)
+- [x] `Tests/CuneiformTests/WorkbookProtectionParserTests.swift` (6 tests for read-side protection parsing)
+- [x] `Tests/CuneiformTests/WorkbookProtectionWriteTests.swift` (8 tests for write-side protection and round-trip)
+
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 146 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), and Phase 3.1/3.2 (protection read/write, chart parsing and discovery)
+- [x] `swift test` succeeds: 160 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection)
 
 ---
 
