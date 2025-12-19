@@ -58,6 +58,8 @@ New validation variants:
 - [x] `Tests/CuneiformTests/DataValidationReadTests.swift` (read data validations from worksheet)
  - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (ergonomic helpers `validations(for:)`, `validations(at:)`)
  - [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (helpers `definedName(_:)`, `definedNameRange(_:)`)
+ - [x] `Tests/CuneiformTests/DataValidationHelpersTests.swift` (tests for `Sheet.validations(for:)` and `Sheet.validations(at:)`)
+ - [x] `README.md` (added ergonomic examples for named ranges and data validations)
 
 ### Verification
 - [x] `swift build` succeeds

@@ -18,6 +18,7 @@ See [VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md) for detailed status.
 Developer-facing helpers to make parsed data easier to use:
 - [x] `Sheet.validations(for:)` and `Sheet.validations(at:)` to query data validations by A1 range or single cell.
 - [x] `Workbook.definedName(_:)` and `Workbook.definedNameRange(_:)` to fetch named ranges and resolve `Sheet!$A$1:$B$10` into `(sheet, range)`.
+ - [x] README updated with examples for these helpers (see Ergonomic Helpers section).
 
 ## Swift Style Requirements
 
