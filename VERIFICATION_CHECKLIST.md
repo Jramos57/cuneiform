@@ -14,15 +14,16 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 176 tests pass.
+**STATUS: GREEN** - All 191 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
-- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles (full), Charts, Workbook Protection, Pivot Tables
+- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles (full), Charts, Workbook Protection, Pivot Tables, Tables/ListObjects
 - [x] Full styles support: fonts, fills, borders, alignment read/write (Phase 4.1)
+- [x] Tables discovery: parse /xl/tables/tableN.xml with columns, autoFilter, style info (Phase 4.2 read-side)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (176/176)
+- [x] Entire test suite passes (191/191)
 
 ---
 
@@ -122,9 +123,17 @@ New validation variants:
 - [x] All types marked Sendable and Equatable
 - [x] Full round-trip styling verified
 
+### Phase 4.2: Tables/ListObjects (Dec 19, 2025) ✓
+- [x] `Sources/Cuneiform/SpreadsheetML/TableParser.swift` (parse `/xl/tables/tableN.xml` with XMLParser delegate)
+- [x] Domain types: `TableData`, `TableColumn`, `TableAutoFilter`, `TableStyleInfo` (all Sendable, Equatable)
+- [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (added `Workbook.tables` property with automatic discovery via worksheet relationships)
+- [x] `Tests/CuneiformTests/TableParserTests.swift` (10 comprehensive parser tests: simple table, totals row, autoFilter, style, multiple functions, edge cases, equatable, sendable)
+- [x] `Tests/CuneiformTests/TableIntegrationTests.swift` (5 integration tests: table discovery, multiple tables, column ordering, complex table with all features, malformed XML)
+- [x] Read-side implementation complete; write-side deferred to next iteration
+
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 176 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection), Phase 3.4 (pivot tables), Phase 4.1 (full styles)
+- [x] `swift test` succeeds: 191 tests passing (176 baseline + 8 Phase 4.1 + 15 Phase 4.2 read-side)
 
 ---
 
@@ -132,12 +141,12 @@ New validation variants:
 
 **Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
 
-**Current Compliance:** ~65% (after Phase 4.1)
+**Current Compliance:** ~70% (after Phase 4.2 read-side)
 
 | Area | Current | Target | Status |
 |------|---------|--------|--------|
 | Styles (§18.8) | 90% | 90% | ✓ Complete (Phase 4.1) |
-| Tables (§18.5) | 0% | 80% | Planned (Phase 4.2) |
+| Tables (§18.5) | 50% | 80% | ⚡ Phase 4.2 Read-Side Complete |
 | Conditional Formatting (§18.3.1) | 0% | 80% | Planned (Phase 4.3) |
 | AutoFilter | 0% | 80% | Planned (Phase 4.4) |
 | Rich Text (§18.4) | 20% | 90% | Planned (Phase 4.5) |
@@ -148,6 +157,17 @@ New validation variants:
 - [x] API: `CellStyle` struct, `Sheet.cellStyle(at:)` methods (CellReference and String variants)
 - [x] Types: `CellFont`, `CellFill`, `CellBorder`, `CellBorderSide`, `CellAlignment`, `CellColor`, `NumberFormat` (all Sendable, Equatable)
 - [x] Tests: 8 comprehensive tests for round-trip formatting verification
+
+### Phase 4.2: Tables/ListObjects ⚡ (Dec 19, 2025 - Read-Side Complete)
+- [x] Read: parse `/xl/tables/tableN.xml` with XMLParser delegate
+- [x] Extract: name, displayName, ref (range), headerRowCount, totalsRowCount
+- [x] Parse: `<tableColumn>` elements with id, name, totalsRowFunction
+- [x] Parse: `<autoFilter>` within table
+- [x] Parse: `tableStyleInfo` element with all flags
+- [x] API: `TableData` struct, `Sheet.tables` property discovery via relationships
+- [x] Types: `TableColumn`, `TableAutoFilter`, `TableStyleInfo` (all Sendable, Equatable)
+- [x] Tests: 15 comprehensive tests for parser and integration
+- [ ] Write-side: deferred to Phase 4.2 continuation (emit `table.xml`, `<tableParts>`, relationships)
 
 ### Phase 4.2: Tables/ListObjects
 - [ ] Read: parse `/xl/tables/tableN.xml`

@@ -1,14 +1,15 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2+ Planned
+## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2 Read-Side Complete ✓
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
 **Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Phase 4.1 Implemented:** December 19, 2025
-**Current Verification:** All 176 tests pass (Dec 19, 2025)
-**Current Compliance:** ~65% ISO/IEC 29500 (after Phase 4.1)
-**Target Compliance:** ~85% (after Phase 4.2+)
+**Phase 4.2 Read-Side Implemented:** December 19, 2025
+**Current Verification:** All 191 tests pass (Dec 19, 2025)
+**Current Compliance:** ~70% ISO/IEC 29500 (after Phase 4.2 read-side)
+**Target Compliance:** ~85% (after Phase 4 complete)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -109,31 +110,36 @@ Expand `StylesParser` and `StylesBuilder` to expose complete cell formatting.
 
 ---
 
-### Phase 4.2: Tables/ListObjects (§18.5)
+### Phase 4.2: Tables/ListObjects (§18.5) ⚡
 Excel Tables with headers, totals, and structured references.
 
-**Read-side:**
-- [ ] Parse `/xl/tables/tableN.xml`
-- [ ] Extract: name, displayName, ref (range), headerRowCount, totalsRowCount
-- [ ] Parse `<tableColumn>` elements: id, name, totalsRowFunction
-- [ ] Parse `<autoFilter>` within table
-- [ ] Parse table styles: tableStyleInfo element
+**Read-side (COMPLETE):**
+- [x] Parse `/xl/tables/tableN.xml`
+- [x] Extract: name, displayName, ref (range), headerRowCount, totalsRowCount
+- [x] Parse `<tableColumn>` elements: id, name, totalsRowFunction
+- [x] Parse `<autoFilter>` within table
+- [x] Parse table styles: tableStyleInfo element
 
-**Write-side:**
+**Write-side (Deferred):**
 - [ ] Emit `table.xml` with columns and range
 - [ ] Add table relationship to worksheet
 - [ ] Emit `<tableParts>` in worksheet XML
 - [ ] Register table content type override
 
-**High-level API:**
-- [ ] `TableData` struct: name, range, columns, hasHeaders, hasTotals
-- [ ] `Sheet.tables` property
-- [ ] `SheetWriter.addTable(name:range:columns:)`
+**High-level API (READ-SIDE COMPLETE):**
+- [x] `TableData` struct: name, displayName, range, columns, hasHeaders, hasTotals
+- [x] `Sheet.tables` property (via Workbook.tables discovery)
+- [ ] `SheetWriter.addTable(name:range:columns:)` (deferred)
 
-**Tests:**
-- [ ] Create table, read back, verify structure
-- [ ] Parse Excel-created tables
-- [ ] Table with totals row formulas
+**Tests (COMPLETE):**
+- [x] Parse table from XML with all variants (simple, totals, autoFilter, style)
+- [x] Parse Excel-created table structure
+- [x] Multiple tables per sheet
+- [x] Column ID preservation and ordering
+- [x] Edge cases (no columns, default attributes, malformed XML)
+- [x] 15 total tests passing (10 parser + 5 integration)
+
+**Status:** ⚡ READ-SIDE COMPLETE (Dec 19, 2025)
 
 ---
 

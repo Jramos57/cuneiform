@@ -8,6 +8,7 @@ public struct Workbook: Sendable {
     private let styles: StylesInfo
     private let definedNames: [DefinedName]
     private let pivotTablesList: [PivotTableData]
+    private let tablesList: [TableData]
 
     /// All sheets in the workbook
     public var sheets: [SheetInfo] { workbookInfo.sheets }
@@ -17,6 +18,9 @@ public struct Workbook: Sendable {
 
     /// All pivot tables in the workbook
     public var pivotTables: [PivotTableData] { pivotTablesList }
+
+    /// All tables in the workbook
+    public var tables: [TableData] { tablesList }
 
     /// Open an .xlsx file from a URL
     public static func open(url: URL) throws(CuneiformError) -> Workbook {
@@ -106,7 +110,42 @@ public struct Workbook: Sendable {
             // Silently ignore pivot table loading errors; they're optional
         }
 
-        return Workbook(package: pkg, workbookInfo: wb, sharedStrings: ss, styles: st, pivotTables: pivotTables)
+        // Discover tables via worksheet relationships
+        var tables: [TableData] = []
+        do {
+            var mutablePkg = pkg
+            let wbRels = try mutablePkg.relationships(for: .workbook)
+            
+            // Tables are referenced from individual worksheets
+            for sheet in wb.sheets {
+                guard let rel = wbRels[sheet.relationshipId] else {
+                    continue
+                }
+                
+                let sheetPath = rel.resolveTarget(relativeTo: .workbook)
+                
+                do {
+                    let wsRels = try mutablePkg.relationships(for: sheetPath)
+                    let tableRels = wsRels[.table]
+                    
+                    for (index, tableRel) in tableRels.enumerated() {
+                        let tablePath = tableRel.resolveTarget(relativeTo: sheetPath)
+                        let tableData = try mutablePkg.readPart(tablePath)
+                        // Extract table ID from relationship ID (e.g., "rId2" -> 2)
+                        let tableId = index + 1
+                        if let table = try? TableParser.parse(data: tableData, id: tableId) {
+                            tables.append(table)
+                        }
+                    }
+                } catch {
+                    // Silently ignore errors for individual sheet tables
+                }
+            }
+        } catch {
+            // Silently ignore table loading errors; they're optional
+        }
+
+        return Workbook(package: pkg, workbookInfo: wb, sharedStrings: ss, styles: st, pivotTables: pivotTables, tables: tables)
     }
 
     /// Get a sheet by name
@@ -226,12 +265,13 @@ public struct Workbook: Sendable {
         return nil
     }
 
-    init(package: OPCPackage, workbookInfo: WorkbookInfo, sharedStrings: SharedStrings, styles: StylesInfo, pivotTables: [PivotTableData] = []) {
+    init(package: OPCPackage, workbookInfo: WorkbookInfo, sharedStrings: SharedStrings, styles: StylesInfo, pivotTables: [PivotTableData] = [], tables: [TableData] = []) {
         self.package = package
         self.workbookInfo = workbookInfo
         self.sharedStrings = sharedStrings
         self.styles = styles
         self.definedNames = workbookInfo.definedNames
         self.pivotTablesList = pivotTables
+        self.tablesList = tables
     }
 }
