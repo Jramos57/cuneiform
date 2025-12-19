@@ -100,6 +100,9 @@ extension RelationshipType {
     public static let drawing = RelationshipType(
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
     )
+    public static let pivotTable = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotTable"
+    )
 }
 
 extension RelationshipType: ExpressibleByStringLiteral {

@@ -28,7 +28,10 @@ import Foundation
         </styleSheet>
         """.data(using: .utf8)!
         let styles = try StylesParser.parse(data: xml)
-        #expect(styles.cellFormats == [0, 14, 164])
+        #expect(styles.cellFormats.count == 3)
+        #expect(styles.cellFormats[0].numFmtId == 0)
+        #expect(styles.cellFormats[1].numFmtId == 14)
+        #expect(styles.cellFormats[2].numFmtId == 164)
     }
 
     @Test func builtInDateFormats() throws {
@@ -69,7 +72,10 @@ import Foundation
 
     @Test func missingStylesFile() {
         let styles = StylesInfo.empty
-        #expect(styles.cellFormats.isEmpty)
+        #expect(styles.cellFormats.count == 1)  // Default format at index 0
         #expect(styles.numberFormats.isEmpty)
+        #expect(styles.fonts.count == 1)  // Default font
+        #expect(styles.fills.count == 2)  // Default fills
+        #expect(styles.borders.count == 1)  // Default border
     }
 }

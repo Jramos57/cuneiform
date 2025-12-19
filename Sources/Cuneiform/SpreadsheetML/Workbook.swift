@@ -7,12 +7,16 @@ public struct Workbook: Sendable {
     private let sharedStrings: SharedStrings
     private let styles: StylesInfo
     private let definedNames: [DefinedName]
+    private let pivotTablesList: [PivotTableData]
 
     /// All sheets in the workbook
     public var sheets: [SheetInfo] { workbookInfo.sheets }
 
     /// Workbook-level protection (if any)
     public var protection: WorkbookProtection? { workbookInfo.protection }
+
+    /// All pivot tables in the workbook
+    public var pivotTables: [PivotTableData] { pivotTablesList }
 
     /// Open an .xlsx file from a URL
     public static func open(url: URL) throws(CuneiformError) -> Workbook {
@@ -68,7 +72,41 @@ public struct Workbook: Sendable {
             st = .empty
         }
 
-        return Workbook(package: pkg, workbookInfo: wb, sharedStrings: ss, styles: st)
+        // Discover pivot tables via worksheet relationships
+        var pivotTables: [PivotTableData] = []
+        do {
+            var mutablePkg = pkg
+            let wbRels = try mutablePkg.relationships(for: .workbook)
+            
+            // Pivot tables are referenced from individual worksheets, not from the workbook level
+            // Iterate through all sheet relationships to find pivot table references
+            for sheet in wb.sheets {
+                guard let rel = wbRels[sheet.relationshipId] else {
+                    continue
+                }
+                
+                let sheetPath = rel.resolveTarget(relativeTo: .workbook)
+                
+                do {
+                    let wsRels = try mutablePkg.relationships(for: sheetPath)
+                    let ptRels = wsRels[.pivotTable]
+                    
+                    for ptRel in ptRels {
+                        let ptPath = ptRel.resolveTarget(relativeTo: sheetPath)
+                        let ptData = try mutablePkg.readPart(ptPath)
+                        if let pt = try? PivotTableParser.parse(data: ptData) {
+                            pivotTables.append(pt)
+                        }
+                    }
+                } catch {
+                    // Silently ignore errors for individual sheet pivot tables
+                }
+            }
+        } catch {
+            // Silently ignore pivot table loading errors; they're optional
+        }
+
+        return Workbook(package: pkg, workbookInfo: wb, sharedStrings: ss, styles: st, pivotTables: pivotTables)
     }
 
     /// Get a sheet by name
@@ -188,11 +226,12 @@ public struct Workbook: Sendable {
         return nil
     }
 
-    init(package: OPCPackage, workbookInfo: WorkbookInfo, sharedStrings: SharedStrings, styles: StylesInfo) {
+    init(package: OPCPackage, workbookInfo: WorkbookInfo, sharedStrings: SharedStrings, styles: StylesInfo, pivotTables: [PivotTableData] = []) {
         self.package = package
         self.workbookInfo = workbookInfo
         self.sharedStrings = sharedStrings
         self.styles = styles
         self.definedNames = workbookInfo.definedNames
+        self.pivotTablesList = pivotTables
     }
 }

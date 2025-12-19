@@ -87,6 +87,19 @@ public struct Sheet: Sendable {
         return cell(at: cellRef)
     }
 
+    /// Get complete cell style for a cell reference
+    public func cellStyle(at ref: CellReference) -> CellStyle? {
+        guard let rawCell = rawData.cell(at: ref) else { return nil }
+        guard let styleIndex = rawCell.styleIndex else { return nil }
+        return styles.cellStyle(forStyleIndex: styleIndex)
+    }
+
+    /// Get complete cell style for a cell by string reference (e.g., "A1")
+    public func cellStyle(at ref: String) -> CellStyle? {
+        guard let cellRef = CellReference(ref) else { return nil }
+        return cellStyle(at: cellRef)
+    }
+
     /// Get all cells in a row
     public func row(_ index: Int) -> [CellValue] {
         guard let rawRow = rawData.rows.first(where: { $0.index == index }) else { return [] }

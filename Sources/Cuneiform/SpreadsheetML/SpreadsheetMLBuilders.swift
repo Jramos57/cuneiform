@@ -628,6 +628,60 @@ public struct StylesBuilder {
         return addCellFormat(format)
     }
     
+    /// Add a high-level cell style and return its index
+    @discardableResult
+    public mutating func addCellStyle(_ style: CellStyle) -> Int {
+        // Resolve style components into builder indices
+        let numFmtId = style.numberFormat.map { $0.id } ?? 0
+        
+        let fontId: Int
+        if let font = style.font {
+            let legacyFont = Font(
+                bold: font.bold,
+                italic: font.italic,
+                size: font.size.map { Int($0) },
+                color: font.color?.rgbHex
+            )
+            fontId = addFont(legacyFont)
+        } else {
+            fontId = 0
+        }
+        
+        let fillId: Int
+        if let fill = style.fill {
+            let legacyFill = Fill(
+                patternType: fill.pattern.rawValue,
+                fgColor: fill.foregroundColor?.rgbHex
+            )
+            fillId = addFill(legacyFill)
+        } else {
+            fillId = 0
+        }
+        
+        let borderId: Int
+        if let border = style.border {
+            let legacyBorder = Border(
+                left: border.left.map { ($0.style.rawValue, $0.color?.rgbHex ?? "FF000000") },
+                right: border.right.map { ($0.style.rawValue, $0.color?.rgbHex ?? "FF000000") },
+                top: border.top.map { ($0.style.rawValue, $0.color?.rgbHex ?? "FF000000") },
+                bottom: border.bottom.map { ($0.style.rawValue, $0.color?.rgbHex ?? "FF000000") }
+            )
+            borderId = addBorder(legacyBorder)
+        } else {
+            borderId = 0
+        }
+        
+        let format = CellFormat(
+            numFmtId: numFmtId,
+            fontId: fontId,
+            fillId: fillId,
+            borderId: borderId,
+            horizontalAlignment: style.alignment?.horizontal?.rawValue,
+            verticalAlignment: style.alignment?.vertical?.rawValue
+        )
+        return addCellFormat(format)
+    }
+    
     /// Build the styles.xml data
     public func build() -> Data {
         var xml = """

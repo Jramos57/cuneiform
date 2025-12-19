@@ -14,14 +14,15 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 168 tests pass.
+**STATUS: GREEN** - All 176 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
-- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts, Workbook Protection, Pivot Tables
+- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles (full), Charts, Workbook Protection, Pivot Tables
+- [x] Full styles support: fonts, fills, borders, alignment read/write (Phase 4.1)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (168/168)
+- [x] Entire test suite passes (176/176)
 
 ---
 
@@ -113,31 +114,40 @@ New validation variants:
 - [x] `Tests/CuneiformTests/PivotTableParserTests.swift` (7 tests for pivot metadata)
 - [x] `Tests/CuneiformTests/WorkbookIntegrationTests.swift` (1 integration test validating discovery from real XLSX with 22 pivot tables)
 
+### Phase 4.1: Full Styles Support (Dec 19, 2025) ✓
+- [x] `Sources/Cuneiform/SpreadsheetML/StylesParser.swift` (expanded with CellFont, CellFill, CellBorder, CellBorderSide, CellAlignment, CellStyle, CellColor types; parse fonts, fills, borders, alignment)
+- [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (added `cellStyle(at:)` methods for CellReference and String)
+- [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (added `StylesBuilder.addCellStyle()` convenience method)
+- [x] `Tests/CuneiformTests/Phase41StylesTests.swift` (8 tests: parseFonts, parseFontsWithThemeColor, parseFills, parseAlignment, getCellStyle, roundTripCellStyle, multipleStylesWithDedup, parseBorders)
+- [x] All types marked Sendable and Equatable
+- [x] Full round-trip styling verified
+
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 168 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection), Phase 3.4 (pivot tables)
+- [x] `swift test` succeeds: 176 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection), Phase 3.4 (pivot tables), Phase 4.1 (full styles)
 
 ---
 
-## Phase 4: OOXML Toolkit Compliance (Planned)
+## Phase 4: OOXML Toolkit Compliance
 
 **Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
 
-### Current Compliance Gaps
+**Current Compliance:** ~65% (after Phase 4.1)
 
-| Area | Current | Target | Gap |
-|------|---------|--------|-----|
-| Styles (§18.8) | 30% | 90% | fonts, fills, borders, alignment |
-| Tables (§18.5) | 0% | 80% | ListObjects, structured refs |
-| Conditional Formatting (§18.3.1) | 0% | 80% | data bars, color scales, icon sets |
-| AutoFilter | 0% | 80% | column filtering |
-| Rich Text (§18.4) | 20% | 90% | formatted text runs |
+| Area | Current | Target | Status |
+|------|---------|--------|--------|
+| Styles (§18.8) | 90% | 90% | ✓ Complete (Phase 4.1) |
+| Tables (§18.5) | 0% | 80% | Planned (Phase 4.2) |
+| Conditional Formatting (§18.3.1) | 0% | 80% | Planned (Phase 4.3) |
+| AutoFilter | 0% | 80% | Planned (Phase 4.4) |
+| Rich Text (§18.4) | 20% | 90% | Planned (Phase 4.5) |
 
-### Phase 4.1: Full Styles Support
-- [ ] Read: fonts, fills, borders, alignment from `styles.xml`
-- [ ] Write: complete style elements with all attributes
-- [ ] API: `CellStyle` struct, `Sheet.cellStyle(at:)`
-- [ ] Tests: round-trip formatting verification
+### Phase 4.1: Full Styles Support ✓ (Dec 19, 2025)
+- [x] Read: fonts, fills, borders, alignment from `styles.xml`
+- [x] Write: complete style elements with all attributes via `StylesBuilder.addCellStyle()`
+- [x] API: `CellStyle` struct, `Sheet.cellStyle(at:)` methods (CellReference and String variants)
+- [x] Types: `CellFont`, `CellFill`, `CellBorder`, `CellBorderSide`, `CellAlignment`, `CellColor`, `NumberFormat` (all Sendable, Equatable)
+- [x] Tests: 8 comprehensive tests for round-trip formatting verification
 
 ### Phase 4.2: Tables/ListObjects
 - [ ] Read: parse `/xl/tables/tableN.xml`

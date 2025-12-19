@@ -66,4 +66,19 @@ import Testing
         let emptyVal = CellValue.empty
         #expect(emptyVal.description.contains("empty"), "Empty value should be identified")
     }
+    
+    @Test func discoverPivotTables() throws {
+        let url = URL(fileURLWithPath: Self.sampleXlsxPath)
+        let workbook = try Workbook.open(url: url)
+        
+        // The sample XLSX file contains pivot tables; verify they're discovered
+        #expect(!workbook.pivotTables.isEmpty, "Sample XLSX should contain pivot tables")
+        
+        // Verify pivot table structure
+        for pivotTable in workbook.pivotTables {
+            #expect(!pivotTable.name.isEmpty, "Pivot table should have a name")
+            #expect(pivotTable.cacheId >= 0, "Pivot table should have a valid cache ID")
+            // Location and field counts may be optional
+        }
+    }
 }
