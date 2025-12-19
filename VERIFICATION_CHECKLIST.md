@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 118 tests pass.
+**STATUS: GREEN** - All 120 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (118/118)
+- [x] Entire test suite passes (120/120)
 
 ---
 
@@ -39,6 +39,7 @@ Additional write-side features:
 - [x] Merged cells: `<mergeCells>` emission and round-trip verification
 - [x] Data validations: `<dataValidations>` section with list and numeric constraints, including operator and dual-formula support
 - [x] Named ranges: `<definedNames>` emitted in `workbook.xml`
+- [x] Hyperlinks (read-side): `<hyperlinks>` parsed with `ref`, `r:id`, `display`, `tooltip`, `location`
 
 New validation variants:
 - [x] Decimal validation with `greaterThanOrEqual`
@@ -60,10 +61,13 @@ New validation variants:
  - [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (helpers `definedName(_:)`, `definedNameRange(_:)`)
  - [x] `Tests/CuneiformTests/DataValidationHelpersTests.swift` (tests for `Sheet.validations(for:)` and `Sheet.validations(at:)`)
  - [x] `README.md` (added ergonomic examples for named ranges and data validations)
+ - [x] `Tests/CuneiformTests/HyperlinksReadTests.swift` (parse worksheet `<hyperlink>` entries)
+ - [x] `Sources/Cuneiform/SpreadsheetML/WorksheetParser.swift` (hyperlinks parsing)
+ - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (hyperlinks exposure via `Sheet.hyperlinks` and `hyperlinks(at:)`)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 118 tests passing including new styling suite, write extras, named ranges, expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 120 tests passing including new styling suite, write extras, named ranges, hyperlinks (read-side), expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 

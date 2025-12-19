@@ -101,6 +101,9 @@ public struct WorksheetData: Sendable {
     /// Data validations defined in the worksheet
     public let dataValidations: [DataValidation]
 
+    /// Hyperlinks defined in the worksheet
+    public let hyperlinks: [Hyperlink]
+
     /// Get cell by reference
     public func cell(at ref: CellReference) -> RawCell? {
         rows.lazy.flatMap(\.cells).first { $0.reference == ref }
@@ -139,6 +142,25 @@ public struct WorksheetData: Sendable {
         /// Operator for numeric/date validations (e.g., `between`, `greaterThanOrEqual`)
         public let op: String?
     }
+
+    /// Hyperlink metadata (read-side)
+    ///
+    /// Represents a single `<hyperlink>` entry from a worksheet. Hyperlinks can
+    /// be external (via `r:id` relationships with TargetMode="External") or internal
+    /// (via the `location` attribute). Resolution of external targets occurs via the
+    /// worksheet's relationships and is surfaced by higher-level APIs.
+    public struct Hyperlink: Sendable, Equatable {
+        /// Target cell reference
+        public let ref: CellReference
+        /// Relationship ID for external links (optional)
+        public let relationshipId: String?
+        /// Display text suggested by Excel (optional)
+        public let display: String?
+        /// Tooltip text (optional)
+        public let tooltip: String?
+        /// Internal location (e.g., "Sheet2!A1") if present
+        public let location: String?
+    }
 }
 
 /// Parser for worksheet XML
@@ -160,7 +182,8 @@ public enum WorksheetParser {
             dimension: delegate.dimension,
             rows: delegate.rows,
             mergedCells: delegate.mergedCells,
-            dataValidations: delegate.dataValidations
+            dataValidations: delegate.dataValidations,
+            hyperlinks: delegate.hyperlinks
         )
     }
 }
@@ -174,6 +197,7 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var rows: [RawRow] = []
     private(set) var mergedCells: [String] = []
     private(set) var dataValidations: [WorksheetData.DataValidation] = []
+    private(set) var hyperlinks: [WorksheetData.Hyperlink] = []
 
     // Row accumulation
     private var currentRowIndex: Int = 0
@@ -264,6 +288,19 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
                 inFormula2 = true
                 formula2Buffer.removeAll(keepingCapacity: true)
             }
+
+        case "hyperlink":
+            // Attributes: ref (required), r:id (optional), display, tooltip, location
+            guard let r = attributeDict["ref"], let ref = CellReference(r) else {
+                error = CuneiformError.missingRequiredElement(element: "hyperlink@ref", inPart: "/xl/worksheets/sheet.xml")
+                parser.abortParsing()
+                return
+            }
+            let rid = attributeDict["r:id"]
+            let display = attributeDict["display"]
+            let tooltip = attributeDict["tooltip"]
+            let location = attributeDict["location"]
+            hyperlinks.append(WorksheetData.Hyperlink(ref: ref, relationshipId: rid, display: display, tooltip: tooltip, location: location))
 
         default:
             break

@@ -85,6 +85,9 @@ extension RelationshipType {
     public static let pivotCacheDefinition = RelationshipType(
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition"
     )
+    public static let hyperlink = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+    )
 }
 
 extension RelationshipType: ExpressibleByStringLiteral {
