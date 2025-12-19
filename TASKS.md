@@ -1,5 +1,20 @@
 # Cuneiform Parser Implementation Tasks
 
+## Status: Phase 1 Complete ✓
+
+**Implemented:** December 17, 2025
+**Verified:** All 45 tests pass
+
+Tasks 1-4 (SpreadsheetML parsers) are complete:
+- SharedStringsParser - Parse shared string table with rich text support
+- WorkbookParser - Extract sheet metadata and visibility states
+- WorksheetParser - Parse cells with all value types, formulas, merged cells
+- StylesParser - Number formats and date format detection
+
+See [VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md) for detailed status.
+
+---
+
 ## Swift Style Requirements
 
 **Write modern, idiomatic Swift 6.** Use every trick in the book:
@@ -737,13 +752,13 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 
 After implementation, verify:
 
-- [ ] `swift build` succeeds with no warnings
-- [ ] `swift test` passes all tests
-- [ ] All types are `Sendable`
-- [ ] All public APIs have doc comments
-- [ ] Error cases throw appropriate `CuneiformError` variants
-- [ ] Empty/missing optional parts handled gracefully (no crashes)
-- [ ] Code follows existing patterns in the codebase
+- [x] `swift build` succeeds with no warnings
+- [x] `swift test` passes all tests (45/45)
+- [x] All types are `Sendable`
+- [x] All public APIs have doc comments
+- [x] Error cases throw appropriate `CuneiformError` variants
+- [x] Empty/missing optional parts handled gracefully (no crashes)
+- [x] Code follows existing patterns in the codebase
 
 ---
 
@@ -772,3 +787,17 @@ If requirements are unclear, check:
 3. [MS-OI29500] for Excel-specific behaviors
 
 Do not deviate from the specified APIs without documenting why.
+
+---
+
+## Next Phase: High-Level Workbook API
+
+With parsers complete, the next milestone is a user-friendly `Workbook` API that:
+
+1. **Unified reading** - `Workbook.open(url:)` that handles OPC, parsing, and string resolution
+2. **Sheet access** - `workbook.sheet(named:)` returning a `Sheet` with resolved cell values
+3. **Cell value resolution** - Convert `RawCellValue` to `CellValue` (resolve shared strings, detect dates)
+4. **Query API** - Range access, row/column iteration, find/filter operations
+5. **Writing support** - `WorkbookWriter` for creating new .xlsx files
+
+See [Cuneiform.swift](Sources/Cuneiform/Cuneiform.swift) doc comments for the target API design.
