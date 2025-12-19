@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 107 tests pass (Dec 18, 2025)
+**Current Verification:** All 111 tests pass (Dec 19, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -753,7 +753,7 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 After implementation, verify:
 
 - [x] `swift build` succeeds with no warnings
-- [x] `swift test` passes all tests (107/107)
+- [x] `swift test` passes all tests (111/111)
 - [x] All types are `Sendable`
 - [x] All public APIs have doc comments
 - [x] Error cases throw appropriate `CuneiformError` variants
@@ -801,12 +801,14 @@ The following Phase 2 items are implemented and verified:
 - [x] Write API: `WorkbookWriter`, worksheet XML emitting (numbers, strings, booleans, formulas)
 - [x] Write-side styling: `StylesBuilder` for `styles.xml`; style indices threaded into cells (`s` attribute)
 - [x] Round-trip tests for write + styling (bold, fills, borders, dates, large datasets)
+- [x] Merged cells on write: `<mergeCells>` emission via `WorksheetBuilder` and `SheetWriter.mergeCells(_:)`, round-trip validated
+- [x] Data validations on write: `<dataValidations>` emission with list and numeric constraints; operator support (e.g., `between` with `op` and `formula1`/`formula2`)
+- [x] Workbook defined names: `<definedNames>` emission in `workbook.xml` for named ranges
 
 ### Upcoming Tasks
 
-- [ ] Merged cells on write (`mergeCells`) + readback helpers
-- [ ] Data validation on write (`dataValidations`) with constraints (lists, ranges)
-- [ ] Named ranges (`definedNames`) + query helpers
+- [ ] Expand data validations: additional operators/types (>=, <=, decimal, date) and range-based list references
+- [ ] Read-side parsing for defined names and validations; ergonomic query helpers (optional)
 - [ ] Hyperlinks and cell comments (read/write minimal)
 - [ ] Charts/drawings metadata parsing; optional write stubs for relationships
 - [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
@@ -817,6 +819,6 @@ The following Phase 2 items are implemented and verified:
 - Read API and queries: `Sources/Cuneiform/SpreadsheetML/Workbook.swift`, `Sheet.swift`
 - Writing: `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift`, `SpreadsheetMLBuilders.swift`
 - Styling: `StylesBuilder` in `SpreadsheetMLBuilders.swift`; `StylesParser.swift` for read-side date detection
-- Tests: `Tests/CuneiformTests/StylingTests.swift`, `WorkbookWriterTests.swift`, `AdvancedQueryTests.swift`, `PerformanceBenchmarks.swift`
+- Tests: `Tests/CuneiformTests/StylingTests.swift`, `WorkbookWriterTests.swift`, `AdvancedQueryTests.swift`, `PerformanceBenchmarks.swift`, `WorksheetWriteExtrasTests.swift`, `DataValidationVariantTests.swift`, `NamedRangesWriteTests.swift`
 
 ---
