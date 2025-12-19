@@ -1,0 +1,263 @@
+import Foundation
+
+/// High-level API for creating .xlsx workbooks
+public struct WorkbookWriter {
+    public struct SheetWriter {
+        private var builder: WorksheetBuilder
+        private var commentsBuilder: CommentsBuilder?
+        public let name: String
+        
+        init(name: String) {
+            self.name = name
+            self.builder = WorksheetBuilder()
+        }
+        
+        /// Write a value to a cell
+        public mutating func write(_ value: WorksheetBuilder.WritableCellValue, to reference: CellReference) {
+            builder.addCell(at: reference, value: value)
+        }
+        
+        /// Write a value to a cell by string reference
+        public mutating func write(_ value: WorksheetBuilder.WritableCellValue, to reference: String) {
+            guard let ref = CellReference(reference) else { return }
+            write(value, to: ref)
+        }
+        
+        /// Write a value with a style index to a cell
+        public mutating func write(_ value: WorksheetBuilder.WritableCellValue, to reference: CellReference, styleIndex: Int) {
+            builder.addCell(at: reference, value: value, styleIndex: styleIndex)
+        }
+        
+        /// Write a value with a style index by string reference
+        public mutating func write(_ value: WorksheetBuilder.WritableCellValue, to reference: String, styleIndex: Int) {
+            guard let ref = CellReference(reference) else { return }
+            write(value, to: ref, styleIndex: styleIndex)
+        }
+        
+        /// Convenience: write a string
+        public mutating func writeText(_ text: String, to reference: CellReference) {
+            write(.text(text), to: reference)
+        }
+        
+        /// Convenience: write a string with style
+        public mutating func writeText(_ text: String, to reference: CellReference, styleIndex: Int) {
+            write(.text(text), to: reference, styleIndex: styleIndex)
+        }
+        
+        /// Convenience: write a number
+        public mutating func writeNumber(_ number: Double, to reference: CellReference) {
+            write(.number(number), to: reference)
+        }
+        
+        /// Convenience: write a number with style
+        public mutating func writeNumber(_ number: Double, to reference: CellReference, styleIndex: Int) {
+            write(.number(number), to: reference, styleIndex: styleIndex)
+        }
+        
+        /// Convenience: write a boolean
+        public mutating func writeBoolean(_ bool: Bool, to reference: CellReference) {
+            write(.boolean(bool), to: reference)
+        }
+        
+        /// Convenience: write a boolean with style
+        public mutating func writeBoolean(_ bool: Bool, to reference: CellReference, styleIndex: Int) {
+            write(.boolean(bool), to: reference, styleIndex: styleIndex)
+        }
+        
+        /// Convenience: write a formula
+        public mutating func writeFormula(_ formula: String, cachedValue: Double? = nil, to reference: CellReference) {
+            write(.formula(formula, cachedValue: cachedValue), to: reference)
+        }
+        
+        /// Convenience: write a formula with style
+        public mutating func writeFormula(_ formula: String, cachedValue: Double? = nil, to reference: CellReference, styleIndex: Int) {
+            write(.formula(formula, cachedValue: cachedValue), to: reference, styleIndex: styleIndex)
+        }
+
+        /// Merge a single range (e.g., "A1:B1")
+        public mutating func mergeCells(_ range: String) {
+            builder.addMergeCell(range)
+        }
+
+        /// Merge multiple ranges
+        public mutating func mergeCells(_ ranges: [String]) {
+            for r in ranges { builder.addMergeCell(r) }
+        }
+
+        /// Add a data validation rule
+        public mutating func addDataValidation(_ dv: WorksheetBuilder.DataValidation) {
+            builder.addDataValidation(dv)
+        }
+        
+        /// Add an external hyperlink to a cell
+        public mutating func addHyperlinkExternal(at reference: CellReference, url: String, display: String? = nil, tooltip: String? = nil) {
+            builder.addHyperlinkExternal(at: reference, url: url, display: display, tooltip: tooltip)
+        }
+
+        /// Add an internal hyperlink to a cell
+        public mutating func addHyperlinkInternal(at reference: CellReference, location: String, display: String? = nil, tooltip: String? = nil) {
+            builder.addHyperlinkInternal(at: reference, location: location, display: display, tooltip: tooltip)
+        }
+
+        /// Add a cell comment (note) with optional author.
+        public mutating func addComment(at reference: CellReference, text: String, author: String? = nil) {
+            var cb = commentsBuilder ?? CommentsBuilder()
+            cb.addComment(at: reference, text: text, author: author)
+            commentsBuilder = cb
+        }
+        
+        fileprivate func build() -> Data {
+            builder.build()
+        }
+        
+        fileprivate func hyperlinkRelationships() -> [(id: String, target: String)] {
+            builder.hyperlinkRelationships()
+        }
+
+        fileprivate var hasComments: Bool {
+            commentsBuilder?.hasComments ?? false
+        }
+
+        fileprivate func buildCommentsPart() -> Data? {
+            guard let cb = commentsBuilder, cb.hasComments else { return nil }
+            return cb.build()
+        }
+    }
+    
+    private var sheets: [SheetWriter] = []
+    private var stylesBuilder: StylesBuilder
+    private var namedRanges: [(name: String, refersTo: String)] = []
+    
+    public init() {
+        self.stylesBuilder = StylesBuilder()
+    }
+    
+    /// Add a new sheet
+    public mutating func addSheet(named name: String) -> Int {
+        sheets.append(SheetWriter(name: name))
+        return sheets.count - 1
+    }
+    
+    /// Get a sheet by index for writing
+    public mutating func sheet(at index: Int) -> SheetWriter? {
+        guard index >= 0, index < sheets.count else { return nil }
+        return sheets[index]
+    }
+    
+    /// Modify a sheet
+    public mutating func modifySheet(at index: Int, _ modify: (inout SheetWriter) -> Void) {
+        guard index >= 0, index < sheets.count else { return }
+        modify(&sheets[index])
+    }
+    
+    /// Access the styles builder to add custom styles
+    public mutating func style(_ modify: (inout StylesBuilder) -> Void) {
+        modify(&stylesBuilder)
+    }
+
+    /// Add a named range (definedName)
+    public mutating func addNamedRange(name: String, refersTo: String) {
+        namedRanges.append((name, refersTo))
+    }
+    
+    /// Save the workbook to a file
+    public func save(to url: URL) throws {
+        let data = try buildData()
+        try data.write(to: url)
+    }
+    
+    /// Build the workbook data
+    public func buildData() throws -> Data {
+        var zipWriter = ZipWriter()
+        
+        // Build content types
+        var contentTypes = ContentTypesBuilder()
+        contentTypes.addOverride(partName: "/xl/workbook.xml", 
+                                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")
+        contentTypes.addOverride(partName: "/xl/styles.xml",
+                                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")
+        for i in 1...sheets.count {
+            contentTypes.addOverride(partName: "/xl/worksheets/sheet\(i).xml",
+                                    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")
+        }
+        zipWriter.addFile(path: "[Content_Types].xml", data: contentTypes.build())
+        
+        // Build root relationships
+        var rootRels = RelationshipsBuilder()
+        rootRels.addRelationship(
+            type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument",
+            target: "xl/workbook.xml",
+            id: "rId1"
+        )
+        zipWriter.addFile(path: "_rels/.rels", data: rootRels.build())
+        
+        // Build workbook
+        var workbookBuilder = WorkbookBuilder()
+        var workbookRels = RelationshipsBuilder()
+        
+        for (index, sheet) in sheets.enumerated() {
+            let sheetId = index + 1
+            let relId = "rId\(sheetId)"
+            workbookBuilder.addSheet(name: sheet.name, sheetId: sheetId, relationshipId: relId)
+            workbookRels.addRelationship(
+                type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet",
+                target: "worksheets/sheet\(sheetId).xml",
+                id: relId
+            )
+        }
+        
+        // Add styles relationship
+        workbookRels.addRelationship(
+            type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
+            target: "styles.xml",
+            id: "rId\(sheets.count + 1)"
+        )
+
+        // Add defined names
+        for (name, refersTo) in namedRanges {
+            workbookBuilder.addDefinedName(name: name, refersTo: refersTo)
+        }
+        
+        zipWriter.addFile(path: "xl/workbook.xml", data: workbookBuilder.build())
+        zipWriter.addFile(path: "xl/_rels/workbook.xml.rels", data: workbookRels.build())
+        
+        // Build styles
+        zipWriter.addFile(path: "xl/styles.xml", data: stylesBuilder.build())
+        
+        // Build worksheets
+        for (index, sheet) in sheets.enumerated() {
+            let sheetNum = index + 1
+            zipWriter.addFile(path: "xl/worksheets/sheet\(sheetNum).xml", data: sheet.build())
+            var wsRels = RelationshipsBuilder()
+
+            // External hyperlinks
+            let hlRels = sheet.hyperlinkRelationships()
+            for (id, target) in hlRels {
+                wsRels.addRelationship(
+                    type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+                    target: target,
+                    id: id,
+                    targetMode: "External"
+                )
+            }
+
+            // Comments part
+            if sheet.hasComments, let commentsData = sheet.buildCommentsPart() {
+                let commentsPath = "/xl/comments\(sheetNum).xml"
+                contentTypes.addOverride(partName: commentsPath, contentType: ContentType.comments.value)
+                zipWriter.addFile(path: String(commentsPath.dropFirst()), data: commentsData)
+                wsRels.addRelationship(
+                    type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments",
+                    target: "../comments\(sheetNum).xml"
+                )
+            }
+
+            let hasWorksheetRels = !hlRels.isEmpty || sheet.hasComments
+            if hasWorksheetRels {
+                zipWriter.addFile(path: "xl/worksheets/_rels/sheet\(sheetNum).xml.rels", data: wsRels.build())
+            }
+        }
+        
+        return try zipWriter.write()
+    }
+}

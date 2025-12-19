@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 121 tests pass (Dec 18, 2025)
+**Current Verification:** All 123 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -21,6 +21,8 @@ Developer-facing helpers to make parsed data easier to use:
  - [x] README updated with examples for these helpers (see Ergonomic Helpers section).
  - [x] Hyperlinks (read-side minimal): parse `<hyperlink>` entries (`ref`, `r:id`, `location`, `display`, `tooltip`) and expose via `Sheet.hyperlinks`.
  - [x] Hyperlinks (write-side minimal): emit `<hyperlinks>` in worksheet XML and add worksheet relationships `_rels/sheetN.xml.rels` with `Type=hyperlink` + `TargetMode="External"` for external URLs; APIs: `SheetWriter.addHyperlinkExternal(at:url:display:tooltip:)`, `SheetWriter.addHyperlinkInternal(at:location:display:tooltip:)`.
+ - [x] Comments (read-side): resolve worksheet comments via relationships and expose as `Sheet.comments` / `comments(at:)`.
+ - [x] Comments (write-side minimal): emit `/xl/commentsN.xml` with authors and text runs; add worksheet `Type=comments` relationship pointing to `../commentsN.xml`; API: `SheetWriter.addComment(at:text:author:)`.
 
 ## Swift Style Requirements
 
@@ -819,7 +821,7 @@ The following Phase 2 items are implemented and verified:
 - [x] **Add "How to Use" doc snippets** for named ranges and data validations (improves DX):
   - Doc comments added to `DefinedName` and `WorksheetData.DataValidation`
   - README updates can be done as part of release prep
-- [ ] Hyperlinks and cell comments (read/write minimal)
+- [x] Hyperlinks and cell comments (read/write minimal)
 - [ ] Charts/drawings metadata parsing; optional write stubs for relationships
 - [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
 - [ ] Release prep: version bump, CI (macOS/Linux), DocC preview, README polish, CHANGELOG

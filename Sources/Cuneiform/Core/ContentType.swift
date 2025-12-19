@@ -24,6 +24,7 @@ extension ContentType {
     public static let theme = ContentType("application/vnd.openxmlformats-officedocument.theme+xml")
     public static let table = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml")
     public static let pivotTable = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml")
+    public static let comments = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml")
 
     // Document properties
     public static let extendedProperties = ContentType("application/vnd.openxmlformats-officedocument.extended-properties+xml")

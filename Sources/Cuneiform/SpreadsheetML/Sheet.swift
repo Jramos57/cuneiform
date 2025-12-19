@@ -3,6 +3,7 @@ public struct Sheet: Sendable {
     private let rawData: WorksheetData
     private let sharedStrings: SharedStrings
     private let styles: StylesInfo
+    private let commentsList: [Comment]
 
     /// Dimension of the worksheet
     public var dimension: String? { rawData.dimension }
@@ -18,6 +19,9 @@ public struct Sheet: Sendable {
 
     /// Hyperlinks defined in the worksheet
     public var hyperlinks: [WorksheetData.Hyperlink] { rawData.hyperlinks }
+
+    /// Comments (notes) defined in the worksheet
+    public var comments: [Comment] { commentsList }
 
     /// Get data validations intersecting a given A1 range (e.g., "A1:C3").
     public func validations(for range: String) -> [WorksheetData.DataValidation] {
@@ -45,10 +49,22 @@ public struct Sheet: Sendable {
         return hyperlinks(at: cellRef)
     }
 
-    init(data: WorksheetData, sharedStrings: SharedStrings, styles: StylesInfo) {
+    /// Get comments applied to a specific cell reference.
+    public func comments(at ref: CellReference) -> [Comment] {
+        commentsList.filter { $0.ref == ref }
+    }
+
+    /// Get comments applied to a specific cell by string reference.
+    public func comments(at ref: String) -> [Comment] {
+        guard let cellRef = CellReference(ref) else { return [] }
+        return comments(at: cellRef)
+    }
+
+    init(data: WorksheetData, sharedStrings: SharedStrings, styles: StylesInfo, comments: [Comment] = []) {
         self.rawData = data
         self.sharedStrings = sharedStrings
         self.styles = styles
+        self.commentsList = comments
     }
 
     /// Get resolved cell value by reference

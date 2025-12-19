@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 121 tests pass.
+**STATUS: GREEN** - All 123 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (120/120)
+- [x] Entire test suite passes (123/123)
 
 ---
 
@@ -41,6 +41,8 @@ Additional write-side features:
 - [x] Named ranges: `<definedNames>` emitted in `workbook.xml`
 - [x] Hyperlinks (read-side): `<hyperlinks>` parsed with `ref`, `r:id`, `display`, `tooltip`, `location`
  - [x] Hyperlinks (write-side): `<hyperlinks>` emitted in worksheet XML; worksheet relationships `_rels/sheetN.xml.rels` include `Type=hyperlink` entries with `TargetMode="External"` for external URLs; internal hyperlinks use `location` only (no relationship)
+ - [x] Comments (read-side): worksheet comments parsed via relationships and exposed through `Sheet.comments` helpers
+ - [x] Comments (write-side minimal): emits `/xl/commentsN.xml` with authors and comment text; worksheet relationships include `Type=comments` targets pointing to `../commentsN.xml`
 
 New validation variants:
 - [x] Decimal validation with `greaterThanOrEqual`
@@ -67,10 +69,14 @@ New validation variants:
  - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (hyperlinks exposure via `Sheet.hyperlinks` and `hyperlinks(at:)`)
  - [x] `Tests/CuneiformTests/HyperlinksWriteTests.swift` (write-side `<hyperlinks>` emission and worksheet `.rels` external hyperlink relationships)
  - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (worksheet-level `.rels` emission for external hyperlinks; `SheetWriter.addHyperlinkExternal` / `addHyperlinkInternal` APIs)
+ - [x] `Sources/Cuneiform/SpreadsheetML/CommentsParser.swift`, `CommentsBuilder.swift` (comments parse/build)
+ - [x] `Sources/Cuneiform/Core/ContentType.swift` (comments content type)
+ - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (comments part overrides and relationships)
+ - [x] `Tests/CuneiformTests/CommentsParserTests.swift`, `Tests/CuneiformTests/CommentsWriteTests.swift`
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 121 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 123 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write minimal), expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 
@@ -339,7 +345,7 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (121/121)
+- [x] **Tests pass**: `swift test` shows all green (123/123)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 

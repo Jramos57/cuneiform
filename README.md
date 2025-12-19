@@ -142,7 +142,7 @@ swift build
 swift test
 ```
 
-**Status:** All 121 tests pass.
+**Status:** All 123 tests pass.
 
 ## Components
 
@@ -228,6 +228,17 @@ writer.modifySheet(at: sheetIndex) { sheet in
                                display: "Example",
                                tooltip: "Open example.com")
 }
+
+### Comments
+
+```swift
+// Add a cell comment with an author
+writer.modifySheet(at: sheetIndex) { sheet in
+    sheet.addComment(at: "C5", text: "Review this total", author: "Alex")
+}
+
+// Comments are stored in `/xl/commentsN.xml` and linked from each worksheet's `.rels`
+```
 
 // Internal hyperlink (to a location within the workbook)
 writer.modifySheet(at: sheetIndex) { sheet in
