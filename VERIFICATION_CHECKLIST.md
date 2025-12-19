@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 117 tests pass.
+**STATUS: GREEN** - All 118 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (117/117)
+- [x] Entire test suite passes (118/118)
 
 ---
 
@@ -56,12 +56,19 @@ New validation variants:
 - [x] `Tests/CuneiformTests/NamedRangesWriteTests.swift` (defined names emission in workbook)
 - [x] `Tests/CuneiformTests/NamedRangesReadTests.swift` (read defined names from workbook)
 - [x] `Tests/CuneiformTests/DataValidationReadTests.swift` (read data validations from worksheet)
+ - [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (ergonomic helpers `validations(for:)`, `validations(at:)`)
+ - [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (helpers `definedName(_:)`, `definedNameRange(_:)`)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 117 tests passing including new styling suite, write extras, named ranges, expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 118 tests passing including new styling suite, write extras, named ranges, expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
+
+## Ergonomics
+
+- [x] Data validations helpers: `Sheet.validations(for:)` to filter by A1 range and `Sheet.validations(at:)` for a single cell.
+- [x] Named range helpers: `Workbook.definedName(_:)` to fetch by name and `Workbook.definedNameRange(_:)` to resolve `Sheet!$A$1:$B$10` into `(sheet, range)`.
 
 ## Phase 2 Test Suites
 
@@ -323,7 +330,7 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (117/117)
+- [x] **Tests pass**: `swift test` shows all green (118/118)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 

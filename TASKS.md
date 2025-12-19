@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 117 tests pass (Dec 18, 2025)
+**Current Verification:** All 118 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -13,7 +13,11 @@ Tasks 1-4 (SpreadsheetML parsers) are complete:
 
 See [VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md) for detailed status.
 
----
+## Phase 2 Ergonomics
+
+Developer-facing helpers to make parsed data easier to use:
+- [x] `Sheet.validations(for:)` and `Sheet.validations(at:)` to query data validations by A1 range or single cell.
+- [x] `Workbook.definedName(_:)` and `Workbook.definedNameRange(_:)` to fetch named ranges and resolve `Sheet!$A$1:$B$10` into `(sheet, range)`.
 
 ## Swift Style Requirements
 
@@ -753,7 +757,7 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 After implementation, verify:
 
 - [x] `swift build` succeeds with no warnings
-- [x] `swift test` passes all tests (117/117)
+- [x] `swift test` passes all tests (118/118)
 - [x] All types are `Sendable`
 - [x] All public APIs have doc comments
 - [x] Error cases throw appropriate `CuneiformError` variants
@@ -809,29 +813,9 @@ The following Phase 2 items are implemented and verified:
 
 ### Upcoming Tasks
 
-- [ ] **Add "How to Use" doc snippets** for named ranges and data validations (improves DX):
-  ```swift
-  // Named Ranges (Read)
-  let workbook = try Workbook.open(url: fileURL)
-  for name in workbook.definedNamesList {
-      print("\(name.name) -> \(name.refersTo)")
-  }
-
-  // Named Ranges (Write)
-  writer.addDefinedName("SalesData", refersTo: "Sheet1!$A$1:$D$100")
-
-  // Data Validations (Read)
-  for validation in sheet.dataValidations {
-      print("Range: \(validation.sqref), Type: \(validation.type)")
-  }
-
-  // Data Validations (Write)
-  sheet.addDataValidation(type: .list, sqref: "B2:B100", formula1: "\"Yes,No\"")
-  sheet.addDataValidation(type: .whole, operator: "between", sqref: "C2:C100", formula1: "1", formula2: "100")
-  ```
-  Add as doc comments on `DefinedName`, `WorksheetData.DataValidation`, and/or in README.
-
-- [ ] Ergonomic query helpers for named ranges and validations (optional)
+- [x] **Add "How to Use" doc snippets** for named ranges and data validations (improves DX):
+  - Doc comments added to `DefinedName` and `WorksheetData.DataValidation`
+  - README updates can be done as part of release prep
 - [ ] Hyperlinks and cell comments (read/write minimal)
 - [ ] Charts/drawings metadata parsing; optional write stubs for relationships
 - [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
