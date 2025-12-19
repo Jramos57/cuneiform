@@ -235,6 +235,7 @@ public struct WorksheetBuilder {
     private var hyperlinks: [HyperlinkEntry] = []
     private var nextHyperlinkRelId: Int = 1
     private var protection: WorksheetData.Protection?
+    private var tables: [TableBuilder] = []
     
     public init(sharedStringsBuilder: SharedStringsBuilder? = nil) {
         self.sharedStringsBuilder = sharedStringsBuilder
@@ -270,6 +271,11 @@ public struct WorksheetBuilder {
     /// Set sheet protection with all flags
     public mutating func setProtection(_ protection: WorksheetData.Protection) {
         self.protection = protection
+    }
+    
+    /// Add a table to this worksheet
+    public mutating func addTable(_ builder: TableBuilder) {
+        tables.append(builder)
     }
     
     /// Build the XML data
@@ -393,6 +399,24 @@ public struct WorksheetBuilder {
             """
         }
 
+        // Table parts
+        if !tables.isEmpty {
+            xml += """
+            
+            <tableParts count="\(tables.count)">
+            """
+            for (index, _) in tables.enumerated() {
+                xml += """
+                
+                <tablePart r:id="rIdTable\(index + 1)"/>
+                """
+            }
+            xml += """
+            
+            </tableParts>
+            """
+        }
+
         xml += """
         
         </worksheet>
@@ -408,6 +432,9 @@ public struct WorksheetBuilder {
             return nil
         }
     }
+    
+    /// Tables to be written as separate table.xml files
+    public var tablesArray: [TableBuilder] { tables }
 
     // MARK: - Legacy Drawing (comments VML)
 
@@ -864,6 +891,116 @@ public struct StylesBuilder {
         
         </styleSheet>
         """
+        
+        return xml.data(using: .utf8)!
+    }
+    
+    private func xmlEscape(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+}
+
+// MARK: - TableBuilder
+
+/// Builder for emitting table.xml
+public struct TableBuilder {
+    private var tableId: Int
+    private var displayName: String
+    private var name: String
+    private var ref: String
+    private var headerRowCount: Int = 1
+    private var totalsRowCount: Int = 0
+    private var columns: [TableColumn] = []
+    private var autoFilterRef: String?
+    private var styleInfo: TableStyleInfo?
+    
+    public init(id: Int, displayName: String, name: String, ref: String) {
+        self.tableId = id
+        self.displayName = displayName
+        self.name = name
+        self.ref = ref
+    }
+    
+    public mutating func setRowCounts(header: Int = 1, totals: Int = 0) {
+        self.headerRowCount = header
+        self.totalsRowCount = totals
+    }
+    
+    public mutating func setTableId(_ id: Int) {
+        self.tableId = id
+    }
+    
+    public mutating func addColumn(id: Int, name: String, totalsRowFunction: String? = nil) {
+        let column = TableColumn(id: id, name: name, totalsRowFunction: totalsRowFunction)
+        columns.append(column)
+    }
+    
+    public mutating func setAutoFilter(ref: String) {
+        self.autoFilterRef = ref
+    }
+    
+    public mutating func setTableStyle(
+        name: String?,
+        showFirstColumn: Bool = false,
+        showLastColumn: Bool = false,
+        showRowStripes: Bool = true,
+        showColumnStripes: Bool = false
+    ) {
+        self.styleInfo = TableStyleInfo(
+            name: name,
+            showFirstColumn: showFirstColumn,
+            showLastColumn: showLastColumn,
+            showRowStripes: showRowStripes,
+            showColumnStripes: showColumnStripes
+        )
+    }
+    
+    public func build() -> Data {
+        var xml = """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+               id="\(tableId)"
+               name="\(xmlEscape(name))"
+               displayName="\(xmlEscape(displayName))"
+               ref="\(ref)"
+               headerRowCount="\(headerRowCount)"
+               totalsRowCount="\(totalsRowCount)">
+        """
+        
+        // Emit tableColumns
+        xml += "\n<tableColumns count=\"\(columns.count)\">"
+        for column in columns {
+            xml += "\n<tableColumn id=\"\(column.id)\" name=\"\(xmlEscape(column.name))\""
+            if let totalsFunc = column.totalsRowFunction {
+                xml += " totalsRowFunction=\"\(xmlEscape(totalsFunc))\""
+            }
+            xml += "/>"
+        }
+        xml += "\n</tableColumns>"
+        
+        // Emit autoFilter if present
+        if let ref = autoFilterRef {
+            xml += "\n<autoFilter ref=\"\(ref)\"/>"
+        }
+        
+        // Emit tableStyleInfo if present
+        if let style = styleInfo {
+            xml += "\n<tableStyleInfo"
+            if let name = style.name {
+                xml += " name=\"\(xmlEscape(name))\""
+            }
+            xml += " showFirstColumn=\"\(style.showFirstColumn ? 1 : 0)\""
+            xml += " showLastColumn=\"\(style.showLastColumn ? 1 : 0)\""
+            xml += " showRowStripes=\"\(style.showRowStripes ? 1 : 0)\""
+            xml += " showColumnStripes=\"\(style.showColumnStripes ? 1 : 0)\""
+            xml += "/>"
+        }
+        
+        xml += "\n</table>"
         
         return xml.data(using: .utf8)!
     }

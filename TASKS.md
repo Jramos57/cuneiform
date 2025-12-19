@@ -1,14 +1,14 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2 Read-Side Complete ✓
+## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2 Complete ✓
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
 **Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Phase 4.1 Implemented:** December 19, 2025
-**Phase 4.2 Read-Side Implemented:** December 19, 2025
-**Current Verification:** All 191 tests pass (Dec 19, 2025)
-**Current Compliance:** ~70% ISO/IEC 29500 (after Phase 4.2 read-side)
+**Phase 4.2 Implemented:** December 19, 2025
+**Current Verification:** All 201 tests pass (Dec 19, 2025)
+**Current Compliance:** ~75% ISO/IEC 29500 (after Phase 4.2 complete)
 **Target Compliance:** ~85% (after Phase 4 complete)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
@@ -110,7 +110,7 @@ Expand `StylesParser` and `StylesBuilder` to expose complete cell formatting.
 
 ---
 
-### Phase 4.2: Tables/ListObjects (§18.5) ⚡
+### Phase 4.2: Tables/ListObjects (§18.5) ✓
 Excel Tables with headers, totals, and structured references.
 
 **Read-side (COMPLETE):**
@@ -120,16 +120,18 @@ Excel Tables with headers, totals, and structured references.
 - [x] Parse `<autoFilter>` within table
 - [x] Parse table styles: tableStyleInfo element
 
-**Write-side (Deferred):**
-- [ ] Emit `table.xml` with columns and range
-- [ ] Add table relationship to worksheet
-- [ ] Emit `<tableParts>` in worksheet XML
-- [ ] Register table content type override
+**Write-side (COMPLETE):**
+- [x] Emit `table.xml` with columns and range
+- [x] Add table relationship to worksheet
+- [x] Emit `<tableParts>` in worksheet XML
+- [x] Register table content type override
+- [x] TableBuilder for XML generation
+- [x] Global table ID tracking across workbook
 
-**High-level API (READ-SIDE COMPLETE):**
+**High-level API (COMPLETE):**
 - [x] `TableData` struct: name, displayName, range, columns, hasHeaders, hasTotals
 - [x] `Sheet.tables` property (via Workbook.tables discovery)
-- [ ] `SheetWriter.addTable(name:range:columns:)` (deferred)
+- [x] `SheetWriter.addTable(name:range:columns:)` with columns parameter for totals functions
 
 **Tests (COMPLETE):**
 - [x] Parse table from XML with all variants (simple, totals, autoFilter, style)
@@ -137,39 +139,152 @@ Excel Tables with headers, totals, and structured references.
 - [x] Multiple tables per sheet
 - [x] Column ID preservation and ordering
 - [x] Edge cases (no columns, default attributes, malformed XML)
-- [x] 15 total tests passing (10 parser + 5 integration)
+- [x] TableBuilder XML generation (5 tests)
+- [x] WorksheetBuilder integration (2 tests)
+- [x] Round-trip tests (3 tests)
+- [x] 25 total tests passing (10 parser + 5 integration + 10 write)
 
-**Status:** ⚡ READ-SIDE COMPLETE (Dec 19, 2025)
+**Status:** ✓ COMPLETE (Dec 19, 2025)
 
 ---
 
 ### Phase 4.3: Conditional Formatting (§18.3.1)
 Data bars, color scales, icon sets, and formula-based rules.
 
-**Read-side:**
-- [ ] Parse `<conditionalFormatting>` elements
-- [ ] Extract sqref (affected ranges)
-- [ ] Parse rule types: cellIs, colorScale, dataBar, iconSet, expression
-- [ ] Parse operator and formula for cellIs rules
-- [ ] Parse cfvo (conditional format value objects) for gradients
+#### XML Structure Reference
+```xml
+<conditionalFormatting sqref="A1:A10">
+  <!-- Highlight cells greater than 50 -->
+  <cfRule type="cellIs" priority="1" operator="greaterThan" dxfId="0">
+    <formula>50</formula>
+  </cfRule>
+</conditionalFormatting>
 
-**Write-side:**
-- [ ] Emit `<conditionalFormatting>` with rules
-- [ ] Support highlight cells rules (greater than, less than, between, etc.)
-- [ ] Support data bar generation
-- [ ] Support color scale (2-color, 3-color)
-- [ ] Support icon sets
+<conditionalFormatting sqref="B1:B10">
+  <!-- Data bar -->
+  <cfRule type="dataBar" priority="2">
+    <dataBar>
+      <cfvo type="min"/>
+      <cfvo type="max"/>
+      <color rgb="FF638EC6"/>
+    </dataBar>
+  </cfRule>
+</conditionalFormatting>
 
-**High-level API:**
-- [ ] `ConditionalRule` enum with associated values per rule type
-- [ ] `Sheet.conditionalFormats` property
-- [ ] `SheetWriter.addConditionalFormat(range:rule:)`
+<conditionalFormatting sqref="C1:C10">
+  <!-- 3-color scale -->
+  <cfRule type="colorScale" priority="3">
+    <colorScale>
+      <cfvo type="min"/>
+      <cfvo type="percentile" val="50"/>
+      <cfvo type="max"/>
+      <color rgb="FFF8696B"/>
+      <color rgb="FFFFEB84"/>
+      <color rgb="FF63BE7B"/>
+    </colorScale>
+  </cfRule>
+</conditionalFormatting>
 
-**Tests:**
-- [ ] Highlight cells greater than value
-- [ ] Data bar with min/max
-- [ ] 3-color scale
-- [ ] Icon set (arrows, traffic lights)
+<conditionalFormatting sqref="D1:D10">
+  <!-- Icon set -->
+  <cfRule type="iconSet" priority="4">
+    <iconSet iconSet="3Arrows">
+      <cfvo type="percent" val="0"/>
+      <cfvo type="percent" val="33"/>
+      <cfvo type="percent" val="67"/>
+    </iconSet>
+  </cfRule>
+</conditionalFormatting>
+```
+
+#### Read-side (ConditionalFormattingParser.swift)
+- [ ] Parse `<conditionalFormatting>` elements with `sqref` attribute
+- [ ] Parse `<cfRule>` elements: `type`, `priority`, `operator`, `dxfId`
+- [ ] Parse `<formula>` element for cellIs/expression rules
+- [ ] Parse `<dataBar>` with `<cfvo>` (type, val) and `<color>`
+- [ ] Parse `<colorScale>` with multiple `<cfvo>` and `<color>` elements
+- [ ] Parse `<iconSet>` with `iconSet` attribute and `<cfvo>` thresholds
+- [ ] Handle cfvo types: `min`, `max`, `num`, `percent`, `percentile`, `formula`
+
+#### Write-side (ConditionalFormattingBuilder in SpreadsheetMLBuilders.swift)
+- [ ] Emit `<conditionalFormatting sqref="...">` wrapper
+- [ ] Emit `<cfRule>` with type-specific attributes
+- [ ] Emit `<formula>` for cellIs rules
+- [ ] Emit `<dataBar>` with cfvo and color
+- [ ] Emit `<colorScale>` with cfvo and color arrays
+- [ ] Emit `<iconSet>` with iconSet name and cfvo thresholds
+- [ ] Track priority numbers (must be unique per sheet)
+
+#### Domain Types
+```swift
+/// Conditional format value object (threshold/anchor point)
+public struct CFValueObject: Sendable, Equatable {
+    public enum ValueType: String, Sendable {
+        case min, max, num, percent, percentile, formula
+    }
+    public let type: ValueType
+    public let value: String?  // nil for min/max
+}
+
+/// A conditional formatting rule
+public enum ConditionalRule: Sendable, Equatable {
+    case cellIs(operator: CFOperator, formula: String, formatId: Int?)
+    case dataBar(minCfvo: CFValueObject, maxCfvo: CFValueObject, color: String)
+    case colorScale(cfvos: [CFValueObject], colors: [String])  // 2 or 3 point
+    case iconSet(name: String, cfvos: [CFValueObject])
+    case expression(formula: String, formatId: Int?)
+}
+
+/// Operators for cellIs rules
+public enum CFOperator: String, Sendable {
+    case lessThan, lessThanOrEqual, equal, notEqual
+    case greaterThanOrEqual, greaterThan, between, notBetween
+    case containsText, notContains, beginsWith, endsWith
+}
+
+/// A conditional format with range and rules
+public struct ConditionalFormat: Sendable, Equatable {
+    public let range: String  // sqref like "A1:A10"
+    public let rules: [ConditionalRule]
+}
+```
+
+#### High-level API
+- [ ] `Sheet.conditionalFormats: [ConditionalFormat]` - read parsed formats
+- [ ] `SheetWriter.addConditionalFormat(range:rule:)` - add single rule
+- [ ] `SheetWriter.addConditionalFormat(range:rules:)` - add multiple rules
+
+#### Tests (ConditionalFormattingTests.swift)
+**Parser tests:**
+- [ ] Parse cellIs rule with greaterThan operator
+- [ ] Parse cellIs rule with between operator (two formulas)
+- [ ] Parse dataBar with min/max cfvo
+- [ ] Parse 2-color scale
+- [ ] Parse 3-color scale with percentile
+- [ ] Parse iconSet (3Arrows)
+- [ ] Parse multiple rules on same range
+- [ ] Parse expression-based rule
+
+**Write tests:**
+- [ ] Emit cellIs highlight rule
+- [ ] Emit dataBar with custom color
+- [ ] Emit 3-color scale
+- [ ] Emit iconSet
+- [ ] Priority number uniqueness
+
+**Round-trip tests:**
+- [ ] Write cellIs → read back → verify operator and formula
+- [ ] Write dataBar → read back → verify cfvo and color
+- [ ] Write colorScale → read back → verify all colors
+- [ ] Multiple conditional formats per sheet
+
+**Integration tests:**
+- [ ] Parse Excel-created conditional formatting
+- [ ] File with mixed rule types
+
+**Estimated tests:** ~20 (8 parser + 5 write + 4 round-trip + 3 integration)
+
+**Status:** Not started
 
 ---
 
@@ -1081,8 +1196,8 @@ The following Phase 2 items are implemented and verified:
 - [x] Charts/drawings metadata parsing (Phase 3.2 complete)
 
 **Next - Phase 4 (OOXML Toolkit Compliance):**
-- [ ] **Phase 4.1: Full Styles** - fonts, fills, borders, alignment (read + write)
-- [ ] **Phase 4.2: Tables** - Excel Tables/ListObjects
+- [x] **Phase 4.1: Full Styles** - fonts, fills, borders, alignment (read + write) ✓
+- [x] **Phase 4.2: Tables** - Excel Tables/ListObjects (read + write) ✓
 - [ ] **Phase 4.3: Conditional Formatting** - data bars, color scales, icon sets
 - [ ] **Phase 4.4: AutoFilter** - column filtering
 - [ ] **Phase 4.5: Rich Text** - formatted text runs

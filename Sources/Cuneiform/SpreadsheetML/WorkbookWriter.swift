@@ -247,8 +247,33 @@ public struct WorkbookWriter {
             builder.setProtection(prot)
         }
         
+        /// Add a table (Excel Table or ListObject) to this sheet
+        public mutating func addTable(
+            name: String,
+            displayName: String? = nil,
+            ref: String,
+            columns: [(id: Int, name: String, totalsFunction: String?)] = [],
+            headerRowCount: Int = 1,
+            totalsRowCount: Int = 0,
+            tableId: Int = 1
+        ) {
+            let display = displayName ?? name
+            var tableBuilder = TableBuilder(id: tableId, displayName: display, name: name, ref: ref)
+            tableBuilder.setRowCounts(header: headerRowCount, totals: totalsRowCount)
+            
+            for (id, colName, totalsFunc) in columns {
+                tableBuilder.addColumn(id: id, name: colName, totalsRowFunction: totalsFunc)
+            }
+            
+            builder.addTable(tableBuilder)
+        }
+        
         fileprivate func build() -> Data {
             builder.build()
+        }
+        
+        fileprivate func tables() -> [TableBuilder] {
+            builder.tablesArray
         }
         
         fileprivate func hyperlinkRelationships() -> [(id: String, target: String)] {
@@ -388,6 +413,8 @@ public struct WorkbookWriter {
         zipWriter.addFile(path: "xl/styles.xml", data: stylesBuilder.build())
         
         // Build worksheets
+        var globalTableCount = 0  // Global counter for table numbering across all sheets
+        
         for index in sheets.indices {
             let sheetNum = index + 1
             var sheet = sheets[index]
@@ -427,6 +454,24 @@ public struct WorkbookWriter {
                     zipWriter.addFile(path: String(vmlPath.dropFirst()), data: vmlData)
                     sheet.setLegacyDrawingRelationship(id: vmlRelId)
                 }
+            }
+
+            // Tables
+            let sheetTables = sheet.tables()
+            for (tableIndex, var tableBuilder) in sheetTables.enumerated() {
+                globalTableCount += 1
+                tableBuilder.setTableId(globalTableCount)  // Set globally unique table ID
+                let tableRelId = tableIndex + 1  // Per-sheet sequential ID for relationship
+                let tablePath = "/xl/tables/table\(globalTableCount).xml"
+                contentTypes.addOverride(partName: tablePath, contentType: ContentType.table.value)
+                zipWriter.addFile(path: String(tablePath.dropFirst()), data: tableBuilder.build())
+                
+                wsRels.addRelationship(
+                    type: RelationshipType.table.uri,
+                    target: "../tables/table\(globalTableCount).xml",
+                    id: "rIdTable\(tableRelId)"
+                )
+                hasWorksheetRels = true
             }
 
             zipWriter.addFile(path: "xl/worksheets/sheet\(sheetNum).xml", data: sheet.build())
