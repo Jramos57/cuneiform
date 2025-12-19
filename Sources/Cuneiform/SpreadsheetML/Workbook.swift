@@ -135,7 +135,31 @@ public struct Workbook: Sendable {
             throw CuneiformError.malformedXML(part: sheetPath.relationshipsPath.value, detail: error.localizedDescription)
         }
 
-        return Sheet(data: worksheet, sharedStrings: sharedStrings, styles: styles, comments: comments)
+        // Parse charts via worksheet relationships (if present)
+        let charts: [ChartData]
+        do {
+            var mutablePkg = package
+            let wsRels = try mutablePkg.relationships(for: sheetPath)
+            let chartRels = wsRels[.chart]
+            if chartRels.isEmpty {
+                charts = []
+            } else {
+                var acc: [ChartData] = []
+                for cRel in chartRels {
+                    let cPath = cRel.resolveTarget(relativeTo: sheetPath)
+                    let cData = try mutablePkg.readPart(cPath)
+                    let parsed = try ChartParser.parse(data: cData)
+                    acc.append(parsed)
+                }
+                charts = acc
+            }
+        } catch let err as CuneiformError {
+            throw err
+        } catch {
+            throw CuneiformError.malformedXML(part: sheetPath.relationshipsPath.value, detail: error.localizedDescription)
+        }
+
+        return Sheet(data: worksheet, sharedStrings: sharedStrings, styles: styles, comments: comments, charts: charts)
     }
 
     /// Workbook-level defined names

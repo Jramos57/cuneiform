@@ -4,6 +4,7 @@ public struct Sheet: Sendable {
     private let sharedStrings: SharedStrings
     private let styles: StylesInfo
     private let commentsList: [Comment]
+    private let chartsList: [ChartData]
 
     /// Dimension of the worksheet
     public var dimension: String? { rawData.dimension }
@@ -22,6 +23,9 @@ public struct Sheet: Sendable {
 
     /// Comments (notes) defined in the worksheet
     public var comments: [Comment] { commentsList }
+
+    /// Charts embedded in the worksheet
+    public var charts: [ChartData] { chartsList }
 
     /// Sheet protection state (if any)
     public var protection: WorksheetData.Protection? { rawData.protection }
@@ -63,11 +67,12 @@ public struct Sheet: Sendable {
         return comments(at: cellRef)
     }
 
-    init(data: WorksheetData, sharedStrings: SharedStrings, styles: StylesInfo, comments: [Comment] = []) {
+    init(data: WorksheetData, sharedStrings: SharedStrings, styles: StylesInfo, comments: [Comment] = [], charts: [ChartData] = []) {
         self.rawData = data
         self.sharedStrings = sharedStrings
         self.styles = styles
         self.commentsList = comments
+        self.chartsList = charts
     }
 
     /// Get resolved cell value by reference
