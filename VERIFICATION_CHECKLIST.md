@@ -119,6 +119,61 @@ New validation variants:
 
 ---
 
+## Phase 4: OOXML Toolkit Compliance (Planned)
+
+**Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
+
+### Current Compliance Gaps
+
+| Area | Current | Target | Gap |
+|------|---------|--------|-----|
+| Styles (§18.8) | 30% | 90% | fonts, fills, borders, alignment |
+| Tables (§18.5) | 0% | 80% | ListObjects, structured refs |
+| Conditional Formatting (§18.3.1) | 0% | 80% | data bars, color scales, icon sets |
+| AutoFilter | 0% | 80% | column filtering |
+| Rich Text (§18.4) | 20% | 90% | formatted text runs |
+
+### Phase 4.1: Full Styles Support
+- [ ] Read: fonts, fills, borders, alignment from `styles.xml`
+- [ ] Write: complete style elements with all attributes
+- [ ] API: `CellStyle` struct, `Sheet.cellStyle(at:)`
+- [ ] Tests: round-trip formatting verification
+
+### Phase 4.2: Tables/ListObjects
+- [ ] Read: parse `/xl/tables/tableN.xml`
+- [ ] Write: emit table.xml with columns
+- [ ] API: `TableData`, `Sheet.tables`, `SheetWriter.addTable()`
+- [ ] Tests: create and parse Excel tables
+
+### Phase 4.3: Conditional Formatting
+- [ ] Read: parse `<conditionalFormatting>` rules
+- [ ] Write: emit highlight, data bar, color scale, icon set rules
+- [ ] API: `ConditionalRule` enum, `Sheet.conditionalFormats`
+- [ ] Tests: various rule types
+
+### Phase 4.4: AutoFilter
+- [ ] Read: parse `<autoFilter>` element
+- [ ] Write: emit filter ranges and criteria
+- [ ] API: `AutoFilter`, `Sheet.autoFilter`
+- [ ] Tests: filter range setup
+
+### Phase 4.5: Rich Text
+- [ ] Read: preserve `<r>` runs with formatting
+- [ ] Write: emit rich text in cells and comments
+- [ ] API: `TextRun`, `RichText`, `CellValue.richText`
+- [ ] Tests: formatted text round-trip
+
+### Phase 4.6: Shared Strings Optimization
+- [ ] Write: use shared strings table for efficiency
+- [ ] Tests: large file optimization
+
+### Phase 4.7: Page Setup & Print
+- [ ] Read: parse `<pageSetup>`, `<pageMargins>`
+- [ ] Write: emit print configuration
+- [ ] API: `PageSetup`, `Sheet.pageSetup`
+
+---
+
 ## Ergonomics
 
 - [x] Data validations helpers: `Sheet.validations(for:)` to filter by A1 range and `Sheet.validations(at:)` for a single cell.

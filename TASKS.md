@@ -1,14 +1,13 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3.1 Complete ✓ / Phase 3.2 Complete ✓ / Phase 3.3 Complete ✓ / Phase 3.4 Complete ✓
+## Status: Phase 1-3 Complete ✓ / Phase 4 Planned (OOXML Toolkit)
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
-**Phase 3.1 (Sheet Protection) Implemented:** December 18, 2025
-**Phase 3.2 (Charts) Implemented:** December 18, 2025
-**Phase 3.3 (Workbook Protection) Implemented:** December 18, 2025
-**Phase 3.4 (Pivot Tables) Implemented:** December 18, 2025
+**Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Current Verification:** All 168 tests pass (Dec 19, 2025)
+**Current Compliance:** ~60% ISO/IEC 29500
+**Target Compliance:** ~85% (after Phase 4)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -71,11 +70,205 @@ Completed (Dec 18, 2025):
 - [x] 7 parser tests + 1 integration test validating discovery from real XLSX with 22 pivot tables; total 168 tests passing
 - [x] **Status**: Phase 3.4 Complete (8 tests)
 
-### Phase 3.5+: Future Phase 3 Items
-- [ ] Conditional formatting (data bar, color scale, icon set formulas)
-- [ ] Themes and advanced styling (theme colors, tints, shades)
-- [ ] Named ranges (advanced: defined names with formulas and scopes)
-- [ ] Exporters: CSV/JSON/HTML with streaming
+---
+
+## Phase 4: OOXML Toolkit Compliance
+
+**Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+ for production-ready OOXML toolkit.
+
+### Phase 4.1: Full Styles Support (§18.8)
+Expand `StylesParser` and `StylesBuilder` to expose complete cell formatting.
+
+**Read-side (StylesParser.swift):**
+- [ ] Parse `<fonts>` section: family, size, color (theme/rgb/indexed), bold, italic, underline, strike
+- [ ] Parse `<fills>` section: pattern type, foreground/background colors
+- [ ] Parse `<borders>` section: left/right/top/bottom/diagonal styles and colors
+- [ ] Parse `<cellStyleXfs>` for named style definitions
+- [ ] Parse alignment: horizontal, vertical, wrapText, textRotation, indent
+
+**Write-side (StylesBuilder.swift):**
+- [ ] Emit full `<font>` elements with all attributes
+- [ ] Emit `<fill>` with patternFill and gradient support
+- [ ] Emit `<border>` with style (thin, medium, thick, dashed, etc.) and color
+- [ ] Emit `<alignment>` element in cellXfs
+- [ ] Support theme color references (scheme colors)
+
+**High-level API:**
+- [ ] `CellStyle` struct: font, fill, border, alignment, numberFormat
+- [ ] `Sheet.cellStyle(at:)` returns full formatting
+- [ ] `SheetWriter.setCellStyle(_:at:)` for applying styles
+
+**Tests:**
+- [ ] Round-trip: write styled cells → read back → verify all properties
+- [ ] Parse real Excel files with complex formatting
+- [ ] Theme color resolution
+
+---
+
+### Phase 4.2: Tables/ListObjects (§18.5)
+Excel Tables with headers, totals, and structured references.
+
+**Read-side:**
+- [ ] Parse `/xl/tables/tableN.xml`
+- [ ] Extract: name, displayName, ref (range), headerRowCount, totalsRowCount
+- [ ] Parse `<tableColumn>` elements: id, name, totalsRowFunction
+- [ ] Parse `<autoFilter>` within table
+- [ ] Parse table styles: tableStyleInfo element
+
+**Write-side:**
+- [ ] Emit `table.xml` with columns and range
+- [ ] Add table relationship to worksheet
+- [ ] Emit `<tableParts>` in worksheet XML
+- [ ] Register table content type override
+
+**High-level API:**
+- [ ] `TableData` struct: name, range, columns, hasHeaders, hasTotals
+- [ ] `Sheet.tables` property
+- [ ] `SheetWriter.addTable(name:range:columns:)`
+
+**Tests:**
+- [ ] Create table, read back, verify structure
+- [ ] Parse Excel-created tables
+- [ ] Table with totals row formulas
+
+---
+
+### Phase 4.3: Conditional Formatting (§18.3.1)
+Data bars, color scales, icon sets, and formula-based rules.
+
+**Read-side:**
+- [ ] Parse `<conditionalFormatting>` elements
+- [ ] Extract sqref (affected ranges)
+- [ ] Parse rule types: cellIs, colorScale, dataBar, iconSet, expression
+- [ ] Parse operator and formula for cellIs rules
+- [ ] Parse cfvo (conditional format value objects) for gradients
+
+**Write-side:**
+- [ ] Emit `<conditionalFormatting>` with rules
+- [ ] Support highlight cells rules (greater than, less than, between, etc.)
+- [ ] Support data bar generation
+- [ ] Support color scale (2-color, 3-color)
+- [ ] Support icon sets
+
+**High-level API:**
+- [ ] `ConditionalRule` enum with associated values per rule type
+- [ ] `Sheet.conditionalFormats` property
+- [ ] `SheetWriter.addConditionalFormat(range:rule:)`
+
+**Tests:**
+- [ ] Highlight cells greater than value
+- [ ] Data bar with min/max
+- [ ] 3-color scale
+- [ ] Icon set (arrows, traffic lights)
+
+---
+
+### Phase 4.4: AutoFilter (§18.3.2.1)
+Column filtering without full table.
+
+**Read-side:**
+- [ ] Parse `<autoFilter ref="A1:D100">` element
+- [ ] Parse `<filterColumn>` with colId
+- [ ] Parse filter types: filters (discrete values), customFilters, top10, colorFilter
+
+**Write-side:**
+- [ ] Emit `<autoFilter>` element in worksheet
+- [ ] Emit `<filterColumn>` with filter criteria
+
+**High-level API:**
+- [ ] `AutoFilter` struct: range, columnFilters
+- [ ] `Sheet.autoFilter` property
+- [ ] `SheetWriter.setAutoFilter(range:)`
+
+**Tests:**
+- [ ] Set autofilter range
+- [ ] Parse filtered worksheet
+- [ ] Column with discrete value filter
+
+---
+
+### Phase 4.5: Rich Text (§18.4)
+Full rich text support for cells and comments.
+
+**Read-side:**
+- [ ] Preserve `<r>` (run) elements in SharedStrings
+- [ ] Parse `<rPr>` (run properties): font, size, color, bold, italic, underline
+- [ ] Expose as `[TextRun]` array instead of plain String
+
+**Write-side:**
+- [ ] Emit rich text runs in sharedStrings.xml
+- [ ] Emit rich text in comments
+
+**High-level API:**
+- [ ] `TextRun` struct: text, font, size, color, bold, italic, underline
+- [ ] `RichText` = `[TextRun]`
+- [ ] `CellValue.richText([TextRun])` case
+- [ ] `Sheet.richText(at:)` returns formatted runs
+
+**Tests:**
+- [ ] Parse cell with multiple formatted runs
+- [ ] Write rich text, read back, verify formatting
+- [ ] Rich text in comments
+
+---
+
+### Phase 4.6: Shared Strings Optimization
+Use shared strings table for write efficiency.
+
+**Write-side:**
+- [ ] Track unique strings during workbook write
+- [ ] Generate optimized sharedStrings.xml
+- [ ] Reference shared string indices in cells (`t="s"`)
+- [ ] Option to force inline strings for small files
+
+**Tests:**
+- [ ] Large file with repeated strings uses shared table
+- [ ] Shared string indices resolve correctly on read-back
+
+---
+
+### Phase 4.7: Page Setup & Print Areas (§18.3.1.63)
+Print configuration for worksheets.
+
+**Read-side:**
+- [ ] Parse `<pageSetup>` element: orientation, paperSize, scale, fitToPage
+- [ ] Parse `<pageMargins>`: left, right, top, bottom, header, footer
+- [ ] Parse print area from defined names (`_xlnm.Print_Area`)
+- [ ] Parse print titles (`_xlnm.Print_Titles`)
+
+**Write-side:**
+- [ ] Emit `<pageSetup>` element
+- [ ] Emit `<pageMargins>` element
+- [ ] Add print area/titles as defined names
+
+**High-level API:**
+- [ ] `PageSetup` struct: orientation, paperSize, margins, scale
+- [ ] `Sheet.pageSetup` property
+- [ ] `SheetWriter.setPageSetup(_:)`
+
+---
+
+### Phase 4 Priority Order
+
+1. **4.1 Full Styles** - Most requested, enables formatting round-trip
+2. **4.2 Tables** - Common Excel feature, structured data
+3. **4.3 Conditional Formatting** - Visual data analysis
+4. **4.4 AutoFilter** - Essential for data worksheets
+5. **4.5 Rich Text** - Text formatting preservation
+6. **4.6 Shared Strings** - Performance optimization
+7. **4.7 Page Setup** - Print support
+
+---
+
+### Future Phases (Post-4.x)
+
+- [ ] Sparklines (Excel 2010+ extension)
+- [ ] Slicers (Excel 2010+ extension)
+- [ ] DrawingML shapes and images
+- [ ] Full chart generation (not just parsing)
+- [ ] Pivot table generation
+- [ ] External data connections
+- [ ] Strict format support (ISO namespace)
 
 
 ## Swift Style Requirements
@@ -872,13 +1065,23 @@ The following Phase 2 items are implemented and verified:
 
 ### Upcoming Tasks
 
-- [x] **Add "How to Use" doc snippets** for named ranges and data validations (improves DX):
-  - Doc comments added to `DefinedName` and `WorksheetData.DataValidation`
-  - README updates can be done as part of release prep
+**Completed:**
+- [x] Add "How to Use" doc snippets for named ranges and data validations
 - [x] Hyperlinks and cell comments (read/write minimal)
 - [x] Charts/drawings metadata parsing (Phase 3.2 complete)
-- [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
-- [ ] Release prep: version bump, CI (macOS/Linux), DocC preview, README polish, CHANGELOG
+
+**Next - Phase 4 (OOXML Toolkit Compliance):**
+- [ ] **Phase 4.1: Full Styles** - fonts, fills, borders, alignment (read + write)
+- [ ] **Phase 4.2: Tables** - Excel Tables/ListObjects
+- [ ] **Phase 4.3: Conditional Formatting** - data bars, color scales, icon sets
+- [ ] **Phase 4.4: AutoFilter** - column filtering
+- [ ] **Phase 4.5: Rich Text** - formatted text runs
+- [ ] **Phase 4.6: Shared Strings** - write optimization
+- [ ] **Phase 4.7: Page Setup** - print configuration
+
+**Release Prep (after Phase 4):**
+- [ ] Exporters: CSV/JSON/HTML with streaming
+- [ ] Version bump, CI (macOS/Linux), DocC preview, README polish, CHANGELOG
 
 ### References
 
