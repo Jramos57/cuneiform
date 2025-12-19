@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 111 tests pass (Dec 19, 2025)
+**Current Verification:** All 117 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -753,7 +753,7 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 After implementation, verify:
 
 - [x] `swift build` succeeds with no warnings
-- [x] `swift test` passes all tests (111/111)
+- [x] `swift test` passes all tests (117/117)
 - [x] All types are `Sendable`
 - [x] All public APIs have doc comments
 - [x] Error cases throw appropriate `CuneiformError` variants
@@ -804,11 +804,12 @@ The following Phase 2 items are implemented and verified:
 - [x] Merged cells on write: `<mergeCells>` emission via `WorksheetBuilder` and `SheetWriter.mergeCells(_:)`, round-trip validated
 - [x] Data validations on write: `<dataValidations>` emission with list and numeric constraints; operator support (e.g., `between` with `op` and `formula1`/`formula2`)
 - [x] Workbook defined names: `<definedNames>` emission in `workbook.xml` for named ranges
+ - [x] Expanded validation variants: decimal `greaterThanOrEqual`, date `between` with two formulas, whole `lessThanOrEqual`, list using range references
+ - [x] Read-side parsing: workbook `definedNames` and worksheet `dataValidations` exposed via high-level APIs
 
 ### Upcoming Tasks
 
-- [ ] Expand data validations: additional operators/types (>=, <=, decimal, date) and range-based list references
-- [ ] Read-side parsing for defined names and validations; ergonomic query helpers (optional)
+- [ ] Ergonomic query helpers for named ranges and validations (optional)
 - [ ] Hyperlinks and cell comments (read/write minimal)
 - [ ] Charts/drawings metadata parsing; optional write stubs for relationships
 - [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests

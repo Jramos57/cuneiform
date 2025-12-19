@@ -12,20 +12,20 @@ swift test    # All tests must pass
 
 ---
 
-## Status Summary (Dec 19, 2025)
+## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 111 tests pass.
+**STATUS: GREEN** - All 117 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (111/111)
+- [x] Entire test suite passes (117/117)
 
 ---
 
-## New Additions (Dec 19, 2025)
+## New Additions (Dec 18, 2025)
 
 Write-side styling and formatting are implemented and verified.
 
@@ -40,6 +40,12 @@ Additional write-side features:
 - [x] Data validations: `<dataValidations>` section with list and numeric constraints, including operator and dual-formula support
 - [x] Named ranges: `<definedNames>` emitted in `workbook.xml`
 
+New validation variants:
+- [x] Decimal validation with `greaterThanOrEqual`
+- [x] Date validation with `between` and dual formulas
+- [x] Whole-number validation with `lessThanOrEqual`
+- [x] List validation using range references (e.g., `Sheet!$A$1:$A$10`)
+
 ### Files Updated/Added
 - [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (added `StylesBuilder`, style-aware cells; merged cells and data validations emission)
 - [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (integrated `styles.xml` and relationships; merge/data validation APIs; defined names)
@@ -48,10 +54,12 @@ Additional write-side features:
 - [x] `Tests/CuneiformTests/WorksheetWriteExtrasTests.swift` (merged cells, list validations presence)
 - [x] `Tests/CuneiformTests/DataValidationVariantTests.swift` (numeric between validation with operator and two formulas)
 - [x] `Tests/CuneiformTests/NamedRangesWriteTests.swift` (defined names emission in workbook)
+- [x] `Tests/CuneiformTests/NamedRangesReadTests.swift` (read defined names from workbook)
+- [x] `Tests/CuneiformTests/DataValidationReadTests.swift` (read data validations from worksheet)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 111 tests passing including new styling suite, write extras, named ranges, and performance benchmarks
+- [x] `swift test` succeeds: 117 tests passing including new styling suite, write extras, named ranges, expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 
@@ -94,6 +102,12 @@ Additional write-side features:
 
 ### NamedRangesWriteTests
 - [x] Defined names emitted in `workbook.xml`
+
+### NamedRangesReadTests
+- [x] Read defined names via `Workbook.definedNamesList`
+
+### DataValidationReadTests
+- [x] Read data validations via `Sheet.dataValidations`
 
 ---
 
@@ -309,9 +323,9 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (111/111)
+- [x] **Tests pass**: `swift test` shows all green (117/117)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 
 **Phase 1 Verified by:** Vek (December 17, 2025)
-**Phase 2 Verified by:** Vek (December 18-19, 2025)
+**Phase 2 Verified by:** Vek (December 18, 2025)
