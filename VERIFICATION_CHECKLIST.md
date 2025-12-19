@@ -12,16 +12,16 @@ swift test    # All tests must pass
 
 ---
 
-## Status Summary (Dec 18, 2025)
+## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 160 tests pass.
+**STATUS: GREEN** - All 168 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
-- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts, Workbook Protection
+- [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts, Workbook Protection, Pivot Tables
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (160/160)
+- [x] Entire test suite passes (168/168)
 
 ---
 
@@ -106,9 +106,16 @@ New validation variants:
 - [x] `Tests/CuneiformTests/WorkbookProtectionParserTests.swift` (6 tests for read-side protection parsing)
 - [x] `Tests/CuneiformTests/WorkbookProtectionWriteTests.swift` (8 tests for write-side protection and round-trip)
 
+### Phase 3.4: Pivot Tables (Dec 18, 2025) ✓
+- [x] `Sources/Cuneiform/SpreadsheetML/PivotTableParser.swift` (parse `/xl/pivotTables/pivotTableN.xml`)
+- [x] `Sources/Cuneiform/Core/Relationship.swift` (added `.pivotTable` relationship type)
+- [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (automatic discovery via worksheet relationships; `Workbook.pivotTables` property)
+- [x] `Tests/CuneiformTests/PivotTableParserTests.swift` (7 tests for pivot metadata)
+- [x] `Tests/CuneiformTests/WorkbookIntegrationTests.swift` (1 integration test validating discovery from real XLSX with 22 pivot tables)
+
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 160 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection)
+- [x] `swift test` succeeds: 168 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), Phase 3.1 (sheet protection), Phase 3.2 (charts), Phase 3.3 (workbook protection), Phase 3.4 (pivot tables)
 
 ---
 
@@ -377,7 +384,7 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (123/123)
+- [x] **Tests pass**: `swift test` shows all green (168/168)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 

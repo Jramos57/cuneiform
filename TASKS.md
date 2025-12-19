@@ -1,13 +1,14 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3.1 Complete ✓ / Phase 3.2 Complete ✓ / Phase 3.3 Complete ✓
+## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3.1 Complete ✓ / Phase 3.2 Complete ✓ / Phase 3.3 Complete ✓ / Phase 3.4 Complete ✓
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
 **Phase 3.1 (Sheet Protection) Implemented:** December 18, 2025
 **Phase 3.2 (Charts) Implemented:** December 18, 2025
 **Phase 3.3 (Workbook Protection) Implemented:** December 18, 2025
-**Current Verification:** All 160 tests pass (Dec 18, 2025)
+**Phase 3.4 (Pivot Tables) Implemented:** December 18, 2025
+**Current Verification:** All 168 tests pass (Dec 19, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -39,7 +40,7 @@ Completed (Dec 18, 2025):
 - [x] Sheet protection (write-side): Emit `<sheetProtection>` with `SheetWriter.protectSheet(password:options:)` API
 - [x] 13 new tests; total 143 tests passing
 
-### Phase 3.2: Charts (In Progress)
+### Phase 3.2: Charts ✓
 - [x] Chart parser: Parse `/xl/charts/chart*.xml` to extract type, title, series count, data ranges
 - [x] ChartData struct: type (enum: column, bar, line, pie, area, etc.), title, seriesCount, dataRange
 - [x] Content types: Added `.chart` and `.drawing` to ContentType
@@ -61,11 +62,21 @@ Completed (Dec 18, 2025):
 - [x] 8 new write/round-trip tests; total 160 tests passing
 - [x] **Status**: Phase 3.3 Complete (14 tests: 6 read + 8 write)
 
-### Phase 3.4+: Future Phase 3 Items
-- [ ] Pivot tables (metadata read-side only)
-- [ ] Themes and advanced styling
-- [ ] Conditional formatting
-- [ ] Named ranges (advanced: defined names with formulas)
+### Phase 3.4: Pivot Tables ✓
+Completed (Dec 18, 2025):
+- [x] Pivot table parser: Parse `/xl/pivotTables/pivotTableN.xml` to extract name, cacheId, location, field counts
+- [x] PivotTableData struct: Sendable, Equatable with all metadata fields
+- [x] Relationship type: Added `.pivotTable` to RelationshipType
+- [x] Workbook integration: Automatic discovery from worksheet relationships via `Workbook.pivotTables` property
+- [x] 7 parser tests + 1 integration test validating discovery from real XLSX with 22 pivot tables; total 168 tests passing
+- [x] **Status**: Phase 3.4 Complete (8 tests)
+
+### Phase 3.5+: Future Phase 3 Items
+- [ ] Conditional formatting (data bar, color scale, icon set formulas)
+- [ ] Themes and advanced styling (theme colors, tints, shades)
+- [ ] Named ranges (advanced: defined names with formulas and scopes)
+- [ ] Exporters: CSV/JSON/HTML with streaming
+
 
 ## Swift Style Requirements
 
@@ -805,7 +816,7 @@ final class MyParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 After implementation, verify:
 
 - [x] `swift build` succeeds with no warnings
-- [x] `swift test` passes all tests (118/118)
+- [x] `swift test` passes all tests (168/168)
 - [x] All types are `Sendable`
 - [x] All public APIs have doc comments
 - [x] Error cases throw appropriate `CuneiformError` variants
@@ -865,7 +876,7 @@ The following Phase 2 items are implemented and verified:
   - Doc comments added to `DefinedName` and `WorksheetData.DataValidation`
   - README updates can be done as part of release prep
 - [x] Hyperlinks and cell comments (read/write minimal)
-- [ ] Charts/drawings metadata parsing; optional write stubs for relationships
+- [x] Charts/drawings metadata parsing (Phase 3.2 complete)
 - [ ] Exporters: CSV/JSON/HTML with streaming; CLI examples and tests
 - [ ] Release prep: version bump, CI (macOS/Linux), DocC preview, README polish, CHANGELOG
 
