@@ -14,14 +14,14 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 143 tests pass.
+**STATUS: GREEN** - All 146 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
 - [x] Parsers implemented: SharedStrings, Workbook, Worksheet, Styles, Charts (basic)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (143/143)
+- [x] Entire test suite passes (146/146)
 
 ---
 
@@ -94,10 +94,13 @@ New validation variants:
 - [x] `Sources/Cuneiform/Core/ContentType.swift` (added `.chart`, `.drawing` content types)
 - [x] `Sources/Cuneiform/Core/Relationship.swift` (added `.chart`, `.drawing` relationship types)
 - [x] `Tests/CuneiformTests/ChartParserTests.swift` (6 tests for chart type parsing: column, line, pie, area, bar, unknown)
+- [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (added chartsList and charts property)
+- [x] `Sources/Cuneiform/SpreadsheetML/Workbook.swift` (integrated chart discovery via relationships)
+- [x] `Tests/CuneiformTests/ChartIntegrationTests.swift` (3 tests for chart discovery and integration)
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 143 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), and Phase 3.1/3.2 (protection read/write, chart parsing)
+- [x] `swift test` succeeds: 146 tests passing including all Phase 1 (parsers), Phase 2 (write/queries/styling/hyperlinks/comments/protection), and Phase 3.1/3.2 (protection read/write, chart parsing and discovery)
 
 ---
 

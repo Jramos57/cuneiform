@@ -142,7 +142,7 @@ swift build
 swift test
 ```
 
-**Status:** All 137 tests pass.
+**Status:** All 146 tests pass.
 
 ## Components
 
@@ -260,25 +260,25 @@ if let protection = sheet.protection {
 }
 ```
 
-### Comments
+### Charts
 
 ```swift
-// Add a cell comment with an author
-writer.modifySheet(at: sheetIndex) { sheet in
-    sheet.addComment(at: "C5", text: "Review this total", author: "Alex")
+// Access charts embedded in a worksheet
+let sheet = try workbook.sheet(named: "Dashboard")
+
+// Get all charts in the sheet
+for chart in sheet.charts {
+    print("Chart: \(chart.title ?? "Untitled")")
+    print("  Type: \(chart.type)")
+    print("  Series: \(chart.seriesCount)")
 }
 
-// Comments are stored in `/xl/commentsN.xml` (part) with a worksheet relationship.
-// Internally, Cuneiform generates a VML drawing (`/xl/drawings/vmlDrawingN.vml`) that enables
-// the comment to display in Excel and compatible spreadsheet UIs. The worksheet XML receives
-// a `<legacyDrawing>` element pointing to the VML part, allowing the comment indicator to appear
-// and the comment bubble to render when opened by users.
-// 
-// The full pipeline:
-// - CommentsBuilder creates the comments XML with author index and cell references.
-// - VMLCommentsBuilder generates VML shapes anchored to each commented cell.
-// - WorkbookWriter wires these parts into the package, adds relationships, and embeds the
-//   legacy drawing reference into the worksheet so Excel displays comment indicators.
+// Charts are read-side only (parsing from `/xl/charts/chartN.xml`).
+// Chart data includes:
+// - type: The chart classification (column, bar, line, pie, area, etc.)
+// - title: Optional chart title
+// - seriesCount: Number of data series
+// - dataRange: Optional reference to data source
 
 // Internal hyperlink (to a location within the workbook)
 writer.modifySheet(at: sheetIndex) { sheet in

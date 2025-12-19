@@ -1,11 +1,12 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3 In Progress
+## Status: Phase 1 Complete ✓ / Phase 2 Complete ✓ / Phase 3.1 Complete ✓ / Phase 3.2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
-**Phase 3 In Progress:** December 18, 2025 (Charts parsing started)
-**Current Verification:** All 143 tests pass (Dec 18, 2025)
+**Phase 3.1 (Sheet Protection) Implemented:** December 18, 2025
+**Phase 3.2 (Charts - Basic) In Progress:** December 18, 2025
+**Current Verification:** All 146 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
