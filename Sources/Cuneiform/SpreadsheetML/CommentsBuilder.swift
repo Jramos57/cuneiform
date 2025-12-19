@@ -29,6 +29,12 @@ public struct CommentsBuilder {
     /// Returns true when comments have been added.
     public var hasComments: Bool { !entries.isEmpty }
 
+    /// All comment entries accumulated (for VML generation)
+    var allEntries: [Entry] { entries }
+
+    /// All authors accumulated (for VML generation)
+    var allAuthors: [String] { authors }
+
     /// Builds the comments XML data.
     public func build() -> Data {
         precondition(!entries.isEmpty, "No comments to build")

@@ -122,6 +122,16 @@ public struct WorkbookWriter {
             guard let cb = commentsBuilder, cb.hasComments else { return nil }
             return cb.build()
         }
+
+        fileprivate func buildVMLCommentsPart() -> Data? {
+            guard let cb = commentsBuilder, cb.hasComments else { return nil }
+            let vmlBuilder = VMLCommentsBuilder(entries: cb.allEntries)
+            return vmlBuilder.build()
+        }
+
+        fileprivate mutating func setLegacyDrawingRelationship(id: String) {
+            builder.setLegacyDrawingRelationship(id: id)
+        }
     }
     
     private var sheets: [SheetWriter] = []
@@ -161,13 +171,13 @@ public struct WorkbookWriter {
     }
     
     /// Save the workbook to a file
-    public func save(to url: URL) throws {
+    public mutating func save(to url: URL) throws {
         let data = try buildData()
         try data.write(to: url)
     }
     
     /// Build the workbook data
-    public func buildData() throws -> Data {
+    public mutating func buildData() throws -> Data {
         var zipWriter = ZipWriter()
         
         // Build content types
@@ -225,37 +235,54 @@ public struct WorkbookWriter {
         zipWriter.addFile(path: "xl/styles.xml", data: stylesBuilder.build())
         
         // Build worksheets
-        for (index, sheet) in sheets.enumerated() {
+        for index in sheets.indices {
             let sheetNum = index + 1
-            zipWriter.addFile(path: "xl/worksheets/sheet\(sheetNum).xml", data: sheet.build())
+            var sheet = sheets[index]
             var wsRels = RelationshipsBuilder()
+            var hasWorksheetRels = false
 
             // External hyperlinks
             let hlRels = sheet.hyperlinkRelationships()
             for (id, target) in hlRels {
                 wsRels.addRelationship(
-                    type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+                    type: RelationshipType.hyperlink.uri,
                     target: target,
                     id: id,
                     targetMode: "External"
                 )
+                hasWorksheetRels = true
             }
 
-            // Comments part
+            // Comments part + VML drawing
             if sheet.hasComments, let commentsData = sheet.buildCommentsPart() {
                 let commentsPath = "/xl/comments\(sheetNum).xml"
                 contentTypes.addOverride(partName: commentsPath, contentType: ContentType.comments.value)
                 zipWriter.addFile(path: String(commentsPath.dropFirst()), data: commentsData)
                 wsRels.addRelationship(
-                    type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments",
+                    type: RelationshipType.comments.uri,
                     target: "../comments\(sheetNum).xml"
                 )
+                hasWorksheetRels = true
+
+                if let vmlData = sheet.buildVMLCommentsPart() {
+                    let vmlPath = "/xl/drawings/vmlDrawing\(sheetNum).vml"
+                    let vmlRelId = wsRels.addRelationship(
+                        type: RelationshipType.vmlDrawing.uri,
+                        target: "../drawings/vmlDrawing\(sheetNum).vml"
+                    )
+                    contentTypes.addOverride(partName: vmlPath, contentType: ContentType.vmlDrawing.value)
+                    zipWriter.addFile(path: String(vmlPath.dropFirst()), data: vmlData)
+                    sheet.setLegacyDrawingRelationship(id: vmlRelId)
+                }
             }
 
-            let hasWorksheetRels = !hlRels.isEmpty || sheet.hasComments
+            zipWriter.addFile(path: "xl/worksheets/sheet\(sheetNum).xml", data: sheet.build())
+
             if hasWorksheetRels {
                 zipWriter.addFile(path: "xl/worksheets/_rels/sheet\(sheetNum).xml.rels", data: wsRels.build())
             }
+
+            sheets[index] = sheet
         }
         
         return try zipWriter.write()

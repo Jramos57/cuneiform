@@ -88,6 +88,12 @@ extension RelationshipType {
     public static let hyperlink = RelationshipType(
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
     )
+    public static let comments = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+    )
+    public static let vmlDrawing = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing"
+    )
 }
 
 extension RelationshipType: ExpressibleByStringLiteral {

@@ -3,7 +3,7 @@
 ## Status: Phase 1 Complete ✓ / Phase 2 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
-**Current Verification:** All 123 tests pass (Dec 18, 2025)
+**Current Verification:** All 124 tests pass (Dec 18, 2025)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
 - SharedStringsParser - Parse shared string table with rich text support
@@ -23,6 +23,7 @@ Developer-facing helpers to make parsed data easier to use:
  - [x] Hyperlinks (write-side minimal): emit `<hyperlinks>` in worksheet XML and add worksheet relationships `_rels/sheetN.xml.rels` with `Type=hyperlink` + `TargetMode="External"` for external URLs; APIs: `SheetWriter.addHyperlinkExternal(at:url:display:tooltip:)`, `SheetWriter.addHyperlinkInternal(at:location:display:tooltip:)`.
  - [x] Comments (read-side): resolve worksheet comments via relationships and expose as `Sheet.comments` / `comments(at:)`.
  - [x] Comments (write-side minimal): emit `/xl/commentsN.xml` with authors and text runs; add worksheet `Type=comments` relationship pointing to `../commentsN.xml`; API: `SheetWriter.addComment(at:text:author:)`.
+ - [x] Comments (display via VML): emit `/xl/drawings/vmlDrawingN.vml` with legacy VML shapes anchored to each comment; add worksheet `Type=vmlDrawing` relationship and `<legacyDrawing r:id>` element in worksheet XML so Excel renders comment indicators and bubbles.
 
 ## Swift Style Requirements
 

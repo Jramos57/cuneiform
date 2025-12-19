@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 18, 2025)
 
-**STATUS: GREEN** - All 123 tests pass.
+**STATUS: GREEN** - All 124 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -43,6 +43,7 @@ Additional write-side features:
  - [x] Hyperlinks (write-side): `<hyperlinks>` emitted in worksheet XML; worksheet relationships `_rels/sheetN.xml.rels` include `Type=hyperlink` entries with `TargetMode="External"` for external URLs; internal hyperlinks use `location` only (no relationship)
  - [x] Comments (read-side): worksheet comments parsed via relationships and exposed through `Sheet.comments` helpers
  - [x] Comments (write-side minimal): emits `/xl/commentsN.xml` with authors and comment text; worksheet relationships include `Type=comments` targets pointing to `../commentsN.xml`
+ - [x] Comments (display via VML): emits `/xl/drawings/vmlDrawingN.vml` with VML shapes anchored to each comment; worksheet relationships include `Type=vmlDrawing` targets; worksheet XML includes `<legacyDrawing r:id>` element; enabling Excel comment indicators and bubbles
 
 New validation variants:
 - [x] Decimal validation with `greaterThanOrEqual`
@@ -76,7 +77,7 @@ New validation variants:
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 123 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write minimal), expanded validation variants, read-side parsing, and performance benchmarks
+- [x] `swift test` succeeds: 124 tests passing including styling suite, write extras, named ranges, hyperlinks (read/write), comments (read/write, VML display), expanded validation variants, read-side parsing, and performance benchmarks
 
 ---
 

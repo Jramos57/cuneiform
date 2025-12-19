@@ -142,7 +142,7 @@ swift build
 swift test
 ```
 
-**Status:** All 123 tests pass.
+**Status:** All 124 tests pass.
 
 ## Components
 
@@ -237,8 +237,17 @@ writer.modifySheet(at: sheetIndex) { sheet in
     sheet.addComment(at: "C5", text: "Review this total", author: "Alex")
 }
 
-// Comments are stored in `/xl/commentsN.xml` and linked from each worksheet's `.rels`
-```
+// Comments are stored in `/xl/commentsN.xml` (part) with a worksheet relationship.
+// Internally, Cuneiform generates a VML drawing (`/xl/drawings/vmlDrawingN.vml`) that enables
+// the comment to display in Excel and compatible spreadsheet UIs. The worksheet XML receives
+// a `<legacyDrawing>` element pointing to the VML part, allowing the comment indicator to appear
+// and the comment bubble to render when opened by users.
+// 
+// The full pipeline:
+// - CommentsBuilder creates the comments XML with author index and cell references.
+// - VMLCommentsBuilder generates VML shapes anchored to each commented cell.
+// - WorkbookWriter wires these parts into the package, adds relationships, and embeds the
+//   legacy drawing reference into the worksheet so Excel displays comment indicators.
 
 // Internal hyperlink (to a location within the workbook)
 writer.modifySheet(at: sheetIndex) { sheet in
