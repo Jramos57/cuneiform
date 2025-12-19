@@ -809,6 +809,28 @@ The following Phase 2 items are implemented and verified:
 
 ### Upcoming Tasks
 
+- [ ] **Add "How to Use" doc snippets** for named ranges and data validations (improves DX):
+  ```swift
+  // Named Ranges (Read)
+  let workbook = try Workbook.open(url: fileURL)
+  for name in workbook.definedNamesList {
+      print("\(name.name) -> \(name.refersTo)")
+  }
+
+  // Named Ranges (Write)
+  writer.addDefinedName("SalesData", refersTo: "Sheet1!$A$1:$D$100")
+
+  // Data Validations (Read)
+  for validation in sheet.dataValidations {
+      print("Range: \(validation.sqref), Type: \(validation.type)")
+  }
+
+  // Data Validations (Write)
+  sheet.addDataValidation(type: .list, sqref: "B2:B100", formula1: "\"Yes,No\"")
+  sheet.addDataValidation(type: .whole, operator: "between", sqref: "C2:C100", formula1: "1", formula2: "100")
+  ```
+  Add as doc comments on `DefinedName`, `WorksheetData.DataValidation`, and/or in README.
+
 - [ ] Ergonomic query helpers for named ranges and validations (optional)
 - [ ] Hyperlinks and cell comments (read/write minimal)
 - [ ] Charts/drawings metadata parsing; optional write stubs for relationships
