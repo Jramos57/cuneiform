@@ -26,6 +26,8 @@ extension ContentType {
     public static let pivotTable = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml")
     public static let comments = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml")
     public static let vmlDrawing = ContentType("application/vnd.openxmlformats-officedocument.vmlDrawing")
+    public static let chart = ContentType("application/vnd.openxmlformats-officedocument.drawingml.chart+xml")
+    public static let drawing = ContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.drawing+xml")
 
     // Document properties
     public static let extendedProperties = ContentType("application/vnd.openxmlformats-officedocument.extended-properties+xml")

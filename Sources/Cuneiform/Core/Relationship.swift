@@ -94,6 +94,12 @@ extension RelationshipType {
     public static let vmlDrawing = RelationshipType(
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing"
     )
+    public static let chart = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
+    )
+    public static let drawing = RelationshipType(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
+    )
 }
 
 extension RelationshipType: ExpressibleByStringLiteral {
