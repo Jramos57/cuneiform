@@ -21,6 +21,9 @@ public struct Sheet: Sendable {
     /// Hyperlinks defined in the worksheet
     public var hyperlinks: [WorksheetData.Hyperlink] { rawData.hyperlinks }
 
+    /// Conditional formats defined in the worksheet
+    public var conditionalFormats: [WorksheetData.ConditionalFormat] { rawData.conditionalFormats }
+
     /// Comments (notes) defined in the worksheet
     public var comments: [Comment] { commentsList }
 

@@ -223,6 +223,18 @@ public struct WorkbookWriter {
         public mutating func addDataValidation(_ dv: WorksheetBuilder.DataValidation) {
             builder.addDataValidation(dv)
         }
+
+        /// Add a conditional formatting entry for a range (sqref)
+        public mutating func addConditionalFormat(range: String, rule: WorksheetData.ConditionalRule) {
+            let cf = WorksheetData.ConditionalFormat(range: range, rules: [rule])
+            builder.addConditionalFormat(cf)
+        }
+
+        /// Add a conditional formatting entry with multiple rules
+        public mutating func addConditionalFormat(range: String, rules: [WorksheetData.ConditionalRule]) {
+            let cf = WorksheetData.ConditionalFormat(range: range, rules: rules)
+            builder.addConditionalFormat(cf)
+        }
         
         /// Add an external hyperlink to a cell
         public mutating func addHyperlinkExternal(at reference: CellReference, url: String, display: String? = nil, tooltip: String? = nil) {

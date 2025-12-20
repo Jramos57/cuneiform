@@ -104,6 +104,9 @@ public struct WorksheetData: Sendable {
     /// Hyperlinks defined in the worksheet
     public let hyperlinks: [Hyperlink]
 
+    /// Conditional formatting rules defined in the worksheet
+    public let conditionalFormats: [ConditionalFormat]
+
     /// Get cell by reference
     public func cell(at ref: CellReference) -> RawCell? {
         rows.lazy.flatMap(\.cells).first { $0.reference == ref }
@@ -160,6 +163,73 @@ public struct WorksheetData: Sendable {
         public let tooltip: String?
         /// Internal location (e.g., "Sheet2!A1") if present
         public let location: String?
+    }
+
+    /// Conditional formatting value object (cfvo)
+    public struct CFValueObject: Sendable, Equatable {
+        public enum ValueType: String, Sendable {
+            case min, max, num, percent, percentile, formula
+        }
+        public let type: ValueType
+        public let value: String?
+    }
+
+    /// Conditional formatting rule details
+    public struct ConditionalRule: Sendable, Equatable {
+        public enum RuleType: Sendable, Equatable {
+            case cellIs(op: CFOperator?, formula1: String?, formula2: String?)
+            case expression(formula: String?)
+            case dataBar(DataBar)
+            case colorScale(ColorScale)
+            case iconSet(IconSet)
+        }
+
+        public struct DataBar: Sendable, Equatable {
+            public let min: CFValueObject
+            public let max: CFValueObject
+            public let color: String?
+            public let showValue: Bool?
+        }
+
+        public struct ColorScale: Sendable, Equatable {
+            public let cfvos: [CFValueObject]
+            public let colors: [String]
+        }
+
+        public struct IconSet: Sendable, Equatable {
+            public let name: String
+            public let cfvos: [CFValueObject]
+            public let showValue: Bool?
+            public let reverse: Bool?
+            public let percent: Bool?
+        }
+
+        public let type: RuleType
+        public let priority: Int?
+        public let dxfId: Int?
+        public let stopIfTrue: Bool
+    }
+
+    /// Conditional formatting rule operator for cellIs
+    public enum CFOperator: String, Sendable {
+        case lessThan
+        case lessThanOrEqual
+        case equal
+        case notEqual
+        case greaterThanOrEqual
+        case greaterThan
+        case between
+        case notBetween
+        case containsText
+        case notContains
+        case beginsWith
+        case endsWith
+    }
+
+    /// Conditional formatting entry applied to a range (sqref)
+    public struct ConditionalFormat: Sendable, Equatable {
+        public let range: String
+        public let rules: [ConditionalRule]
     }
 
     /// Sheet protection metadata
@@ -229,7 +299,8 @@ public enum WorksheetParser {
             rows: delegate.rows,
             mergedCells: delegate.mergedCells,
             dataValidations: delegate.dataValidations,
-            hyperlinks: delegate.hyperlinks
+            hyperlinks: delegate.hyperlinks,
+            conditionalFormats: delegate.conditionalFormats
         )
         if let protection = delegate.protection {
             result.protection = protection
@@ -249,6 +320,7 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var dataValidations: [WorksheetData.DataValidation] = []
     private(set) var hyperlinks: [WorksheetData.Hyperlink] = []
     private(set) var protection: WorksheetData.Protection?
+    private(set) var conditionalFormats: [WorksheetData.ConditionalFormat] = []
 
     // Row accumulation
     private var currentRowIndex: Int = 0
@@ -274,6 +346,27 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private var inFormula2 = false
     private var formula1Buffer = ""
     private var formula2Buffer = ""
+
+    // Conditional formatting accumulation
+    private var inConditionalFormatting = false
+    private var currentCFSqref: String = ""
+    private var currentCFRules: [WorksheetData.ConditionalRule] = []
+    private var inCFRule = false
+    private var currentCFRuleType: String = ""
+    private var currentCFRulePriority: Int?
+    private var currentCFRuleDxfId: Int?
+    private var currentCFRuleStopIfTrue: Bool = false
+    private var currentCFRuleOperator: String?
+    private var currentCFFormulas: [String] = []
+    private var inCFFormula = false
+    private var currentCFFormulaBuffer = ""
+    private var currentCFCfvos: [WorksheetData.CFValueObject] = []
+    private var currentCFColors: [String] = []
+    private var currentCFDataBarShowValue: Bool?
+    private var currentCFIconSetName: String?
+    private var currentCFIconSetShowValue: Bool?
+    private var currentCFIconSetReverse: Bool?
+    private var currentCFIconSetPercent: Bool?
 
     func parser(
         _ parser: XMLParser,
@@ -327,6 +420,80 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             currentDVAllowBlank = (attributeDict["allowBlank"] == "1")
             currentDVSqref = attributeDict["sqref"] ?? ""
             currentDVOp = attributeDict["operator"]
+
+        case "conditionalFormatting":
+            inConditionalFormatting = true
+            currentCFSqref = attributeDict["sqref"] ?? ""
+            currentCFRules.removeAll(keepingCapacity: true)
+
+        case "cfRule":
+            guard inConditionalFormatting else { break }
+            inCFRule = true
+            currentCFRuleType = attributeDict["type"] ?? ""
+            if let prStr = attributeDict["priority"], let pr = Int(prStr) {
+                currentCFRulePriority = pr
+            } else {
+                currentCFRulePriority = nil
+            }
+            if let dxfStr = attributeDict["dxfId"], let dxf = Int(dxfStr) {
+                currentCFRuleDxfId = dxf
+            } else {
+                currentCFRuleDxfId = nil
+            }
+            currentCFRuleStopIfTrue = (attributeDict["stopIfTrue"] == "1")
+            currentCFRuleOperator = attributeDict["operator"]
+            currentCFFormulas.removeAll(keepingCapacity: true)
+            currentCFFormulaBuffer.removeAll(keepingCapacity: true)
+            currentCFCfvos.removeAll(keepingCapacity: true)
+            currentCFColors.removeAll(keepingCapacity: true)
+            currentCFDataBarShowValue = attributeDict["showValue"].flatMap { $0 == "1" }
+            currentCFIconSetName = nil
+            currentCFIconSetShowValue = nil
+            currentCFIconSetReverse = nil
+            currentCFIconSetPercent = nil
+
+        case "formula":
+            if inCFRule {
+                inCFFormula = true
+                currentCFFormulaBuffer.removeAll(keepingCapacity: true)
+            }
+
+        case "dataBar":
+            if inCFRule {
+                if let show = attributeDict["showValue"] {
+                    currentCFDataBarShowValue = (show != "0")
+                }
+            }
+
+        case "colorScale":
+            if inCFRule {
+                currentCFColors.removeAll(keepingCapacity: true)
+            }
+
+        case "iconSet":
+            if inCFRule {
+                currentCFIconSetName = attributeDict["iconSet"]
+                if let show = attributeDict["showValue"] { currentCFIconSetShowValue = (show != "0") }
+                if let rev = attributeDict["reverse"] { currentCFIconSetReverse = (rev == "1") }
+                if let pct = attributeDict["percent"] { currentCFIconSetPercent = (pct == "1") }
+            }
+
+        case "cfvo":
+            if inCFRule {
+                let typeRaw = attributeDict["type"] ?? "num"
+                let vt = WorksheetData.CFValueObject.ValueType(rawValue: typeRaw) ?? .num
+                let val = attributeDict["val"]
+                currentCFCfvos.append(WorksheetData.CFValueObject(type: vt, value: val))
+            }
+
+        case "color":
+            if inCFRule {
+                if let rgb = attributeDict["rgb"] {
+                    currentCFColors.append(rgb)
+                } else if let theme = attributeDict["theme"] {
+                    currentCFColors.append("theme:\(theme)")
+                }
+            }
 
         case "formula1":
             if inDataValidation {
@@ -411,6 +578,9 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             if inFormula1 { formula1Buffer += string }
             if inFormula2 { formula2Buffer += string }
         }
+        if inCFFormula {
+            currentCFFormulaBuffer += string
+        }
     }
 
     func parser(
@@ -478,6 +648,107 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 
         case "formula2":
             inFormula2 = false
+
+        case "formula":
+            if inCFRule {
+                inCFFormula = false
+                let value = currentCFFormulaBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !value.isEmpty {
+                    currentCFFormulas.append(value)
+                }
+                currentCFFormulaBuffer.removeAll(keepingCapacity: true)
+            }
+
+        case "cfRule":
+            if inCFRule {
+                let ruleType = currentCFRuleType
+                var rule: WorksheetData.ConditionalRule?
+                switch ruleType {
+                case "cellIs":
+                    let f1 = currentCFFormulas.first
+                    let f2 = currentCFFormulas.dropFirst().first
+                    let opEnum = currentCFRuleOperator.flatMap { WorksheetData.CFOperator(rawValue: $0) }
+                    rule = WorksheetData.ConditionalRule(
+                        type: .cellIs(op: opEnum, formula1: f1, formula2: f2),
+                        priority: currentCFRulePriority,
+                        dxfId: currentCFRuleDxfId,
+                        stopIfTrue: currentCFRuleStopIfTrue
+                    )
+                case "expression":
+                    let f1 = currentCFFormulas.first
+                    rule = WorksheetData.ConditionalRule(
+                        type: .expression(formula: f1),
+                        priority: currentCFRulePriority,
+                        dxfId: currentCFRuleDxfId,
+                        stopIfTrue: currentCFRuleStopIfTrue
+                    )
+                case "dataBar":
+                    let minVO = currentCFCfvos.first ?? WorksheetData.CFValueObject(type: .min, value: nil)
+                    let maxVO = currentCFCfvos.dropFirst().first ?? WorksheetData.CFValueObject(type: .max, value: nil)
+                    let color = currentCFColors.first
+                    let dataBar = WorksheetData.ConditionalRule.DataBar(min: minVO, max: maxVO, color: color, showValue: currentCFDataBarShowValue)
+                    rule = WorksheetData.ConditionalRule(
+                        type: .dataBar(dataBar),
+                        priority: currentCFRulePriority,
+                        dxfId: currentCFRuleDxfId,
+                        stopIfTrue: currentCFRuleStopIfTrue
+                    )
+                case "colorScale":
+                    let cs = WorksheetData.ConditionalRule.ColorScale(cfvos: currentCFCfvos, colors: currentCFColors)
+                    rule = WorksheetData.ConditionalRule(
+                        type: .colorScale(cs),
+                        priority: currentCFRulePriority,
+                        dxfId: currentCFRuleDxfId,
+                        stopIfTrue: currentCFRuleStopIfTrue
+                    )
+                case "iconSet":
+                    let iconName = currentCFIconSetName ?? "3TrafficLights1"
+                    let iconSet = WorksheetData.ConditionalRule.IconSet(
+                        name: iconName,
+                        cfvos: currentCFCfvos,
+                        showValue: currentCFIconSetShowValue,
+                        reverse: currentCFIconSetReverse,
+                        percent: currentCFIconSetPercent
+                    )
+                    rule = WorksheetData.ConditionalRule(
+                        type: .iconSet(iconSet),
+                        priority: currentCFRulePriority,
+                        dxfId: currentCFRuleDxfId,
+                        stopIfTrue: currentCFRuleStopIfTrue
+                    )
+                default:
+                    break
+                }
+
+                if let r = rule {
+                    currentCFRules.append(r)
+                }
+
+                // Reset rule state
+                inCFRule = false
+                currentCFRuleType = ""
+                currentCFRulePriority = nil
+                currentCFRuleDxfId = nil
+                currentCFRuleStopIfTrue = false
+                currentCFRuleOperator = nil
+                currentCFFormulas.removeAll(keepingCapacity: true)
+                currentCFCfvos.removeAll(keepingCapacity: true)
+                currentCFColors.removeAll(keepingCapacity: true)
+                currentCFDataBarShowValue = nil
+                currentCFIconSetName = nil
+                currentCFIconSetShowValue = nil
+                currentCFIconSetReverse = nil
+                currentCFIconSetPercent = nil
+            }
+
+        case "conditionalFormatting":
+            if inConditionalFormatting {
+                let cf = WorksheetData.ConditionalFormat(range: currentCFSqref, rules: currentCFRules)
+                conditionalFormats.append(cf)
+                inConditionalFormatting = false
+                currentCFSqref = ""
+                currentCFRules.removeAll(keepingCapacity: true)
+            }
 
         case "dataValidation":
             inDataValidation = false

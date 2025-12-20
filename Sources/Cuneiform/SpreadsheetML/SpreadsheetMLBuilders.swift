@@ -236,6 +236,7 @@ public struct WorksheetBuilder {
     private var nextHyperlinkRelId: Int = 1
     private var protection: WorksheetData.Protection?
     private var tables: [TableBuilder] = []
+    private var conditionalFormats: [WorksheetData.ConditionalFormat] = []
     
     public init(sharedStringsBuilder: SharedStringsBuilder? = nil) {
         self.sharedStringsBuilder = sharedStringsBuilder
@@ -276,6 +277,11 @@ public struct WorksheetBuilder {
     /// Add a table to this worksheet
     public mutating func addTable(_ builder: TableBuilder) {
         tables.append(builder)
+    }
+
+    /// Add a conditional formatting entry
+    public mutating func addConditionalFormat(_ format: WorksheetData.ConditionalFormat) {
+        conditionalFormats.append(format)
     }
     
     /// Build the XML data
@@ -360,6 +366,28 @@ public struct WorksheetBuilder {
             
             </dataValidations>
             """
+        }
+
+        // Conditional formatting
+        if !conditionalFormats.isEmpty {
+            var nextPriority = 1
+            for cf in conditionalFormats {
+                xml += """
+                
+                <conditionalFormatting sqref="\(xmlEscape(cf.range))">
+                """
+
+                for rule in cf.rules {
+                    let priority = rule.priority ?? nextPriority
+                    nextPriority = max(nextPriority, priority + 1)
+                    xml += buildConditionalRuleXML(rule, priority: priority)
+                }
+
+                xml += """
+                
+                </conditionalFormatting>
+                """
+            }
         }
 
         // Hyperlinks
@@ -482,6 +510,70 @@ public struct WorksheetBuilder {
                 """
             }
         }
+    }
+
+    private func buildConditionalRuleXML(_ rule: WorksheetData.ConditionalRule, priority: Int) -> String {
+        var attrs = " type=\""
+        var body = ""
+        switch rule.type {
+        case .cellIs(let op, let f1, let f2):
+            attrs += "cellIs\""
+            if let op { attrs += " operator=\"\(op.rawValue)\"" }
+            if let f1 { body += "\n<formula>\(xmlEscape(f1))</formula>" }
+            if let f2 { body += "\n<formula>\(xmlEscape(f2))</formula>" }
+        case .expression(let f1):
+            attrs += "expression\""
+            if let f1 { body += "\n<formula>\(xmlEscape(f1))</formula>" }
+        case .dataBar(let db):
+            attrs += "dataBar\""
+            body += "\n<dataBar"
+            if let show = db.showValue { body += " showValue=\"\(show ? 1 : 0)\"" }
+            body += ">"
+            body += "\n<cfvo type=\"\(db.min.type.rawValue)\""
+            if let val = db.min.value { body += " val=\"\(xmlEscape(val))\"" }
+            body += "/>"
+            body += "\n<cfvo type=\"\(db.max.type.rawValue)\""
+            if let val = db.max.value { body += " val=\"\(xmlEscape(val))\"" }
+            body += "/>"
+            if let color = db.color {
+                body += "\n<color rgb=\"\(xmlEscape(color))\"/>"
+            }
+            body += "\n</dataBar>"
+        case .colorScale(let cs):
+            attrs += "colorScale\""
+            body += "\n<colorScale>"
+            for vo in cs.cfvos {
+                body += "\n<cfvo type=\"\(vo.type.rawValue)\""
+                if let val = vo.value { body += " val=\"\(xmlEscape(val))\"" }
+                body += "/>"
+            }
+            for color in cs.colors {
+                body += "\n<color rgb=\"\(xmlEscape(color))\"/>"
+            }
+            body += "\n</colorScale>"
+        case .iconSet(let iset):
+            attrs += "iconSet\""
+            body += "\n<iconSet iconSet=\"\(xmlEscape(iset.name))\""
+            if let show = iset.showValue { body += " showValue=\"\(show ? 1 : 0)\"" }
+            if let rev = iset.reverse { body += " reverse=\"\(rev ? 1 : 0)\"" }
+            if let pct = iset.percent { body += " percent=\"\(pct ? 1 : 0)\"" }
+            body += ">"
+            for vo in iset.cfvos {
+                body += "\n<cfvo type=\"\(vo.type.rawValue)\""
+                if let val = vo.value { body += " val=\"\(xmlEscape(val))\"" }
+                body += "/>"
+            }
+            body += "\n</iconSet>"
+        }
+
+        attrs += " priority=\"\(priority)\""
+        if let dxf = rule.dxfId { attrs += " dxfId=\"\(dxf)\"" }
+        if rule.stopIfTrue { attrs += " stopIfTrue=\"1\"" }
+
+        var xml = "\n<cfRule\(attrs)>"
+        xml += body
+        xml += "\n</cfRule>"
+        return xml
     }
     
     private func xmlEscape(_ text: String) -> String {

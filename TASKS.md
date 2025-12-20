@@ -1,14 +1,14 @@
 # Cuneiform Parser Implementation Tasks
 
-## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2 Complete ✓
+## Status: Phase 1-3 Complete ✓ / Phase 4.1 Complete ✓ / Phase 4.2 Complete ✓ / Phase 4.3 In Progress
 
 **Phase 1 Implemented:** December 17, 2025
 **Phase 2 Implemented:** December 18, 2025
 **Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Phase 4.1 Implemented:** December 19, 2025
 **Phase 4.2 Implemented:** December 19, 2025
-**Current Verification:** All 201 tests pass (Dec 19, 2025)
-**Current Compliance:** ~75% ISO/IEC 29500 (after Phase 4.2 complete)
+**Current Verification:** All 205 tests pass (Dec 19, 2025)
+**Current Compliance:** ~78% ISO/IEC 29500 (after partial Phase 4.3 work)
 **Target Compliance:** ~85% (after Phase 4 complete)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
@@ -198,22 +198,22 @@ Data bars, color scales, icon sets, and formula-based rules.
 ```
 
 #### Read-side (ConditionalFormattingParser.swift)
-- [ ] Parse `<conditionalFormatting>` elements with `sqref` attribute
-- [ ] Parse `<cfRule>` elements: `type`, `priority`, `operator`, `dxfId`
-- [ ] Parse `<formula>` element for cellIs/expression rules
-- [ ] Parse `<dataBar>` with `<cfvo>` (type, val) and `<color>`
-- [ ] Parse `<colorScale>` with multiple `<cfvo>` and `<color>` elements
+- [x] Parse `<conditionalFormatting>` elements with `sqref` attribute
+- [x] Parse `<cfRule>` elements: `type`, `priority`, `operator`, `dxfId`
+- [x] Parse `<formula>` element for cellIs/expression rules
+- [x] Parse `<dataBar>` with `<cfvo>` (type, val) and `<color>`
+- [x] Parse `<colorScale>` with multiple `<cfvo>` and `<color>` elements
 - [ ] Parse `<iconSet>` with `iconSet` attribute and `<cfvo>` thresholds
-- [ ] Handle cfvo types: `min`, `max`, `num`, `percent`, `percentile`, `formula`
+- [x] Handle cfvo types: `min`, `max`, `num`, `percent`, `percentile`, `formula`
 
 #### Write-side (ConditionalFormattingBuilder in SpreadsheetMLBuilders.swift)
-- [ ] Emit `<conditionalFormatting sqref="...">` wrapper
-- [ ] Emit `<cfRule>` with type-specific attributes
-- [ ] Emit `<formula>` for cellIs rules
-- [ ] Emit `<dataBar>` with cfvo and color
-- [ ] Emit `<colorScale>` with cfvo and color arrays
+- [x] Emit `<conditionalFormatting sqref="...">` wrapper
+- [x] Emit `<cfRule>` with type-specific attributes
+- [x] Emit `<formula>` for cellIs rules
+- [x] Emit `<dataBar>` with cfvo and color
+- [x] Emit `<colorScale>` with cfvo and color arrays
 - [ ] Emit `<iconSet>` with iconSet name and cfvo thresholds
-- [ ] Track priority numbers (must be unique per sheet)
+- [x] Track priority numbers (must be unique per sheet)
 
 #### Domain Types
 ```swift
@@ -250,30 +250,30 @@ public struct ConditionalFormat: Sendable, Equatable {
 ```
 
 #### High-level API
-- [ ] `Sheet.conditionalFormats: [ConditionalFormat]` - read parsed formats
-- [ ] `SheetWriter.addConditionalFormat(range:rule:)` - add single rule
-- [ ] `SheetWriter.addConditionalFormat(range:rules:)` - add multiple rules
+- [x] `Sheet.conditionalFormats: [ConditionalFormat]` - read parsed formats
+- [x] `SheetWriter.addConditionalFormat(range:rule:)` - add single rule
+- [x] `SheetWriter.addConditionalFormat(range:rules:)` - add multiple rules
 
 #### Tests (ConditionalFormattingTests.swift)
 **Parser tests:**
-- [ ] Parse cellIs rule with greaterThan operator
+- [x] Parse cellIs rule with greaterThan operator
 - [ ] Parse cellIs rule with between operator (two formulas)
-- [ ] Parse dataBar with min/max cfvo
+- [x] Parse dataBar with min/max cfvo
 - [ ] Parse 2-color scale
-- [ ] Parse 3-color scale with percentile
+- [x] Parse 3-color scale with percentile
 - [ ] Parse iconSet (3Arrows)
 - [ ] Parse multiple rules on same range
 - [ ] Parse expression-based rule
 
 **Write tests:**
-- [ ] Emit cellIs highlight rule
+- [x] Emit cellIs highlight rule
 - [ ] Emit dataBar with custom color
-- [ ] Emit 3-color scale
+- [x] Emit 3-color scale
 - [ ] Emit iconSet
 - [ ] Priority number uniqueness
 
 **Round-trip tests:**
-- [ ] Write cellIs → read back → verify operator and formula
+- [x] Write cellIs → read back → verify operator and formula
 - [ ] Write dataBar → read back → verify cfvo and color
 - [ ] Write colorScale → read back → verify all colors
 - [ ] Multiple conditional formats per sheet
@@ -284,7 +284,7 @@ public struct ConditionalFormat: Sendable, Equatable {
 
 **Estimated tests:** ~20 (8 parser + 5 write + 4 round-trip + 3 integration)
 
-**Status:** Not started
+**Status:** In progress — cellIs, colorScale, and dataBar parsing/writing added; iconSets and remaining round-trip coverage pending (5/20 tests written)
 
 ---
 

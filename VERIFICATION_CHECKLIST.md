@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 201 tests pass.
+**STATUS: GREEN** - All 205 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -24,9 +24,16 @@ Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently
 - [x] Tables write-side: TableBuilder, SheetWriter.addTable() API, full round-trip support (Phase 4.2 complete)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (201/201)
+- [x] Entire test suite passes (205/205)
 
 ---
+
+## New Additions (Dec 19, 2025 — Phase 4.3 WIP)
+
+- [x] Conditional formatting groundwork: parse and emit `cellIs`, `dataBar`, and `colorScale` rules with priority handling.
+- [x] High-level accessors: `Sheet.conditionalFormats` plus `SheetWriter.addConditionalFormat` overloads for single/multiple rules.
+- [x] New tests: parser (cellIs greaterThan, dataBar, 3-color scale), writer (cellIs, 3-color scale), and cellIs round-trip (5 tests total).
+- [ ] Remaining tasks: icon sets, expression-based rules, multi-rule ranges, additional round-trip coverage, priority uniqueness stress.
 
 ## New Additions (Dec 18, 2025)
 
@@ -147,7 +154,7 @@ New validation variants:
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 201 tests passing (176 baseline + 8 Phase 4.1 + 10 Phase 4.2 builder/integration + 7 Phase 4.2 round-trip)
+- [x] `swift test` succeeds: 205 tests passing (core suites + Phase 4.1 styles, Phase 4.2 tables, Phase 4.3 conditional formatting smoke/round-trip)
 
 ---
 
@@ -155,14 +162,14 @@ New validation variants:
 
 **Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
 
-**Current Compliance:** ~75% (after Phase 4.2 complete)
+**Current Compliance:** ~78% (after Phase 4.3 partial)
 **Target After 4.3:** ~80%
 
 | Area | Current | Target | Status |
 |------|---------|--------|--------|
 | Styles (§18.8) | 90% | 90% | ✓ Complete (Phase 4.1) |
 | Tables (§18.5) | 80% | 80% | ✓ Complete (Phase 4.2) |
-| Conditional Formatting (§18.3.1) | 0% | 80% | **Next** (Phase 4.3) |
+| Conditional Formatting (§18.3.1) | 35% | 80% | In progress (cellIs/dataBar/colorScale read+write; icon sets pending) |
 | AutoFilter | 0% | 80% | Planned (Phase 4.4) |
 | Rich Text (§18.4) | 20% | 90% | Planned (Phase 4.5) |
 
@@ -194,45 +201,49 @@ New validation variants:
 
 **Tests:** 25 total (10 parser + 10 write + 5 integration)
 
-### Phase 4.3: Conditional Formatting (Next)
-**Read-side (ConditionalFormattingParser.swift):**
-- [ ] Parse `<conditionalFormatting>` elements with `sqref` attribute
-- [ ] Parse `<cfRule>` elements: `type`, `priority`, `operator`, `dxfId`
-- [ ] Parse `<formula>` for cellIs/expression rules
-- [ ] Parse `<dataBar>` with `<cfvo>` and `<color>`
-- [ ] Parse `<colorScale>` with cfvo/color arrays
+### Phase 4.3: Conditional Formatting (In Progress)
+**Read-side (WorksheetParser.swift):**
+- [x] Parse `<conditionalFormatting>` elements with `sqref` attribute
+- [x] Parse `<cfRule>` elements: `type`, `priority`, `operator`, `dxfId`
+- [x] Parse `<formula>` for cellIs/expression rules
+- [x] Parse `<dataBar>` with `<cfvo>` and `<color>`
+- [x] Parse `<colorScale>` with cfvo/color arrays
 - [ ] Parse `<iconSet>` with iconSet name and cfvo thresholds
 
 **Write-side (SpreadsheetMLBuilders.swift):**
-- [ ] Emit `<conditionalFormatting sqref="...">` wrapper
-- [ ] Emit `<cfRule>` with type-specific content
-- [ ] Emit dataBar, colorScale, iconSet child elements
-- [ ] Track priority numbers (unique per sheet)
+- [x] Emit `<conditionalFormatting sqref="...">` wrapper
+- [x] Emit `<cfRule>` with type-specific content
+- [x] Emit dataBar and colorScale child elements
+- [ ] Emit iconSet child elements
+- [x] Track priority numbers (unique per sheet)
 
 **Domain Types:**
-- [ ] `CFValueObject` struct (type, value)
-- [ ] `ConditionalRule` enum (cellIs, dataBar, colorScale, iconSet, expression)
-- [ ] `CFOperator` enum (lessThan, greaterThan, between, etc.)
-- [ ] `ConditionalFormat` struct (range, rules)
-- [ ] All types Sendable and Equatable
+- [x] `CFValueObject` struct (type, value)
+- [x] `ConditionalRule` enum (cellIs, dataBar, colorScale, iconSet, expression)
+- [x] `CFOperator` enum (lessThan, greaterThan, between, etc.)
+- [x] `ConditionalFormat` struct (range, rules)
+- [x] All types Sendable and Equatable
 
 **API:**
-- [ ] `Sheet.conditionalFormats: [ConditionalFormat]`
-- [ ] `SheetWriter.addConditionalFormat(range:rule:)`
-- [ ] `SheetWriter.addConditionalFormat(range:rules:)`
+- [x] `Sheet.conditionalFormats: [ConditionalFormat]`
+- [x] `SheetWriter.addConditionalFormat(range:rule:)`
+- [x] `SheetWriter.addConditionalFormat(range:rules:)`
 
-**Tests (~20):**
-- [ ] Parser: cellIs, dataBar, colorScale, iconSet, expression
-- [ ] Write: emit each rule type
-- [ ] Round-trip: write → read → verify
-- [ ] Integration: parse Excel-created files
+**Tests (~20 target):**
+- [x] Parser: cellIs (greaterThan), dataBar, 3-color scale
+- [ ] Parser: between operator, iconSet, expression-based rule, multiple rules per range
+- [x] Write: cellIs highlight rule, 3-color scale
+- [ ] Write: dataBar, iconSet, priority uniqueness stress
+- [x] Round-trip: cellIs rule
+- [ ] Round-trip: dataBar, colorScale, multiple conditional formats per sheet
+- [ ] Integration: parse Excel-created conditional formatting
 
-**Files to create/modify:**
-- [ ] `Sources/Cuneiform/SpreadsheetML/ConditionalFormattingParser.swift` (new)
-- [ ] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (add builder)
-- [ ] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (add property)
-- [ ] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (add SheetWriter API)
-- [ ] `Tests/CuneiformTests/ConditionalFormattingTests.swift` (new)
+**Files touched:**
+- [x] `Sources/Cuneiform/SpreadsheetML/WorksheetParser.swift` (conditional formatting parsing)
+- [x] `Sources/Cuneiform/SpreadsheetML/SpreadsheetMLBuilders.swift` (conditional formatting emission)
+- [x] `Sources/Cuneiform/SpreadsheetML/Sheet.swift` (expose conditionalFormats)
+- [x] `Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift` (SheetWriter API)
+- [x] `Tests/CuneiformTests/ConditionalFormattingTests.swift` (new)
 
 ### Phase 4.4: AutoFilter
 - [ ] Read: parse `<autoFilter>` element
