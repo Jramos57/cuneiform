@@ -275,8 +275,56 @@ public struct WorksheetData: Sendable {
         public let passwordHash: String?
     }
 
+    /// AutoFilter data for column filtering
+    ///
+    /// Represents `<autoFilter ref="A1:D100">` element with optional filter columns.
+    public struct AutoFilter: Sendable, Equatable {
+        /// Filter operator for custom filters
+        public enum FilterOperator: String, Sendable {
+            case equal
+            case notEqual
+            case greaterThan
+            case greaterThanOrEqual
+            case lessThan
+            case lessThanOrEqual
+        }
+
+        /// A single filter criterion
+        public enum FilterCriterion: Sendable, Equatable {
+            /// Discrete value filter (e.g., show only "Value1" and "Value2")
+            case values([String])
+            /// Custom filter with operator (e.g., greaterThan 100)
+            case custom(op: FilterOperator, val: String)
+            /// Custom filter with two conditions (and/or)
+            case customPair(op1: FilterOperator, val1: String, op2: FilterOperator, val2: String, andOperator: Bool)
+            /// Top N filter
+            case top10(top: Bool, percent: Bool, val: Double)
+        }
+
+        /// A filter applied to a specific column
+        public struct ColumnFilter: Sendable, Equatable {
+            /// Column index (0-based)
+            public let colId: Int
+            /// Filter criterion
+            public let criterion: FilterCriterion
+        }
+
+        /// The range the autofilter applies to (e.g., "A1:D100")
+        public let ref: String
+        /// Column filters (empty if just the dropdown arrows are shown)
+        public let columnFilters: [ColumnFilter]
+
+        public init(ref: String, columnFilters: [ColumnFilter] = []) {
+            self.ref = ref
+            self.columnFilters = columnFilters
+        }
+    }
+
     /// Sheet protection state (optional)
     public var protection: Protection?
+
+    /// AutoFilter configuration (optional)
+    public var autoFilter: AutoFilter?
 }
 
 /// Parser for worksheet XML
@@ -305,6 +353,9 @@ public enum WorksheetParser {
         if let protection = delegate.protection {
             result.protection = protection
         }
+        if let autoFilter = delegate.autoFilter {
+            result.autoFilter = autoFilter
+        }
         return result
     }
 }
@@ -321,6 +372,15 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var hyperlinks: [WorksheetData.Hyperlink] = []
     private(set) var protection: WorksheetData.Protection?
     private(set) var conditionalFormats: [WorksheetData.ConditionalFormat] = []
+    private(set) var autoFilter: WorksheetData.AutoFilter?
+
+    // AutoFilter accumulation
+    private var inAutoFilter = false
+    private var currentAutoFilterRef: String?
+    private var currentAutoFilterColumns: [WorksheetData.AutoFilter.ColumnFilter] = []
+    private var inFilterColumn = false
+    private var currentFilterColId: Int?
+    private var currentFilterValues: [String] = []
 
     // Row accumulation
     private var currentRowIndex: Int = 0
@@ -562,6 +622,27 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
                 passwordHash: passwordHash
             )
 
+        case "autoFilter":
+            // Parse autoFilter element for column filtering
+            if let ref = attributeDict["ref"] {
+                inAutoFilter = true
+                currentAutoFilterRef = ref
+                currentAutoFilterColumns.removeAll(keepingCapacity: true)
+            }
+
+        case "filterColumn":
+            if inAutoFilter, let colIdStr = attributeDict["colId"], let colId = Int(colIdStr) {
+                inFilterColumn = true
+                currentFilterColId = colId
+                currentFilterValues.removeAll(keepingCapacity: true)
+            }
+
+        case "filter":
+            // Discrete value filter: <filter val="Value1"/>
+            if inFilterColumn, let val = attributeDict["val"] {
+                currentFilterValues.append(val)
+            }
+
         default:
             break
         }
@@ -770,6 +851,29 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             currentDVOp = nil
             currentDVAllowBlank = true
             currentDVType = .whole
+
+        case "filterColumn":
+            if inFilterColumn, let colId = currentFilterColId {
+                // Create column filter with accumulated values
+                if !currentFilterValues.isEmpty {
+                    let column = WorksheetData.AutoFilter.ColumnFilter(
+                        colId: colId,
+                        criterion: .values(currentFilterValues)
+                    )
+                    currentAutoFilterColumns.append(column)
+                }
+                inFilterColumn = false
+                currentFilterColId = nil
+                currentFilterValues.removeAll(keepingCapacity: true)
+            }
+
+        case "autoFilter":
+            if inAutoFilter, let ref = currentAutoFilterRef {
+                autoFilter = WorksheetData.AutoFilter(ref: ref, columnFilters: currentAutoFilterColumns)
+                inAutoFilter = false
+                currentAutoFilterRef = nil
+                currentAutoFilterColumns.removeAll(keepingCapacity: true)
+            }
 
         default:
             break

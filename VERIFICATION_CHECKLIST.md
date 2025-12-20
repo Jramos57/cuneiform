@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 210 tests pass.
+**STATUS: GREEN** - All 216 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -154,7 +154,7 @@ New validation variants:
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 210 tests passing (core suites + Phase 4.1 styles, Phase 4.2 tables, Phase 4.3 conditional formatting with icon sets)
+- [x] `swift test` succeeds: 216 tests passing (core suites + Phase 4.1 styles, Phase 4.2 tables, Phase 4.3 conditional formatting, Phase 4.4 AutoFilter)
 
 ---
 
@@ -162,15 +162,15 @@ New validation variants:
 
 **Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
 
-**Current Compliance:** ~80% (Phase 4.3 icon sets complete)
-**Target After Full 4.3:** ~82%
+**Current Compliance:** ~82% (Phase 4.4 AutoFilter complete)
+**Target After Phase 4:** ~85%
 
 | Area | Current | Target | Status |
 |------|---------|--------|--------|
 | Styles (§18.8) | 90% | 90% | ✓ Complete (Phase 4.1) |
 | Tables (§18.5) | 80% | 80% | ✓ Complete (Phase 4.2) |
 | Conditional Formatting (§18.3.1) | 60% | 80% | Core complete (cellIs/dataBar/colorScale/iconSet read+write verified) |
-| AutoFilter | 0% | 80% | Planned (Phase 4.4) |
+| AutoFilter (§18.3.2) | 70% | 80% | ✓ Core complete (Phase 4.4) |
 | Rich Text (§18.4) | 20% | 90% | Planned (Phase 4.5) |
 
 ### Phase 4.1: Full Styles Support ✓ (Dec 19, 2025)

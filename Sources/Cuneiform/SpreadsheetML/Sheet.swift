@@ -24,6 +24,9 @@ public struct Sheet: Sendable {
     /// Conditional formats defined in the worksheet
     public var conditionalFormats: [WorksheetData.ConditionalFormat] { rawData.conditionalFormats }
 
+    /// AutoFilter configuration for column filtering (if set)
+    public var autoFilter: WorksheetData.AutoFilter? { rawData.autoFilter }
+
     /// Comments (notes) defined in the worksheet
     public var comments: [Comment] { commentsList }
 

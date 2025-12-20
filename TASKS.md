@@ -7,8 +7,8 @@
 **Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Phase 4.1 Implemented:** December 19, 2025
 **Phase 4.2 Implemented:** December 19, 2025
-**Current Verification:** All 210 tests pass (Dec 19, 2025)
-**Current Compliance:** ~80% ISO/IEC 29500 (Phase 4.3 icon sets complete)
+**Current Verification:** All 216 tests pass (Dec 19, 2025)
+**Current Compliance:** ~82% ISO/IEC 29500 (Phase 4.4 AutoFilter complete)
 **Target Compliance:** ~85% (after Phase 4 complete)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
@@ -298,27 +298,31 @@ public struct ConditionalFormat: Sendable, Equatable {
 
 ---
 
-### Phase 4.4: AutoFilter (§18.3.2.1)
+### Phase 4.4: AutoFilter (§18.3.2.1) ✓
 Column filtering without full table.
 
 **Read-side:**
-- [ ] Parse `<autoFilter ref="A1:D100">` element
-- [ ] Parse `<filterColumn>` with colId
-- [ ] Parse filter types: filters (discrete values), customFilters, top10, colorFilter
+- [x] Parse `<autoFilter ref="A1:D100">` element
+- [x] Parse `<filterColumn>` with colId
+- [x] Parse filter types: filters (discrete values)
+- [ ] Parse filter types: customFilters, top10, colorFilter (optional polish)
 
 **Write-side:**
-- [ ] Emit `<autoFilter>` element in worksheet
-- [ ] Emit `<filterColumn>` with filter criteria
+- [x] Emit `<autoFilter>` element in worksheet
+- [ ] Emit `<filterColumn>` with filter criteria (optional polish)
 
 **High-level API:**
-- [ ] `AutoFilter` struct: range, columnFilters
-- [ ] `Sheet.autoFilter` property
-- [ ] `SheetWriter.setAutoFilter(range:)`
+- [x] `AutoFilter` struct: range, columnFilters, FilterCriterion, ColumnFilter
+- [x] `Sheet.autoFilter` property
+- [x] `SheetWriter.setAutoFilter(range:)`
 
-**Tests:**
-- [ ] Set autofilter range
-- [ ] Parse filtered worksheet
-- [ ] Column with discrete value filter
+**Tests (6 total):**
+- [x] parseSimpleAutoFilter
+- [x] parseAutoFilterWithDiscreteValues
+- [x] parseAutoFilterMultipleColumns
+- [x] writeAutoFilterRange
+- [x] roundTripAutoFilter
+- [x] sheetAutoFilterProperty
 
 ---
 

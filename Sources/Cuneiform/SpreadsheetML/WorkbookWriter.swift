@@ -235,7 +235,12 @@ public struct WorkbookWriter {
             let cf = WorksheetData.ConditionalFormat(range: range, rules: rules)
             builder.addConditionalFormat(cf)
         }
-        
+
+        /// Set an auto filter range for column filtering (e.g., "A1:D100")
+        public mutating func setAutoFilter(range: String) {
+            builder.setAutoFilter(range: range)
+        }
+
         /// Add an external hyperlink to a cell
         public mutating func addHyperlinkExternal(at reference: CellReference, url: String, display: String? = nil, tooltip: String? = nil) {
             builder.addHyperlinkExternal(at: reference, url: url, display: display, tooltip: tooltip)

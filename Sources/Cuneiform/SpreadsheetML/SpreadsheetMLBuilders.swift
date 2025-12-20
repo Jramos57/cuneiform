@@ -237,7 +237,8 @@ public struct WorksheetBuilder {
     private var protection: WorksheetData.Protection?
     private var tables: [TableBuilder] = []
     private var conditionalFormats: [WorksheetData.ConditionalFormat] = []
-    
+    private var autoFilterRef: String?
+
     public init(sharedStringsBuilder: SharedStringsBuilder? = nil) {
         self.sharedStringsBuilder = sharedStringsBuilder
     }
@@ -283,7 +284,12 @@ public struct WorksheetBuilder {
     public mutating func addConditionalFormat(_ format: WorksheetData.ConditionalFormat) {
         conditionalFormats.append(format)
     }
-    
+
+    /// Set an auto filter range (e.g., "A1:D100")
+    public mutating func setAutoFilter(range: String) {
+        self.autoFilterRef = range
+    }
+
     /// Build the XML data
     public func build() -> Data {
         // Group cells by row
@@ -319,6 +325,14 @@ public struct WorksheetBuilder {
 
         </sheetData>
         """
+
+        // AutoFilter (column filtering)
+        if let ref = autoFilterRef {
+            xml += """
+
+            <autoFilter ref="\(ref)"/>
+            """
+        }
 
         // Merged cells
         if !mergedRanges.isEmpty {
