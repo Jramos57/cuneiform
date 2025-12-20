@@ -93,6 +93,21 @@ public struct Sheet: Sendable {
         return cell(at: cellRef)
     }
 
+    /// Get rich text runs from a cell if present (formatted text)
+    public func richText(at ref: CellReference) -> RichText? {
+        guard let cellValue = cell(at: ref) else { return nil }
+        if case .richText(let runs) = cellValue {
+            return runs
+        }
+        return nil
+    }
+
+    /// Get rich text runs from a cell by string reference if present (formatted text)
+    public func richText(at ref: String) -> RichText? {
+        guard let cellRef = CellReference(ref) else { return nil }
+        return richText(at: cellRef)
+    }
+
     /// Get complete cell style for a cell reference
     public func cellStyle(at ref: CellReference) -> CellStyle? {
         guard let rawCell = rawData.cell(at: ref) else { return nil }
@@ -306,7 +321,10 @@ public struct Sheet: Sendable {
     private func resolve(_ cell: RawCell) -> CellValue {
         switch cell.value {
         case .sharedString(let index):
-            if let str = sharedStrings[index] {
+            // Check if this shared string has rich text formatting
+            if let richRuns = sharedStrings.richText(at: index) {
+                return .richText(richRuns)
+            } else if let str = sharedStrings[index] {
                 return .text(str)
             } else {
                 return .error("Invalid shared string index: \(index)")
