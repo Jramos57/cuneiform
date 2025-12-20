@@ -36,6 +36,9 @@ public struct Sheet: Sendable {
     /// Sheet protection state (if any)
     public var protection: WorksheetData.Protection? { rawData.protection }
 
+    /// Page setup configuration (if set)
+    public var pageSetup: PageSetup? { rawData.pageSetup }
+
     /// Get data validations intersecting a given A1 range (e.g., "A1:C3").
     public func validations(for range: String) -> [WorksheetData.DataValidation] {
         guard let (start, end) = parseRange(range) else { return [] }

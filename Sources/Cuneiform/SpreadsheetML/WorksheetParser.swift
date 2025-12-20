@@ -325,6 +325,15 @@ public struct WorksheetData: Sendable {
 
     /// AutoFilter configuration (optional)
     public var autoFilter: AutoFilter?
+
+    /// Page setup configuration (optional)
+    public var pageSetup: PageSetup?
+
+    /// Print area (optional)
+    public var printArea: PrintArea?
+
+    /// Print titles (optional)
+    public var printTitles: PrintTitles?
 }
 
 /// Parser for worksheet XML
@@ -356,6 +365,15 @@ public enum WorksheetParser {
         if let autoFilter = delegate.autoFilter {
             result.autoFilter = autoFilter
         }
+        if let pageSetup = delegate.pageSetup {
+            result.pageSetup = pageSetup
+        }
+        if let printArea = delegate.printArea {
+            result.printArea = printArea
+        }
+        if let printTitles = delegate.printTitles {
+            result.printTitles = printTitles
+        }
         return result
     }
 }
@@ -373,6 +391,9 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     private(set) var protection: WorksheetData.Protection?
     private(set) var conditionalFormats: [WorksheetData.ConditionalFormat] = []
     private(set) var autoFilter: WorksheetData.AutoFilter?
+    private(set) var pageSetup: PageSetup?
+    private(set) var printArea: PrintArea?
+    private(set) var printTitles: PrintTitles?
 
     // AutoFilter accumulation
     private var inAutoFilter = false
@@ -641,6 +662,55 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             // Discrete value filter: <filter val="Value1"/>
             if inFilterColumn, let val = attributeDict["val"] {
                 currentFilterValues.append(val)
+            }
+
+        case "pageSetup":
+            // Parse page setup element
+            let orientationStr = attributeDict["orientation"] ?? "portrait"
+            let orientation = PageSetup.Orientation(rawValue: orientationStr) ?? .portrait
+            let paperSizeInt = attributeDict["paperSize"].flatMap { Int($0) } ?? 1
+            let paperSize = PageSetup.PaperSize(rawValue: paperSizeInt) ?? .letter
+            let scale = attributeDict["scale"].flatMap { Int($0) }
+            let fitToWidth = attributeDict["fitToWidth"].flatMap { Int($0) }
+            let fitToHeight = attributeDict["fitToHeight"].flatMap { Int($0) }
+            let fitToPages = (fitToWidth != nil && fitToHeight != nil) ? FitToPages(width: fitToWidth ?? 1, height: fitToHeight ?? 1) : nil
+            let printQuality = attributeDict["printQuality"].flatMap { Int($0) } ?? 300
+            let firstPageNumber = attributeDict["firstPageNumber"].flatMap { Int($0) }
+            
+            // Note: margins come from pageMargins element, we'll handle that separately
+            pageSetup = PageSetup(
+                orientation: orientation,
+                paperSize: paperSize,
+                scale: scale,
+                fitToPages: fitToPages,
+                printQuality: printQuality,
+                firstPageNumber: firstPageNumber,
+                margins: .default
+            )
+
+        case "pageMargins":
+            // Parse page margins
+            let left = attributeDict["left"].flatMap { Double($0) } ?? 0.75
+            let right = attributeDict["right"].flatMap { Double($0) } ?? 0.75
+            let top = attributeDict["top"].flatMap { Double($0) } ?? 1.0
+            let bottom = attributeDict["bottom"].flatMap { Double($0) } ?? 1.0
+            let header = attributeDict["header"].flatMap { Double($0) } ?? 0.5
+            let footer = attributeDict["footer"].flatMap { Double($0) } ?? 0.5
+            
+            let margins = PageSetup.Margins(left: left, right: right, top: top, bottom: bottom, header: header, footer: footer)
+            
+            if pageSetup != nil {
+                pageSetup = PageSetup(
+                    orientation: pageSetup?.orientation ?? .portrait,
+                    paperSize: pageSetup?.paperSize ?? .letter,
+                    scale: pageSetup?.scale,
+                    fitToPages: pageSetup?.fitToPages,
+                    printQuality: pageSetup?.printQuality ?? 300,
+                    firstPageNumber: pageSetup?.firstPageNumber,
+                    margins: margins
+                )
+            } else {
+                pageSetup = PageSetup(margins: margins)
             }
 
         default:

@@ -264,6 +264,11 @@ public struct WorkbookWriter {
             builder.setProtection(prot)
         }
         
+        /// Set page setup configuration for printing
+        public mutating func setPageSetup(_ setup: PageSetup) {
+            builder.setPageSetup(setup)
+        }
+        
         /// Add a table (Excel Table or ListObject) to this sheet
         public mutating func addTable(
             name: String,

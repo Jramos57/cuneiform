@@ -305,9 +305,15 @@ public struct WorksheetBuilder {
     private var tables: [TableBuilder] = []
     private var conditionalFormats: [WorksheetData.ConditionalFormat] = []
     private var autoFilterRef: String?
+    private var pageSetup: PageSetup?
 
     public init(sharedStringsBuilder: SharedStringsBuilder? = nil) {
         self.sharedStringsBuilder = sharedStringsBuilder
+    }
+    
+    /// Set the page setup configuration
+    public mutating func setPageSetup(_ setup: PageSetup) {
+        pageSetup = setup
     }
     
     /// Add a cell
@@ -506,6 +512,12 @@ public struct WorksheetBuilder {
 
             <sheetProtection sheet="\(prot.sheet ? "1" : "0")" content="\(prot.content ? "1" : "0")" objects="\(prot.objects ? "1" : "0")" scenarios="\(prot.scenarios ? "1" : "0")" formatCells="\(prot.formatCells ? "0" : "1")" formatColumns="\(prot.formatColumns ? "0" : "1")" formatRows="\(prot.formatRows ? "0" : "1")" insertColumns="\(prot.insertColumns ? "0" : "1")" insertRows="\(prot.insertRows ? "0" : "1")" insertHyperlinks="\(prot.insertHyperlinks ? "0" : "1")" deleteColumns="\(prot.deleteColumns ? "0" : "1")" deleteRows="\(prot.deleteRows ? "0" : "1")" selectLockedCells="\(prot.selectLockedCells ? "0" : "1")" selectUnlockedCells="\(prot.selectUnlockedCells ? "0" : "1")" sort="\(prot.sort ? "0" : "1")" autoFilter="\(prot.autoFilter ? "0" : "1")" pivotTables="\(prot.pivotTables ? "0" : "1")"\(prot.passwordHash != nil ? " password=\"\(xmlEscape(prot.passwordHash!))\"" : "")/>
             """
+        }
+
+        // Page setup and margins
+        if let pageSetupConfig = pageSetup {
+            let builder = PageSetupBuilder(pageSetup: pageSetupConfig)
+            xml += builder.buildElements()
         }
 
         // Table parts
@@ -1186,3 +1198,53 @@ public struct TableBuilder {
             .replacingOccurrences(of: "\"", with: "&quot;")
     }
 }
+
+/// Builder for page setup configuration (pageSetup and pageMargins elements)
+struct PageSetupBuilder {
+    private var pageSetup: PageSetup
+    
+    init(pageSetup: PageSetup = .default) {
+        self.pageSetup = pageSetup
+    }
+    
+    /// Build the XML elements for pageSetup and pageMargins
+    func buildElements() -> String {
+        var xml = ""
+        
+        // pageMargins element
+        let m = pageSetup.margins
+        xml += "\n<pageMargins left=\"\(m.left)\" right=\"\(m.right)\" top=\"\(m.top)\" bottom=\"\(m.bottom)\" header=\"\(m.header)\" footer=\"\(m.footer)\"/>"
+        
+        // pageSetup element
+        xml += "\n<pageSetup"
+        
+        if pageSetup.orientation == .landscape {
+            xml += " orientation=\"landscape\""
+        }
+        
+        if pageSetup.paperSize != .letter {
+            xml += " paperSize=\"\(pageSetup.paperSize.rawValue)\""
+        }
+        
+        if let scale = pageSetup.scale, scale != 100 {
+            xml += " scale=\"\(scale)\""
+        }
+        
+        if let fitToPages = pageSetup.fitToPages {
+            xml += " fitToWidth=\"\(fitToPages.width)\" fitToHeight=\"\(fitToPages.height)\""
+        }
+        
+        if pageSetup.printQuality != 300 {
+            xml += " printQuality=\"\(pageSetup.printQuality)\""
+        }
+        
+        if let firstPageNumber = pageSetup.firstPageNumber {
+            xml += " firstPageNumber=\"\(firstPageNumber)\""
+        }
+        
+        xml += "/>"
+        
+        return xml
+    }
+}
+
