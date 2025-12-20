@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 216 tests pass.
+**STATUS: GREEN** - All 268 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -24,9 +24,10 @@ Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently
 - [x] Tables write-side: TableBuilder, SheetWriter.addTable() API, full round-trip support (Phase 4.2 complete)
 - [x] Conditional formatting: cellIs, dataBar, colorScale, iconSet rules with read/write support (Phase 4.3 core complete)
 - [x] AutoFilter: range-based filtering with column filters (Phase 4.4 complete)
+- [x] Shared strings optimization: SharedStringsBuilder with deduplication and rich text support (Phase 4.6 complete)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (216/216)
+- [x] Entire test suite passes (268/268)
 
 ---
 
@@ -282,9 +283,11 @@ Column filtering without full table.
 - [ ] API: `TextRun`, `RichText`, `CellValue.richText`
 - [ ] Tests: formatted text round-trip
 
-### Phase 4.6: Shared Strings Optimization
-- [ ] Write: use shared strings table for efficiency
-- [ ] Tests: large file optimization
+### Phase 4.6: Shared Strings Optimization ✅ COMPLETE
+- [x] Write: SharedStringsBuilder with string deduplication
+- [x] Rich text: Full support for formatted text runs
+- [x] Tests: 52 tests covering builder, deduplication, XML generation, round-trip
+- [x] Integration: WorkbookWriter uses shared strings efficiently
 
 ### Phase 4.7: Page Setup & Print
 - [ ] Read: parse `<pageSetup>`, `<pageMargins>`
