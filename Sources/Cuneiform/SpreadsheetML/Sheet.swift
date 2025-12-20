@@ -154,6 +154,23 @@ public struct Sheet: Sendable {
         guard let cellRef = CellReference(ref) else { return nil }
         return formula(at: cellRef)
     }
+    
+    // MARK: - Formula Evaluation (Phase 5)
+    
+    /// Evaluate a formula string in the context of this sheet
+    /// - Parameter formulaString: The formula to evaluate (e.g., "=SUM(A1:A10)" or "A1+B1")
+    /// - Returns: The evaluated result as a FormulaValue
+    /// - Throws: FormulaError if parsing or evaluation fails
+    public func evaluate(formula formulaString: String) throws -> FormulaValue {
+        let parser = FormulaParser(formulaString)
+        let expression = try parser.parse()
+        
+        let evaluator = FormulaEvaluator { @Sendable [self] ref in
+            self.cell(at: ref)
+        }
+        
+        return try evaluator.evaluate(expression)
+    }
 
     // MARK: - Advanced Queries
 

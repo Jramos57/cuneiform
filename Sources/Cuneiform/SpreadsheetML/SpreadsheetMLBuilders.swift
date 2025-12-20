@@ -1,7 +1,7 @@
 import Foundation
 
 /// Builder for sharedStrings.xml
-public struct SharedStringsBuilder {
+public final class SharedStringsBuilder {
     private var strings: [String] = []
     private var stringIndex: [String: Int] = [:]
     private var richTextRuns: [Int: RichText] = [:]
@@ -10,7 +10,7 @@ public struct SharedStringsBuilder {
     
     /// Add a string and return its index
     @discardableResult
-    public mutating func addString(_ text: String) -> Int {
+    public func addString(_ text: String) -> Int {
         if let existing = stringIndex[text] {
             return existing
         }
@@ -22,7 +22,7 @@ public struct SharedStringsBuilder {
     
     /// Add rich text and return its index (uses concatenated text as key)
     @discardableResult
-    public mutating func addRichText(_ runs: RichText) -> Int {
+    public func addRichText(_ runs: RichText) -> Int {
         let plainText = runs.plainText
         if let existing = stringIndex[plainText] {
             // Check if we already have rich text for this index
@@ -571,12 +571,19 @@ public struct WorksheetBuilder {
         
         switch cell.value {
         case .text(let str):
-            // For simplicity, always use inline strings (could use shared strings)
-            let escaped = xmlEscape(str)
-            return """
-            
-            <c r="\(ref)" t="str"\(styleAttr)><v>\(escaped)</v></c>
-            """
+            if let ssb = sharedStringsBuilder {
+                let idx = ssb.addString(str)
+                return """
+                
+                <c r=\"\(ref)\" t=\"s\"\(styleAttr)><v>\(idx)</v></c>
+                """
+            } else {
+                let escaped = xmlEscape(str)
+                return """
+                
+                <c r=\"\(ref)\" t=\"str\"\(styleAttr)><v>\(escaped)</v></c>
+                """
+            }
             
         case .number(let num):
             return """

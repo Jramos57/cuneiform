@@ -174,19 +174,22 @@ struct SharedStringsOptimizationTests {
         if case .text(let val) = readSheet.cell(at: "A1") {
             #expect(val == "Hello")
         } else {
-            Issue.record("Expected text value at A1")
+            let actual = String(describing: readSheet.cell(at: "A1") ?? .empty)
+            Issue.record("Expected text value at A1; got: \(actual)")
         }
         
         if case .text(let val) = readSheet.cell(at: "A2") {
             #expect(val == "World")
         } else {
-            Issue.record("Expected text value at A2")
+            let actual = String(describing: readSheet.cell(at: "A2") ?? .empty)
+            Issue.record("Expected text value at A2; got: \(actual)")
         }
         
         if case .text(let val) = readSheet.cell(at: "A3") {
             #expect(val == "Hello")
         } else {
-            Issue.record("Expected text value at A3")
+            let actual = String(describing: readSheet.cell(at: "A3") ?? .empty)
+            Issue.record("Expected text value at A3; got: \(actual)")
         }
     }
     
@@ -201,6 +204,18 @@ struct SharedStringsOptimizationTests {
         writer.modifySheet(at: sheetIdx) { $0 = sheet }
         
         let data = try writer.buildData()
+            let pkg = try OPCPackage.open(data: data)
+            #expect(pkg.partExists(.sharedStrings) == true)
+            // Read the first worksheet part directly via well-known path
+            let sheet1 = try pkg.readPart(PartPath("/xl/worksheets/sheet1.xml"))
+            let xml = String(data: sheet1, encoding: .utf8)!
+            #expect(xml.contains("t=\"s\""))
+            // Inspect sharedStrings.xml directly
+            let ssData = try pkg.readPart(.sharedStrings)
+            let ssXml = String(data: ssData, encoding: .utf8)!
+            #expect(ssXml.contains("<sst"))
+            let parsedSS = try SharedStringsParser.parse(data: ssData)
+            #expect(parsedSS.count > 0)
         
         // Verify we can read back the written strings
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".xlsx")
@@ -211,13 +226,15 @@ struct SharedStringsOptimizationTests {
         if case .text(let val) = readSheet.cell(at: "A1") {
             #expect(val == "String1")
         } else {
-            Issue.record("Expected text value at A1")
+            let actual = String(describing: readSheet.cell(at: "A1") ?? .empty)
+            Issue.record("Expected text value at A1; got: \(actual)")
         }
         
         if case .text(let val) = readSheet.cell(at: "A2") {
             #expect(val == "String2")
         } else {
-            Issue.record("Expected text value at A2")
+            let actual = String(describing: readSheet.cell(at: "A2") ?? .empty)
+            Issue.record("Expected text value at A2; got: \(actual)")
         }
     }
     
@@ -251,7 +268,8 @@ struct SharedStringsOptimizationTests {
         if case .text(let val) = readSheet.cell(at: "A3") {
             #expect(val == "Repeated")
         } else {
-            Issue.record("Expected text value at A3")
+            let actual = String(describing: readSheet.cell(at: "A3") ?? .empty)
+            Issue.record("Expected text value at A3; got: \(actual)")
         }
         
         // Verify that we have many rows (bulk read verification)

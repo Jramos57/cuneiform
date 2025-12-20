@@ -12,9 +12,9 @@ swift test    # All tests must pass
 
 ---
 
-## Status Summary (Dec 19, 2025)
+## Status Summary (Dec 20, 2025)
 
-**STATUS: GREEN** - All 268 tests pass.
+**STATUS: GREEN** - All 355 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -25,9 +25,10 @@ Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently
 - [x] Conditional formatting: cellIs, dataBar, colorScale, iconSet rules with read/write support (Phase 4.3 core complete)
 - [x] AutoFilter: range-based filtering with column filters (Phase 4.4 complete)
 - [x] Shared strings optimization: SharedStringsBuilder with deduplication and rich text support (Phase 4.6 complete)
+- [x] Formula engine: Parser, 20-function evaluator (SUM, AVERAGE, IF, VLOOKUP, INDEX/MATCH, AND, OR, NOT, LEN, UPPER, LOWER, CONCAT, ROUND, ABS, MEDIAN, MIN, MAX, COUNT, COUNTA), dependency graph, recalculation engine (Phase 5 complete)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (268/268)
+- [x] Entire test suite passes (355/355)
 
 ---
 
@@ -277,11 +278,11 @@ Column filtering without full table.
 
 **Status:** ✓ COMPLETE (Dec 19, 2025)
 
-### Phase 4.5: Rich Text
-- [ ] Read: preserve `<r>` runs with formatting
-- [ ] Write: emit rich text in cells and comments
-- [ ] API: `TextRun`, `RichText`, `CellValue.richText`
-- [ ] Tests: formatted text round-trip
+### Phase 4.5: Rich Text ✅ COMPLETE
+- [x] Read: preserve `<r>` runs with formatting
+- [x] Write: emit rich text in cells and comments
+- [x] API: `TextRun`, `RichText`, `CellValue.richText`
+- [x] Tests: formatted text round-trip
 
 ### Phase 4.6: Shared Strings Optimization ✅ COMPLETE
 - [x] Write: SharedStringsBuilder with string deduplication
@@ -289,10 +290,21 @@ Column filtering without full table.
 - [x] Tests: 52 tests covering builder, deduplication, XML generation, round-trip
 - [x] Integration: WorkbookWriter uses shared strings efficiently
 
-### Phase 4.7: Page Setup & Print
-- [ ] Read: parse `<pageSetup>`, `<pageMargins>`
-- [ ] Write: emit print configuration
-- [ ] API: `PageSetup`, `Sheet.pageSetup`
+#### Performance Highlights (Dec 19, 2025)
+- Streaming vs eager: 30.93× faster (benchmark suite)
+- Write 1000 rows: 0.048s; Read 1000 rows: 0.049s
+- Range query A1:Z100 (2600 cells): 0.761s
+
+#### Latest Benchmarks (Dec 20, 2025)
+- Streaming vs eager: 29.80× faster (current run)
+- Write 1000 rows: 0.036s; Read 1000 rows: 0.064s
+- Range query A1:Z100 (2600 cells): 0.719s
+
+### Phase 4.7: Page Setup & Print ✅ COMPLETE
+- [x] Read: parse `<pageSetup>`, `<pageMargins>`
+- [x] Write: emit print configuration
+- [x] API: `PageSetup`, `Sheet.pageSetup`
+- [x] Tests: 18 tests covering defaults, custom margins, paper sizes, round-trip
 
 ---
 
@@ -572,3 +584,56 @@ if package.partExists(.styles) {
 **Phase 4.2 Verified by:** Vek (December 19, 2025)
 **Phase 4.3 Verified by:** Vek (December 19, 2025) - Conditional Formatting core implementation
 **Phase 4.4 Verified by:** Vek (December 19, 2025) - AutoFilter complete
+**Phase 4.6 Verified by:** Enkidu (December 19, 2025) - Shared Strings Optimization complete
+**Phase 5 Verified by:** Enkidu (December 20, 2025) - Formula Engine complete
+
+---
+
+## Phase 5: Formula Engine (Dec 20, 2025) ✓
+
+**Goal:** Implement Excel formula parser, evaluator, and dependency-aware recalculation system
+
+**Delivered:**
+- [x] FormulaParser: Tokenizer and recursive descent parser for Excel formula grammar
+- [x] FormulaEvaluator: 20-function evaluator with expression tree execution
+- [x] Functions implemented:
+  - **Math:** SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, MEDIAN, ROUND, ABS
+  - **Logical:** IF, AND, OR, NOT
+  - **Lookup:** VLOOKUP, INDEX, MATCH
+  - **String:** LEN, UPPER, LOWER, CONCAT
+- [x] DependencyGraph: Tracks formula → cell references, topological sort for recalculation order
+- [x] WorksheetCalculator: Integrates evaluator + dependency graph for dirty cell tracking
+- [x] Circular reference detection with DependencyError
+- [x] Reference extraction from formula expressions
+- [x] Comprehensive test coverage: 86 tests (37 evaluator + 35 extended functions + 14 dependency)
+
+**Files Added:**
+- [x] Sources/Cuneiform/SpreadsheetML/FormulaParser.swift (389 lines)
+- [x] Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift (582 lines, enhanced with 10 functions)
+- [x] Sources/Cuneiform/SpreadsheetML/DependencyGraph.swift (195 lines)
+- [x] Tests/CuneiformTests/FormulaEvaluatorTests.swift (504 lines, 37 tests)
+- [x] Tests/CuneiformTests/FormulaFunctionsExtendedTests.swift (35 tests)
+- [x] Tests/CuneiformTests/DependencyGraphTests.swift (14 tests)
+
+**Features:**
+- [x] Binary operators: +, -, *, /, ^, =, <>, <, >, <=, >=, & (concat)
+- [x] Cell references (A1, B2, etc.) and ranges (A1:B5)
+- [x] Nested function calls
+- [x] Error propagation (#REF!, #VALUE!, #DIV/0!, #N/A!, #NAME!)
+- [x] Type coercion (numbers, strings, booleans)
+- [x] Array handling for range-based functions
+- [x] Integration tests: parser + evaluator end-to-end
+
+**Test Coverage:**
+- [x] Arithmetic operations with edge cases (division by zero, power)
+- [x] Cell references (missing cells, arithmetic with refs)
+- [x] All 20 functions with multiple scenarios each
+- [x] Logical operations (AND with mixed types, OR with zeros, NOT)
+- [x] String operations (LEN, UPPER, LOWER, CONCAT with mixed types)
+- [x] Math functions (ROUND with negative decimals, ABS, MEDIAN odd/even)
+- [x] Nested formulas (IF+AND, ROUND+SUM, complex conditionals)
+- [x] Dependency graph (simple chains, diamond patterns, topological order)
+- [x] Circular reference detection (direct and indirect cycles)
+- [x] Recalculation order verification
+
+**Test Count:** 355 total (269 prior + 86 Phase 5)

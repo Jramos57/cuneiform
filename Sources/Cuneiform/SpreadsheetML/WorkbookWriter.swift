@@ -146,6 +146,11 @@ public struct WorkbookWriter {
             self.name = name
             self.builder = WorksheetBuilder()
         }
+
+        init(name: String, sharedStringsBuilder: SharedStringsBuilder) {
+            self.name = name
+            self.builder = WorksheetBuilder(sharedStringsBuilder: sharedStringsBuilder)
+        }
         
         /// Write a value to a cell
         public mutating func write(_ value: WorksheetBuilder.WritableCellValue, to reference: CellReference) {
@@ -335,7 +340,7 @@ public struct WorkbookWriter {
     
     /// Add a new sheet
     public mutating func addSheet(named name: String) -> Int {
-        sheets.append(SheetWriter(name: name))
+        sheets.append(SheetWriter(name: name, sharedStringsBuilder: sharedStringsBuilder))
         return sheets.count - 1
     }
     
@@ -377,24 +382,16 @@ public struct WorkbookWriter {
     public mutating func buildData() throws -> Data {
         var zipWriter = ZipWriter()
         
-        // Build content types
+        // Build content types (write at end once all parts are known)
         var contentTypes = ContentTypesBuilder()
         contentTypes.addOverride(partName: "/xl/workbook.xml", 
                                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")
         contentTypes.addOverride(partName: "/xl/styles.xml",
                                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")
-        
-        // Add sharedStrings content type if there are any strings
-        if sharedStringsBuilder.count > 0 {
-            contentTypes.addOverride(partName: "/xl/sharedStrings.xml",
-                                    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")
-        }
-        
         for i in 1...sheets.count {
             contentTypes.addOverride(partName: "/xl/worksheets/sheet\(i).xml",
                                     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")
         }
-        zipWriter.addFile(path: "[Content_Types].xml", data: contentTypes.build())
         
         // Build root relationships
         var rootRels = RelationshipsBuilder()
@@ -405,10 +402,9 @@ public struct WorkbookWriter {
         )
         zipWriter.addFile(path: "_rels/.rels", data: rootRels.build())
         
-        // Build workbook
+        // Prepare workbook (write after sheets so sharedStrings relationship can be added if needed)
         var workbookBuilder = WorkbookBuilder()
         var workbookRels = RelationshipsBuilder()
-        
         for (index, sheet) in sheets.enumerated() {
             let sheetId = index + 1
             let relId = "rId\(sheetId)"
@@ -419,43 +415,25 @@ public struct WorkbookWriter {
                 id: relId
             )
         }
-        
         // Add styles relationship
         workbookRels.addRelationship(
             type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
             target: "styles.xml",
             id: "rId\(sheets.count + 1)"
         )
-
-        // Add sharedStrings relationship if there are any strings
-        if sharedStringsBuilder.count > 0 {
-            workbookRels.addRelationship(
-                type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings",
-                target: "sharedStrings.xml",
-                id: "rId\(sheets.count + 2)"
-            )
-        }
-
         // Add defined names
         for (name, refersTo) in namedRanges {
             workbookBuilder.addDefinedName(name: name, refersTo: refersTo)
         }
-
         // Add workbook protection
         if let protection = workbookProtection {
             workbookBuilder.setProtection(protection)
         }
         
-        zipWriter.addFile(path: "xl/workbook.xml", data: workbookBuilder.build())
-        zipWriter.addFile(path: "xl/_rels/workbook.xml.rels", data: workbookRels.build())
-        
         // Build styles
         zipWriter.addFile(path: "xl/styles.xml", data: stylesBuilder.build())
         
-        // Build sharedStrings if present
-        if sharedStringsBuilder.count > 0 {
-            zipWriter.addFile(path: "xl/sharedStrings.xml", data: sharedStringsBuilder.build())
-        }
+        // Build worksheets first to populate shared strings
         
         // Build worksheets
         var globalTableCount = 0  // Global counter for table numbering across all sheets
@@ -527,7 +505,28 @@ public struct WorkbookWriter {
 
             sheets[index] = sheet
         }
+        // After building sheets, emit sharedStrings if present and update content types + workbook rels
+        if sharedStringsBuilder.count > 0 {
+            // Content type override for shared strings
+            contentTypes.addOverride(partName: "/xl/sharedStrings.xml",
+                                    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")
+            // Add sharedStrings relationship
+            workbookRels.addRelationship(
+                type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings",
+                target: "sharedStrings.xml",
+                id: "rId\(sheets.count + 2)"
+            )
+            // Write sharedStrings part
+            zipWriter.addFile(path: "xl/sharedStrings.xml", data: sharedStringsBuilder.build())
+        }
+
+        // Write workbook and relationships now that rels are complete
+        zipWriter.addFile(path: "xl/workbook.xml", data: workbookBuilder.build())
+        zipWriter.addFile(path: "xl/_rels/workbook.xml.rels", data: workbookRels.build())
         
+        // Finally write content types with all overrides
+        zipWriter.addFile(path: "[Content_Types].xml", data: contentTypes.build())
+
         return try zipWriter.write()
     }
 }
