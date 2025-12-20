@@ -14,7 +14,7 @@ swift test    # All tests must pass
 
 ## Status Summary (Dec 19, 2025)
 
-**STATUS: GREEN** - All 205 tests pass.
+**STATUS: GREEN** - All 210 tests pass.
 
 Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently requires the external `swift-testing` package for the `Testing` module; removing it led to missing `_TestingInternals`. We have retained the dependency to keep the suite green and accept the deprecation warnings. See [README.md](README.md#migration-notes-swift-6-testing) for migration steps when your toolchain supports the built-in module.
 
@@ -24,7 +24,7 @@ Note: Swift 6 includes built-in Swift Testing. This toolchain on macOS currently
 - [x] Tables write-side: TableBuilder, SheetWriter.addTable() API, full round-trip support (Phase 4.2 complete)
 - [x] All parser tests pass
 - [x] Build succeeds
-- [x] Entire test suite passes (205/205)
+- [x] Entire test suite passes (206/206)
 
 ---
 
@@ -154,7 +154,7 @@ New validation variants:
 
 ### Verification
 - [x] `swift build` succeeds
-- [x] `swift test` succeeds: 205 tests passing (core suites + Phase 4.1 styles, Phase 4.2 tables, Phase 4.3 conditional formatting smoke/round-trip)
+- [x] `swift test` succeeds: 210 tests passing (core suites + Phase 4.1 styles, Phase 4.2 tables, Phase 4.3 conditional formatting with icon sets)
 
 ---
 
@@ -162,14 +162,14 @@ New validation variants:
 
 **Goal:** Increase ISO/IEC 29500 compliance from ~60% to ~85%+
 
-**Current Compliance:** ~78% (after Phase 4.3 partial)
-**Target After 4.3:** ~80%
+**Current Compliance:** ~80% (Phase 4.3 icon sets complete)
+**Target After Full 4.3:** ~82%
 
 | Area | Current | Target | Status |
 |------|---------|--------|--------|
 | Styles (§18.8) | 90% | 90% | ✓ Complete (Phase 4.1) |
 | Tables (§18.5) | 80% | 80% | ✓ Complete (Phase 4.2) |
-| Conditional Formatting (§18.3.1) | 35% | 80% | In progress (cellIs/dataBar/colorScale read+write; icon sets pending) |
+| Conditional Formatting (§18.3.1) | 60% | 80% | Core complete (cellIs/dataBar/colorScale/iconSet read+write verified) |
 | AutoFilter | 0% | 80% | Planned (Phase 4.4) |
 | Rich Text (§18.4) | 20% | 90% | Planned (Phase 4.5) |
 
@@ -208,13 +208,13 @@ New validation variants:
 - [x] Parse `<formula>` for cellIs/expression rules
 - [x] Parse `<dataBar>` with `<cfvo>` and `<color>`
 - [x] Parse `<colorScale>` with cfvo/color arrays
-- [ ] Parse `<iconSet>` with iconSet name and cfvo thresholds
+- [x] Parse `<iconSet>` with iconSet name and cfvo thresholds
 
 **Write-side (SpreadsheetMLBuilders.swift):**
 - [x] Emit `<conditionalFormatting sqref="...">` wrapper
 - [x] Emit `<cfRule>` with type-specific content
 - [x] Emit dataBar and colorScale child elements
-- [ ] Emit iconSet child elements
+- [x] Emit iconSet child elements
 - [x] Track priority numbers (unique per sheet)
 
 **Domain Types:**
@@ -231,10 +231,13 @@ New validation variants:
 
 **Tests (~20 target):**
 - [x] Parser: cellIs (greaterThan), dataBar, 3-color scale
-- [ ] Parser: between operator, iconSet, expression-based rule, multiple rules per range
+- [x] Parser: iconSet (3Arrows, 4Rating verified)
+- [ ] Parser: between operator, expression-based rule, multiple rules per range
 - [x] Write: cellIs highlight rule, 3-color scale
-- [ ] Write: dataBar, iconSet, priority uniqueness stress
+- [x] Write: iconSet (3TrafficLights1, 4Rating verified)
+- [ ] Write: dataBar round-trip, priority uniqueness stress
 - [x] Round-trip: cellIs rule
+- [x] Round-trip: iconSet (4Rating verified)
 - [ ] Round-trip: dataBar, colorScale, multiple conditional formats per sheet
 - [ ] Integration: parse Excel-created conditional formatting
 
@@ -533,7 +536,7 @@ if package.partExists(.styles) {
 ## Sign-Off
 
 - [x] **Build passes**: `swift build` exits 0
-- [x] **Tests pass**: `swift test` shows all green (201/201)
+- [x] **Tests pass**: `swift test` shows all green (206/206)
 - [x] **Checklist complete**: All boxes above checked
 - [x] **Code reviewed**: Matches existing style
 

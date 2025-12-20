@@ -7,8 +7,8 @@
 **Phase 3 (3.1-3.4) Implemented:** December 18, 2025
 **Phase 4.1 Implemented:** December 19, 2025
 **Phase 4.2 Implemented:** December 19, 2025
-**Current Verification:** All 205 tests pass (Dec 19, 2025)
-**Current Compliance:** ~78% ISO/IEC 29500 (after partial Phase 4.3 work)
+**Current Verification:** All 210 tests pass (Dec 19, 2025)
+**Current Compliance:** ~80% ISO/IEC 29500 (Phase 4.3 icon sets complete)
 **Target Compliance:** ~85% (after Phase 4 complete)
 
 Tasks 1-4 (SpreadsheetML parsers) are complete:
@@ -203,7 +203,7 @@ Data bars, color scales, icon sets, and formula-based rules.
 - [x] Parse `<formula>` element for cellIs/expression rules
 - [x] Parse `<dataBar>` with `<cfvo>` (type, val) and `<color>`
 - [x] Parse `<colorScale>` with multiple `<cfvo>` and `<color>` elements
-- [ ] Parse `<iconSet>` with `iconSet` attribute and `<cfvo>` thresholds
+- [x] Parse `<iconSet>` with `iconSet` attribute and `<cfvo>` thresholds
 - [x] Handle cfvo types: `min`, `max`, `num`, `percent`, `percentile`, `formula`
 
 #### Write-side (ConditionalFormattingBuilder in SpreadsheetMLBuilders.swift)
@@ -212,7 +212,7 @@ Data bars, color scales, icon sets, and formula-based rules.
 - [x] Emit `<formula>` for cellIs rules
 - [x] Emit `<dataBar>` with cfvo and color
 - [x] Emit `<colorScale>` with cfvo and color arrays
-- [ ] Emit `<iconSet>` with iconSet name and cfvo thresholds
+- [x] Emit `<iconSet>` with iconSet name and cfvo thresholds
 - [x] Track priority numbers (must be unique per sheet)
 
 #### Domain Types
@@ -261,7 +261,7 @@ public struct ConditionalFormat: Sendable, Equatable {
 - [x] Parse dataBar with min/max cfvo
 - [ ] Parse 2-color scale
 - [x] Parse 3-color scale with percentile
-- [ ] Parse iconSet (3Arrows)
+- [x] Parse iconSet (3Arrows, 4Rating verified)
 - [ ] Parse multiple rules on same range
 - [ ] Parse expression-based rule
 
@@ -269,13 +269,14 @@ public struct ConditionalFormat: Sendable, Equatable {
 - [x] Emit cellIs highlight rule
 - [ ] Emit dataBar with custom color
 - [x] Emit 3-color scale
-- [ ] Emit iconSet
+- [x] Emit iconSet (3TrafficLights1, 4Rating verified)
 - [ ] Priority number uniqueness
 
 **Round-trip tests:**
 - [x] Write cellIs → read back → verify operator and formula
 - [ ] Write dataBar → read back → verify cfvo and color
 - [ ] Write colorScale → read back → verify all colors
+- [x] Write iconSet → read back → verify name, cfvos, showValue, reverse
 - [ ] Multiple conditional formats per sheet
 
 **Integration tests:**
@@ -284,7 +285,16 @@ public struct ConditionalFormat: Sendable, Equatable {
 
 **Estimated tests:** ~20 (8 parser + 5 write + 4 round-trip + 3 integration)
 
-**Status:** In progress — cellIs, colorScale, and dataBar parsing/writing added; iconSets and remaining round-trip coverage pending (5/20 tests written)
+**Status:** Core implementation complete — cellIs, colorScale, dataBar, and iconSet parsing/writing verified; 9 tests passing.
+
+**Remaining Work for Full Phase 4.3 Coverage (optional polish):**
+1. ~~**Icon Sets** (read + write)~~ ✓ Complete
+2. **Additional Parser Tests**: between operator, expression-based rule, multiple rules per range
+3. **Additional Write Tests**: dataBar round-trip, priority uniqueness stress test
+4. **Round-trip Tests**: dataBar, colorScale, multiple conditional formats per sheet
+5. **Integration Test**: Parse Excel-created conditional formatting file
+
+**Estimated remaining:** ~11 optional tests for extended coverage
 
 ---
 
