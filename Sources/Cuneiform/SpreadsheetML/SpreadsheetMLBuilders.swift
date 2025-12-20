@@ -4,6 +4,7 @@ import Foundation
 public struct SharedStringsBuilder {
     private var strings: [String] = []
     private var stringIndex: [String: Int] = [:]
+    private var richTextRuns: [Int: RichText] = [:]
     
     public init() {}
     
@@ -19,6 +20,29 @@ public struct SharedStringsBuilder {
         return index
     }
     
+    /// Add rich text and return its index (uses concatenated text as key)
+    @discardableResult
+    public mutating func addRichText(_ runs: RichText) -> Int {
+        let plainText = runs.plainText
+        if let existing = stringIndex[plainText] {
+            // Check if we already have rich text for this index
+            if richTextRuns[existing] != nil {
+                return existing
+            }
+            // Store the rich text formatting
+            richTextRuns[existing] = runs
+            return existing
+        }
+        let index = strings.count
+        strings.append(plainText)
+        stringIndex[plainText] = index
+        richTextRuns[index] = runs
+        return index
+    }
+    
+    /// Get number of unique strings
+    public var count: Int { strings.count }
+    
     /// Build the XML data
     public func build() -> Data {
         var xml = """
@@ -26,18 +50,61 @@ public struct SharedStringsBuilder {
         <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="\(strings.count)" uniqueCount="\(strings.count)">
         """
         
-        for str in strings {
-            let escaped = xmlEscape(str)
-            xml += """
-            
-            <si><t>\(escaped)</t></si>
-            """
+        for (index, str) in strings.enumerated() {
+            if let runs = richTextRuns[index], !runs.isEmpty {
+                // Emit rich text runs
+                xml += "\n  <si>\n"
+                for run in runs {
+                    xml += "    <r>\n"
+                    
+                    // Run properties
+                    if run.fontName != nil || run.fontSize != nil || run.color != nil ||
+                       run.themeColor != nil || run.bold || run.italic || run.underline != nil ||
+                       run.strikethrough || run.verticalAlign != nil {
+                        xml += "      <rPr>\n"
+                        
+                        if run.bold {
+                            xml += "        <b/>\n"
+                        }
+                        if run.italic {
+                            xml += "        <i/>\n"
+                        }
+                        if let fontName = run.fontName {
+                            xml += "        <rFont val=\"\(xmlEscape(fontName))\"/>\n"
+                        }
+                        if let fontSize = run.fontSize {
+                            xml += "        <sz val=\"\(fontSize)\"/>\n"
+                        }
+                        if let color = run.color {
+                            xml += "        <color rgb=\"\(color)\"/>\n"
+                        } else if let themeColor = run.themeColor {
+                            xml += "        <color theme=\"\(themeColor)\"/>\n"
+                        }
+                        if let underline = run.underline {
+                            xml += "        <u val=\"\(underline)\"/>\n"
+                        }
+                        if run.strikethrough {
+                            xml += "        <strike/>\n"
+                        }
+                        if let vertAlign = run.verticalAlign {
+                            xml += "        <vertAlign val=\"\(vertAlign)\"/>\n"
+                        }
+                        
+                        xml += "      </rPr>\n"
+                    }
+                    
+                    xml += "      <t>\(xmlEscape(run.text))</t>\n"
+                    xml += "    </r>\n"
+                }
+                xml += "  </si>"
+            } else {
+                // Emit plain text
+                let escaped = xmlEscape(str)
+                xml += "\n  <si><t>\(escaped)</t></si>"
+            }
         }
         
-        xml += """
-        
-        </sst>
-        """
+        xml += "\n</sst>"
         
         return xml.data(using: .utf8)!
     }

@@ -319,11 +319,13 @@ public struct WorkbookWriter {
     
     private var sheets: [SheetWriter] = []
     private var stylesBuilder: StylesBuilder
+    private var sharedStringsBuilder: SharedStringsBuilder
     private var namedRanges: [(name: String, refersTo: String)] = []
     private var workbookProtection: WorkbookProtection?
     
     public init() {
         self.stylesBuilder = StylesBuilder()
+        self.sharedStringsBuilder = SharedStringsBuilder()
     }
     
     /// Add a new sheet
@@ -376,6 +378,13 @@ public struct WorkbookWriter {
                                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")
         contentTypes.addOverride(partName: "/xl/styles.xml",
                                 contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")
+        
+        // Add sharedStrings content type if there are any strings
+        if sharedStringsBuilder.count > 0 {
+            contentTypes.addOverride(partName: "/xl/sharedStrings.xml",
+                                    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")
+        }
+        
         for i in 1...sheets.count {
             contentTypes.addOverride(partName: "/xl/worksheets/sheet\(i).xml",
                                     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")
@@ -413,6 +422,15 @@ public struct WorkbookWriter {
             id: "rId\(sheets.count + 1)"
         )
 
+        // Add sharedStrings relationship if there are any strings
+        if sharedStringsBuilder.count > 0 {
+            workbookRels.addRelationship(
+                type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings",
+                target: "sharedStrings.xml",
+                id: "rId\(sheets.count + 2)"
+            )
+        }
+
         // Add defined names
         for (name, refersTo) in namedRanges {
             workbookBuilder.addDefinedName(name: name, refersTo: refersTo)
@@ -428,6 +446,11 @@ public struct WorkbookWriter {
         
         // Build styles
         zipWriter.addFile(path: "xl/styles.xml", data: stylesBuilder.build())
+        
+        // Build sharedStrings if present
+        if sharedStringsBuilder.count > 0 {
+            zipWriter.addFile(path: "xl/sharedStrings.xml", data: sharedStringsBuilder.build())
+        }
         
         // Build worksheets
         var globalTableCount = 0  // Global counter for table numbering across all sheets
