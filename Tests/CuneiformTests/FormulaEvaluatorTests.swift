@@ -465,4 +465,167 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .string("Pass"))
     }
+    
+    // MARK: - Excel 365 Functions
+    
+    @Test func evaluateXLOOKUP() throws {
+        // Setup: lookup table with IDs and names
+        let cells: [String: CellValue] = [
+            "A1": .number(101),
+            "A2": .number(102),
+            "A3": .number(103),
+            "B1": .text("Apple"),
+            "B2": .text("Banana"),
+            "B3": .text("Cherry")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=XLOOKUP(102, A1:A3, B1:B3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Banana"))
+    }
+    
+    @Test func evaluateXLOOKUPNotFound() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(101),
+            "A2": .number(102),
+            "B1": .text("Apple"),
+            "B2": .text("Banana")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=XLOOKUP(999, A1:A2, B1:B2, \"Not Found\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Not Found"))
+    }
+    
+    @Test func evaluateTEXTJOIN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello"),
+            "A2": .text("World"),
+            "A3": .text("!")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=TEXTJOIN(\" \", 1, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Hello World !"))
+    }
+    
+    @Test func evaluateTEXTJOINIgnoreEmpty() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Apple"),
+            "A2": .text(""),
+            "A3": .text("Cherry")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=TEXTJOIN(\", \", 1, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Apple, Cherry"))
+    }
+    
+    @Test func evaluateIFS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(85)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IFS(A1 < 60, \"F\", A1 < 70, \"D\", A1 < 80, \"C\", A1 < 90, \"B\", 1, \"A\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("B"))
+    }
+    
+    @Test func evaluateIFSNoMatch() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(50)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IFS(A1 > 60, \"Pass\", A1 > 80, \"Excellent\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("N/A"))
+    }
+    
+    @Test func evaluateSWITCH() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("B")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SWITCH(A1, \"A\", \"Apple\", \"B\", \"Banana\", \"C\", \"Cherry\", \"Unknown\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Banana"))
+    }
+    
+    @Test func evaluateSWITCHDefault() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Z")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SWITCH(A1, \"A\", \"Apple\", \"B\", \"Banana\", \"Unknown\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Unknown"))
+    }
+    
+    @Test func evaluateMAXIFS() throws {
+        // Setup: sales data with region and amount
+        let cells: [String: CellValue] = [
+            "A1": .number(100),  // amounts
+            "A2": .number(200),
+            "A3": .number(150),
+            "B1": .text("East"),  // regions
+            "B2": .text("West"),
+            "B3": .text("East")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MAXIFS(A1:A3, B1:B3, \"East\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(150))
+    }
+    
+    @Test func evaluateMINIFS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(100),
+            "A2": .number(200),
+            "A3": .number(150),
+            "B1": .text("East"),
+            "B2": .text("West"),
+            "B3": .text("East")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MINIFS(A1:A3, B1:B3, \"East\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(100))
+    }
+    
+    @Test func evaluateAVERAGEIFS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(100),
+            "A2": .number(200),
+            "A3": .number(150),
+            "B1": .text("East"),
+            "B2": .text("West"),
+            "B3": .text("East")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=AVERAGEIFS(A1:A3, B1:B3, \"East\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(125))  // (100 + 150) / 2
+    }
 }

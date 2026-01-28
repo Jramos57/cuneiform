@@ -279,6 +279,21 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateISTEXT(args)
         case "ISERROR":
             return try evaluateISERROR(args)
+        // Excel 365 high-priority functions
+        case "XLOOKUP":
+            return try evaluateXLOOKUP(args)
+        case "TEXTJOIN":
+            return try evaluateTEXTJOIN(args)
+        case "IFS":
+            return try evaluateIFS(args)
+        case "SWITCH":
+            return try evaluateSWITCH(args)
+        case "MAXIFS":
+            return try evaluateMAXIFS(args)
+        case "MINIFS":
+            return try evaluateMINIFS(args)
+        case "AVERAGEIFS":
+            return try evaluateAVERAGEIFS(args)
         default:
             return .error("NAME")
         }
@@ -1646,6 +1661,267 @@ public struct FormulaEvaluator: Sendable {
         default:
             return .boolean(false)
         }
+    }
+    
+    // MARK: - Excel 365 High-Priority Functions
+    
+    /// XLOOKUP - Modern lookup function (Excel 365)
+    /// Syntax: XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode], [search_mode])
+    private func evaluateXLOOKUP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 6 else {
+            throw FormulaError.invalidArgumentCount(function: "XLOOKUP", expected: 3, got: args.count)
+        }
+        
+        let lookupValue = try evaluate(args[0])
+        let lookupArray = try evaluate(args[1])
+        let returnArray = try evaluate(args[2])
+        let ifNotFound = args.count > 3 ? try evaluate(args[3]) : FormulaValue.error("N/A")
+        // match_mode and search_mode not fully implemented yet (defaults: exact match, first-to-last)
+        
+        // Extract lookup array values
+        guard case .array(let lookupRows) = lookupArray else {
+            return .error("VALUE")
+        }
+        let lookupValues = lookupRows.flatMap { $0 }
+        
+        // Extract return array values
+        guard case .array(let returnRows) = returnArray else {
+            return .error("VALUE")
+        }
+        let returnValues = returnRows.flatMap { $0 }
+        
+        // Ensure arrays are same length
+        guard lookupValues.count == returnValues.count else {
+            return .error("VALUE")
+        }
+        
+        // Find match
+        for (index, value) in lookupValues.enumerated() {
+            if value == lookupValue {
+                return returnValues[index]
+            }
+        }
+        
+        // Not found
+        return ifNotFound
+    }
+    
+    /// TEXTJOIN - Join text with delimiter (Excel 365)
+    /// Syntax: TEXTJOIN(delimiter, ignore_empty, text1, [text2], ...)
+    private func evaluateTEXTJOIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "TEXTJOIN", expected: 3, got: args.count)
+        }
+        
+        let delimiter = try evaluate(args[0]).asString
+        let ignoreEmpty = try evaluate(args[1]).asBoolean ?? false
+        
+        var parts: [String] = []
+        for i in 2..<args.count {
+            let val = try evaluate(args[i])
+            if case .array(let rows) = val {
+                for row in rows {
+                    for cell in row {
+                        let str = cell.asString
+                        if !ignoreEmpty || !str.isEmpty {
+                            parts.append(str)
+                        }
+                    }
+                }
+            } else {
+                let str = val.asString
+                if !ignoreEmpty || !str.isEmpty {
+                    parts.append(str)
+                }
+            }
+        }
+        
+        return .string(parts.joined(separator: delimiter))
+    }
+    
+    /// IFS - Multiple IF conditions (Excel 365)
+    /// Syntax: IFS(condition1, value1, [condition2, value2], ...)
+    private func evaluateIFS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count % 2 == 0 else {
+            return .error("VALUE")
+        }
+        
+        for i in stride(from: 0, to: args.count, by: 2) {
+            let condition = try evaluate(args[i])
+            if condition.asBoolean == true {
+                return try evaluate(args[i + 1])
+            }
+        }
+        
+        // No condition matched
+        return .error("N/A")
+    }
+    
+    /// SWITCH - Match value and return result (Excel 365)
+    /// Syntax: SWITCH(expression, value1, result1, [value2, result2], ..., [default])
+    private func evaluateSWITCH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "SWITCH", expected: 3, got: args.count)
+        }
+        
+        let expression = try evaluate(args[0])
+        
+        // Check value/result pairs
+        var i = 1
+        while i < args.count - 1 {
+            let value = try evaluate(args[i])
+            if value == expression {
+                return try evaluate(args[i + 1])
+            }
+            i += 2
+        }
+        
+        // If odd number of args after expression, last is default
+        if args.count % 2 == 0 {
+            return try evaluate(args[args.count - 1])
+        }
+        
+        // No match and no default
+        return .error("N/A")
+    }
+    
+    /// MAXIFS - Maximum value with multiple criteria
+    /// Syntax: MAXIFS(max_range, criteria_range1, criterion1, [criteria_range2, criterion2], ...)
+    private func evaluateMAXIFS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count % 2 == 1 else {
+            return .error("VALUE")
+        }
+        
+        let maxRange = try evaluate(args[0])
+        guard case .array(let maxRows) = maxRange else {
+            return .error("VALUE")
+        }
+        let maxValues = maxRows.flatMap { $0 }
+        
+        // Build list of matching indices
+        var matchingIndices = Set(0..<maxValues.count)
+        
+        // Process each criteria pair
+        for i in stride(from: 1, to: args.count, by: 2) {
+            let criteriaRange = try evaluate(args[i])
+            let criterion = try evaluate(args[i + 1])
+            
+            guard case .array(let criteriaRows) = criteriaRange else {
+                return .error("VALUE")
+            }
+            let criteriaValues = criteriaRows.flatMap { $0 }
+            
+            guard criteriaValues.count == maxValues.count else {
+                return .error("VALUE")
+            }
+            
+            // Filter matching indices
+            matchingIndices = matchingIndices.filter { index in
+                matchesCriteria(criteriaValues[index], criterion)
+            }
+        }
+        
+        // Find max of matching values
+        let matchingNumbers = matchingIndices.compactMap { maxValues[$0].asDouble }
+        
+        guard !matchingNumbers.isEmpty else {
+            return .number(0) // Excel returns 0 if no matches
+        }
+        
+        return .number(matchingNumbers.max() ?? 0)
+    }
+    
+    /// MINIFS - Minimum value with multiple criteria
+    /// Syntax: MINIFS(min_range, criteria_range1, criterion1, [criteria_range2, criterion2], ...)
+    private func evaluateMINIFS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count % 2 == 1 else {
+            return .error("VALUE")
+        }
+        
+        let minRange = try evaluate(args[0])
+        guard case .array(let minRows) = minRange else {
+            return .error("VALUE")
+        }
+        let minValues = minRows.flatMap { $0 }
+        
+        // Build list of matching indices
+        var matchingIndices = Set(0..<minValues.count)
+        
+        // Process each criteria pair
+        for i in stride(from: 1, to: args.count, by: 2) {
+            let criteriaRange = try evaluate(args[i])
+            let criterion = try evaluate(args[i + 1])
+            
+            guard case .array(let criteriaRows) = criteriaRange else {
+                return .error("VALUE")
+            }
+            let criteriaValues = criteriaRows.flatMap { $0 }
+            
+            guard criteriaValues.count == minValues.count else {
+                return .error("VALUE")
+            }
+            
+            // Filter matching indices
+            matchingIndices = matchingIndices.filter { index in
+                matchesCriteria(criteriaValues[index], criterion)
+            }
+        }
+        
+        // Find min of matching values
+        let matchingNumbers = matchingIndices.compactMap { minValues[$0].asDouble }
+        
+        guard !matchingNumbers.isEmpty else {
+            return .number(0) // Excel returns 0 if no matches
+        }
+        
+        return .number(matchingNumbers.min() ?? 0)
+    }
+    
+    /// AVERAGEIFS - Average with multiple criteria
+    /// Syntax: AVERAGEIFS(average_range, criteria_range1, criterion1, [criteria_range2, criterion2], ...)
+    private func evaluateAVERAGEIFS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count % 2 == 1 else {
+            return .error("VALUE")
+        }
+        
+        let avgRange = try evaluate(args[0])
+        guard case .array(let avgRows) = avgRange else {
+            return .error("VALUE")
+        }
+        let avgValues = avgRows.flatMap { $0 }
+        
+        // Build list of matching indices
+        var matchingIndices = Set(0..<avgValues.count)
+        
+        // Process each criteria pair
+        for i in stride(from: 1, to: args.count, by: 2) {
+            let criteriaRange = try evaluate(args[i])
+            let criterion = try evaluate(args[i + 1])
+            
+            guard case .array(let criteriaRows) = criteriaRange else {
+                return .error("VALUE")
+            }
+            let criteriaValues = criteriaRows.flatMap { $0 }
+            
+            guard criteriaValues.count == avgValues.count else {
+                return .error("VALUE")
+            }
+            
+            // Filter matching indices
+            matchingIndices = matchingIndices.filter { index in
+                matchesCriteria(criteriaValues[index], criterion)
+            }
+        }
+        
+        // Calculate average of matching values
+        let matchingNumbers = matchingIndices.compactMap { avgValues[$0].asDouble }
+        
+        guard !matchingNumbers.isEmpty else {
+            return .error("DIV/0")
+        }
+        
+        let sum = matchingNumbers.reduce(0, +)
+        return .number(sum / Double(matchingNumbers.count))
     }
 }
 
