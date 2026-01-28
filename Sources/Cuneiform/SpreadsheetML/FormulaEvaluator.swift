@@ -184,10 +184,30 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateIF(args)
         case "VLOOKUP":
             return try evaluateVLOOKUP(args)
+        case "HLOOKUP":
+            return try evaluateHLOOKUP(args)
         case "INDEX":
             return try evaluateINDEX(args)
         case "MATCH":
             return try evaluateMATCH(args)
+        case "XMATCH":
+            return try evaluateXMATCH(args)
+        case "OFFSET":
+            return try evaluateOFFSET(args)
+        case "INDIRECT":
+            return try evaluateINDIRECT(args)
+        case "CHOOSE":
+            return try evaluateCHOOSE(args)
+        case "CHOOSECOLS":
+            return try evaluateCHOOSECOLS(args)
+        case "CHOOSEROWS":
+            return try evaluateCHOOSEROWS(args)
+        case "TRANSPOSE":
+            return try evaluateTRANSPOSE(args)
+        case "ROWS":
+            return try evaluateROWS(args)
+        case "COLUMNS":
+            return try evaluateCOLUMNS(args)
         case "MIN":
             return try evaluateMIN(args)
         case "MAX":
@@ -3648,6 +3668,274 @@ public struct FormulaEvaluator: Sendable {
         
         // For now, return as a 1D array (single row)
         return .array([parts])
+    }
+    
+    // MARK: - Lookup & Reference Functions (Extended)
+    
+    /// HLOOKUP - Horizontal lookup in a table
+    private func evaluateHLOOKUP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 4 else {
+            throw FormulaError.invalidArgumentCount(function: "HLOOKUP", expected: 3, got: args.count)
+        }
+        
+        let lookupValue = try evaluate(args[0])
+        let tableArray = try evaluate(args[1])
+        let rowIndexNum = try evaluate(args[2])
+        let rangeLookup = args.count > 3 ? try evaluate(args[3]) : .number(1)
+        
+        guard let rowIndex = rowIndexNum.asDouble,
+              let exactMatch = rangeLookup.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard case .array(let rows) = tableArray, !rows.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let rowIdx = Int(rowIndex) - 1
+        guard rowIdx >= 0 && rowIdx < rows.count else {
+            return .error("REF")
+        }
+        
+        // Search in first row
+        let searchRow = rows[0]
+        
+        for (colIdx, cell) in searchRow.enumerated() {
+            if exactMatch == 0 {
+                // Exact match
+                if cell == lookupValue {
+                    guard colIdx < rows[rowIdx].count else { return .error("REF") }
+                    return rows[rowIdx][colIdx]
+                }
+            }
+        }
+        
+        return .error("N/A")
+    }
+    
+    /// XMATCH - Returns relative position of item in array (Excel 365)
+    private func evaluateXMATCH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 4 else {
+            throw FormulaError.invalidArgumentCount(function: "XMATCH", expected: 2, got: args.count)
+        }
+        
+        let lookupValue = try evaluate(args[0])
+        let lookupArray = try evaluate(args[1])
+        let matchMode = args.count > 2 ? try evaluate(args[2]) : .number(0)
+        
+        guard let mode = matchMode.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let values: [FormulaValue]
+        if case .array(let rows) = lookupArray {
+            // Check if it's a single column (each row has one element)
+            if rows.first?.count == 1 {
+                values = rows.map { $0[0] }
+            } else if let firstRow = rows.first {
+                // It's a single row
+                values = firstRow
+            } else {
+                values = []
+            }
+        } else {
+            values = [lookupArray]
+        }
+        
+        for (index, value) in values.enumerated() {
+            if Int(mode) == 0 { // Exact match
+                if value == lookupValue {
+                    return .number(Double(index + 1))
+                }
+            }
+        }
+        
+        return .error("N/A")
+    }
+    
+    /// OFFSET - Returns reference offset from starting point
+    private func evaluateOFFSET(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "OFFSET", expected: 3, got: args.count)
+        }
+        
+        let referenceVal = try evaluate(args[0])
+        let rowsVal = try evaluate(args[1])
+        let colsVal = try evaluate(args[2])
+        
+        guard let _ = rowsVal.asDouble,
+              let _ = colsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Simplified: just return the reference value adjusted
+        // In a full implementation, this would need access to sheet coordinates
+        return referenceVal
+    }
+    
+    /// INDIRECT - Returns reference specified by text string
+    private func evaluateINDIRECT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "INDIRECT", expected: 1, got: args.count)
+        }
+        
+        let refTextVal = try evaluate(args[0])
+        
+        guard case .string(let refText) = refTextVal else {
+            return .error("VALUE")
+        }
+        
+        // Simplified: try to evaluate as cell reference
+        // In a full implementation, this would parse the reference string and look it up
+        guard let cellRef = CellReference(refText) else {
+            return .error("REF")
+        }
+        
+        return try evaluate(.cellRef(cellRef))
+    }
+    
+    /// CHOOSE - Returns value from list based on index
+    private func evaluateCHOOSE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CHOOSE", expected: 2, got: args.count)
+        }
+        
+        let indexVal = try evaluate(args[0])
+        guard let index = indexVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let idx = Int(index)
+        guard idx >= 1 && idx < args.count else {
+            return .error("VALUE")
+        }
+        
+        return try evaluate(args[idx])
+    }
+    
+    /// CHOOSECOLS - Returns specified columns from array (Excel 365)
+    private func evaluateCHOOSECOLS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CHOOSECOLS", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        guard case .array(let rows) = arrayVal else {
+            return .error("VALUE")
+        }
+        
+        var colIndices: [Int] = []
+        for i in 1..<args.count {
+            let colVal = try evaluate(args[i])
+            guard let colNum = colVal.asDouble else {
+                return .error("VALUE")
+            }
+            colIndices.append(Int(colNum) - 1)
+        }
+        
+        var result: [[FormulaValue]] = []
+        for row in rows {
+            var newRow: [FormulaValue] = []
+            for colIdx in colIndices {
+                if colIdx >= 0 && colIdx < row.count {
+                    newRow.append(row[colIdx])
+                } else {
+                    return .error("REF")
+                }
+            }
+            result.append(newRow)
+        }
+        
+        return .array(result)
+    }
+    
+    /// CHOOSEROWS - Returns specified rows from array (Excel 365)
+    private func evaluateCHOOSEROWS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CHOOSEROWS", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        guard case .array(let rows) = arrayVal else {
+            return .error("VALUE")
+        }
+        
+        var result: [[FormulaValue]] = []
+        for i in 1..<args.count {
+            let rowVal = try evaluate(args[i])
+            guard let rowNum = rowVal.asDouble else {
+                return .error("VALUE")
+            }
+            
+            let rowIdx = Int(rowNum) - 1
+            if rowIdx >= 0 && rowIdx < rows.count {
+                result.append(rows[rowIdx])
+            } else {
+                return .error("REF")
+            }
+        }
+        
+        return .array(result)
+    }
+    
+    /// TRANSPOSE - Transposes array
+    private func evaluateTRANSPOSE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "TRANSPOSE", expected: 1, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        guard case .array(let rows) = arrayVal, !rows.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        let numRows = rows.count
+        let numCols = rows[0].count
+        
+        var transposed: [[FormulaValue]] = Array(repeating: Array(repeating: .number(0), count: numRows), count: numCols)
+        
+        for i in 0..<numRows {
+            for j in 0..<min(numCols, rows[i].count) {
+                transposed[j][i] = rows[i][j]
+            }
+        }
+        
+        return .array(transposed)
+    }
+    
+    /// ROWS - Returns number of rows in reference
+    private func evaluateROWS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ROWS", expected: 1, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        if case .array(let rows) = arrayVal {
+            return .number(Double(rows.count))
+        }
+        
+        // Single value = 1 row
+        return .number(1)
+    }
+    
+    /// COLUMNS - Returns number of columns in reference
+    private func evaluateCOLUMNS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "COLUMNS", expected: 1, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        if case .array(let rows) = arrayVal, let firstRow = rows.first {
+            return .number(Double(firstRow.count))
+        }
+        
+        // Single value = 1 column
+        return .number(1)
     }
 }
 

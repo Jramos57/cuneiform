@@ -1431,4 +1431,116 @@ struct FormulaEvaluatorTests {
             #expect(rows[0].count == 3)
         }
     }
+    
+    // MARK: - Lookup & Reference Functions (Extended)
+    
+    @Test func evaluateHLOOKUP() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Product"), "B1": .text("Price"), "C1": .text("Stock"),
+            "A2": .text("Apple"), "B2": .number(1.5), "C2": .number(100),
+            "A3": .text("Banana"), "B3": .number(0.8), "C3": .number(150)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test HLOOKUP for "Price" in row 1, return row 2 value
+        let parser = FormulaParser("=HLOOKUP(\"Price\", A1:C3, 2, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(1.5))
+    }
+    
+    @Test func evaluateCHOOSE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test CHOOSE(2, "A", "B", "C") = "B"
+        let parser = FormulaParser("=CHOOSE(2, \"A\", \"B\", \"C\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("B"))
+    }
+    
+    @Test func evaluateTRANSPOSE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2),
+            "A2": .number(3), "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test TRANSPOSE - should swap rows and columns
+        let parser = FormulaParser("=TRANSPOSE(A1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 2)  // Original had 2 cols, now 2 rows
+            #expect(rows[0].count == 2)  // Original had 2 rows, now 2 cols
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[0][1] == .number(3))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[1][1] == .number(4))
+        }
+    }
+    
+    @Test func evaluateROWS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test ROWS(A1:A3) = 3
+        let parser = FormulaParser("=ROWS(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateCOLUMNS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2), "C1": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test COLUMNS(A1:C1) = 3
+        let parser = FormulaParser("=COLUMNS(A1:C1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateXMATCH() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Apple"),
+            "A2": .text("Banana"),
+            "A3": .text("Cherry")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test XMATCH("Banana", A1:A3, 0) = 2
+        let parser = FormulaParser("=XMATCH(\"Banana\", A1:A3, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(2))
+    }
+    
+    @Test func evaluateINDIRECT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(42),
+            "B2": .text("Hello")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test INDIRECT("A1") = 42
+        let parser = FormulaParser("=INDIRECT(\"A1\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(42))
+    }
 }
