@@ -628,4 +628,156 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(125))  // (100 + 150) / 2
     }
+    
+    // MARK: - Statistical Functions
+    
+    @Test func evaluateSTDEV() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(4),
+            "A3": .number(6),
+            "A4": .number(8)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=STDEV(A1:A4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Sample std dev of [2,4,6,8] = sqrt(20/3) ≈ 2.582
+        if case .number(let value) = result {
+            #expect(abs(value - 2.582) < 0.01)
+        } else {
+            #expect(Bool(false), "Expected number result")
+        }
+    }
+    
+    @Test func evaluateVAR() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(4),
+            "A3": .number(6)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=VAR(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Sample variance of [2,4,6] = 4
+        #expect(result == .number(4))
+    }
+    
+    @Test func evaluatePERCENTILE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=PERCENTILE(A1:A5, 0.5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))  // Median
+    }
+    
+    @Test func evaluateQUARTILE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=QUARTILE(A1:A5, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2))  // Q1
+    }
+    
+    @Test func evaluateMODE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(2),
+            "A4": .number(3),
+            "A5": .number(2)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MODE(A1:A5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2))  // Most frequent value
+    }
+    
+    @Test func evaluateLARGE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(5),
+            "A3": .number(1),
+            "A4": .number(4),
+            "A5": .number(2)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LARGE(A1:A5, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(4))  // 2nd largest
+    }
+    
+    @Test func evaluateSMALL() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(5),
+            "A3": .number(1),
+            "A4": .number(4),
+            "A5": .number(2)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SMALL(A1:A5, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2))  // 2nd smallest
+    }
+    
+    @Test func evaluateRANK() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(7),
+            "A2": .number(3),
+            "A3": .number(5),
+            "A4": .number(9),
+            "A5": .number(1)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=RANK(5, A1:A5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))  // 5 is 3rd in descending order
+    }
+    
+    @Test func evaluateCORREL() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(2),
+            "B2": .number(4),
+            "B3": .number(6)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CORREL(A1:A3, B1:B3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1))  // Perfect positive correlation
+    }
 }

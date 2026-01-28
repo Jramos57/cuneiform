@@ -294,6 +294,29 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateMINIFS(args)
         case "AVERAGEIFS":
             return try evaluateAVERAGEIFS(args)
+        // Statistical functions
+        case "STDEV", "STDEV.S":
+            return try evaluateSTDEV(args, sample: true)
+        case "STDEV.P":
+            return try evaluateSTDEV(args, sample: false)
+        case "VAR", "VAR.S":
+            return try evaluateVAR(args, sample: true)
+        case "VAR.P":
+            return try evaluateVAR(args, sample: false)
+        case "PERCENTILE", "PERCENTILE.INC":
+            return try evaluatePERCENTILE(args)
+        case "QUARTILE", "QUARTILE.INC":
+            return try evaluateQUARTILE(args)
+        case "MODE", "MODE.SNGL":
+            return try evaluateMODE(args)
+        case "LARGE":
+            return try evaluateLARGE(args)
+        case "SMALL":
+            return try evaluateSMALL(args)
+        case "RANK", "RANK.EQ":
+            return try evaluateRANK(args)
+        case "CORREL":
+            return try evaluateCORREL(args)
         default:
             return .error("NAME")
         }
@@ -1922,6 +1945,252 @@ public struct FormulaEvaluator: Sendable {
         
         let sum = matchingNumbers.reduce(0, +)
         return .number(sum / Double(matchingNumbers.count))
+    }
+    
+    // MARK: - Statistical Functions
+    
+    /// STDEV - Standard deviation
+    /// Syntax: STDEV(number1, [number2], ...) or STDEV.S/STDEV.P
+    private func evaluateSTDEV(_ args: [FormulaExpression], sample: Bool) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard numbers.count > (sample ? 1 : 0) else {
+            return .error("DIV/0")
+        }
+        
+        let mean = numbers.reduce(0, +) / Double(numbers.count)
+        let sumSquaredDiffs = numbers.map { pow($0 - mean, 2) }.reduce(0, +)
+        let divisor = sample ? Double(numbers.count - 1) : Double(numbers.count)
+        
+        return .number(sqrt(sumSquaredDiffs / divisor))
+    }
+    
+    /// VAR - Variance
+    /// Syntax: VAR(number1, [number2], ...) or VAR.S/VAR.P
+    private func evaluateVAR(_ args: [FormulaExpression], sample: Bool) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard numbers.count > (sample ? 1 : 0) else {
+            return .error("DIV/0")
+        }
+        
+        let mean = numbers.reduce(0, +) / Double(numbers.count)
+        let sumSquaredDiffs = numbers.map { pow($0 - mean, 2) }.reduce(0, +)
+        let divisor = sample ? Double(numbers.count - 1) : Double(numbers.count)
+        
+        return .number(sumSquaredDiffs / divisor)
+    }
+    
+    /// PERCENTILE - K-th percentile
+    /// Syntax: PERCENTILE(array, k) where k is 0-1
+    private func evaluatePERCENTILE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "PERCENTILE", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let k = kVal.asDouble, k >= 0, k <= 1 else {
+            return .error("NUM")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        numbers.sort()
+        let index = k * Double(numbers.count - 1)
+        let lower = Int(floor(index))
+        let upper = Int(ceil(index))
+        
+        if lower == upper {
+            return .number(numbers[lower])
+        }
+        
+        let fraction = index - Double(lower)
+        let result = numbers[lower] + fraction * (numbers[upper] - numbers[lower])
+        return .number(result)
+    }
+    
+    /// QUARTILE - Quartile value (0=min, 1=Q1, 2=median, 3=Q3, 4=max)
+    /// Syntax: QUARTILE(array, quart)
+    private func evaluateQUARTILE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "QUARTILE", expected: 2, got: args.count)
+        }
+        
+        let quartVal = try evaluate(args[1])
+        guard let quart = quartVal.asDouble, quart >= 0, quart <= 4 else {
+            return .error("NUM")
+        }
+        
+        let k = quart / 4.0
+        return try evaluatePERCENTILE([args[0], .number(k)])
+    }
+    
+    /// MODE - Most frequently occurring value
+    /// Syntax: MODE(number1, [number2], ...)
+    private func evaluateMODE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        // Count frequencies
+        var frequencies: [Double: Int] = [:]
+        for num in numbers {
+            frequencies[num, default: 0] += 1
+        }
+        
+        // Find most frequent
+        guard let (mode, count) = frequencies.max(by: { $0.value < $1.value }), count > 1 else {
+            return .error("N/A") // No mode if all values appear only once
+        }
+        
+        return .number(mode)
+    }
+    
+    /// LARGE - K-th largest value
+    /// Syntax: LARGE(array, k)
+    private func evaluateLARGE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "LARGE", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let k = kVal.asDouble, k >= 1 else {
+            return .error("NUM")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty, Int(k) <= numbers.count else {
+            return .error("NUM")
+        }
+        
+        numbers.sort(by: >)
+        return .number(numbers[Int(k) - 1])
+    }
+    
+    /// SMALL - K-th smallest value
+    /// Syntax: SMALL(array, k)
+    private func evaluateSMALL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "SMALL", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let k = kVal.asDouble, k >= 1 else {
+            return .error("NUM")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty, Int(k) <= numbers.count else {
+            return .error("NUM")
+        }
+        
+        numbers.sort()
+        return .number(numbers[Int(k) - 1])
+    }
+    
+    /// RANK - Rank of a number in a list
+    /// Syntax: RANK(number, ref, [order]) where order: 0=descending, 1=ascending
+    private func evaluateRANK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "RANK", expected: 2, got: args.count)
+        }
+        
+        let numberVal = try evaluate(args[0])
+        guard let number = numberVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let refVal = try evaluate(args[1])
+        var numbers = flattenToNumbers(refVal)
+        
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let ascending = args.count == 3 ? (try evaluate(args[2]).asDouble ?? 0) != 0 : false
+        
+        numbers.sort(by: ascending ? (<) : (>))
+        
+        guard let rank = numbers.firstIndex(of: number) else {
+            return .error("N/A")
+        }
+        
+        return .number(Double(rank + 1))
+    }
+    
+    /// CORREL - Correlation coefficient
+    /// Syntax: CORREL(array1, array2)
+    private func evaluateCORREL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CORREL", expected: 2, got: args.count)
+        }
+        
+        let array1Val = try evaluate(args[0])
+        let array2Val = try evaluate(args[1])
+        
+        let array1 = flattenToNumbers(array1Val)
+        let array2 = flattenToNumbers(array2Val)
+        
+        guard array1.count == array2.count, !array1.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(array1.count)
+        let mean1 = array1.reduce(0, +) / n
+        let mean2 = array2.reduce(0, +) / n
+        
+        var sumProduct: Double = 0
+        var sumSq1: Double = 0
+        var sumSq2: Double = 0
+        
+        for i in 0..<array1.count {
+            let diff1 = array1[i] - mean1
+            let diff2 = array2[i] - mean2
+            sumProduct += diff1 * diff2
+            sumSq1 += diff1 * diff1
+            sumSq2 += diff2 * diff2
+        }
+        
+        guard sumSq1 > 0, sumSq2 > 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(sumProduct / sqrt(sumSq1 * sumSq2))
     }
 }
 
