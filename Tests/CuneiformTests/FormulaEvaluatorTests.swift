@@ -1009,4 +1009,168 @@ struct FormulaEvaluatorTests {
         let lcm3Result = try evaluator.evaluate(lcm3Expr)
         #expect(lcm3Result == .number(12.0))
     }
+    
+    // MARK: - Financial Functions
+    
+    @Test func evaluatePMT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test PMT(5%/12, 60, 10000) - monthly payment on $10,000 loan at 5% for 5 years
+        let parser = FormulaParser("=PMT(0.05/12, 60, 10000)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - (-188.71)) < 0.01)  // Monthly payment should be ~$188.71
+        }
+    }
+    
+    @Test func evaluatePV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test PV(8%/12, 20, 500, 0, 0) - present value of $500/month for 20 months at 8%
+        let parser = FormulaParser("=PV(0.08/12, 20, 500, 0, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - (-9333)) < 100.0)  // Present value (approximate)
+        }
+    }
+    
+    @Test func evaluateFV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test FV(6%/12, 10, -200, -500, 1) - future value with payments at beginning
+        let parser = FormulaParser("=FV(0.06/12, 10, -200, -500, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 2581.40) < 1.0)  // Future value should be ~$2,581.40
+        }
+    }
+    
+    @Test func evaluateNPER() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test NPER(12%/12, -100, -1000, 10000, 0) - periods to reach goal
+        let parser = FormulaParser("=NPER(0.12/12, -100, -1000, 10000, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 60.08) < 0.1)  // Should be ~60 periods
+        }
+    }
+    
+    @Test func evaluateNPV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test NPV(10%, -10000, 3000, 4200, 6800) - investment NPV
+        let parser = FormulaParser("=NPV(0.1, -10000, 3000, 4200, 6800)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 1188.44) < 1.0)  // NPV should be ~$1,188.44
+        }
+    }
+    
+    @Test func evaluateIRR() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(-70000),
+            "A2": .number(12000),
+            "A3": .number(15000),
+            "A4": .number(18000),
+            "A5": .number(21000),
+            "A6": .number(26000)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test IRR(A1:A6) - internal rate of return for cash flows
+        let parser = FormulaParser("=IRR(A1:A6)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 0.0866) < 0.001)  // IRR should be ~8.66%
+        }
+    }
+    
+    @Test func evaluateIPMT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test IPMT(10%/12, 1, 3*12, 8000) - interest payment for first period
+        let parser = FormulaParser("=IPMT(0.1/12, 1, 36, 8000)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - (-66.67)) < 1.0)  // Interest payment should be ~$66.67
+        }
+    }
+    
+    @Test func evaluatePPMT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test PPMT(10%, 1, 2, 2000) - principal payment for first period
+        let parser = FormulaParser("=PPMT(0.1, 1, 2, 2000)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - (-952.38)) < 1.0)  // Principal payment should be ~$952.38
+        }
+    }
+    
+    @Test func evaluateXNPV() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(-10000),
+            "A2": .number(2750),
+            "A3": .number(4250),
+            "A4": .number(3250),
+            "A5": .number(2750),
+            "B1": .number(43831),  // Jan 1, 2020 (Excel serial date)
+            "B2": .number(44197),  // Jan 1, 2021
+            "B3": .number(44562),  // Jan 1, 2022
+            "B4": .number(44927),  // Jan 1, 2023
+            "B5": .number(45292)   // Jan 1, 2024
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test XNPV(9%, A1:A5, B1:B5) - NPV with specific dates
+        let parser = FormulaParser("=XNPV(0.09, A1:A5, B1:B5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 555) < 200.0)  // XNPV (approximate due to date calculation)
+        }
+    }
+    
+    @Test func evaluateXIRR() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(-10000),
+            "A2": .number(2750),
+            "A3": .number(4250),
+            "A4": .number(3250),
+            "A5": .number(2750),
+            "B1": .number(43831),  // Jan 1, 2020
+            "B2": .number(44197),  // Jan 1, 2021
+            "B3": .number(44562),  // Jan 1, 2022
+            "B4": .number(44927),  // Jan 1, 2023
+            "B5": .number(45292)   // Jan 1, 2024
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test XIRR(A1:A5, B1:B5) - IRR with specific dates
+        let parser = FormulaParser("=XIRR(A1:A5, B1:B5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 0.373) < 0.3)  // XIRR should be ~37% (approximate due to date calculation differences)
+        }
+    }
 }

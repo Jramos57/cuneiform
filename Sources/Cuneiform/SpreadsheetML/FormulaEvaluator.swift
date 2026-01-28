@@ -362,6 +362,29 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateGCD(args)
         case "LCM":
             return try evaluateLCM(args)
+        // Financial functions
+        case "PMT":
+            return try evaluatePMT(args)
+        case "PV":
+            return try evaluatePV(args)
+        case "FV":
+            return try evaluateFV(args)
+        case "RATE":
+            return try evaluateRATE(args)
+        case "NPER":
+            return try evaluateNPER(args)
+        case "IPMT":
+            return try evaluateIPMT(args)
+        case "PPMT":
+            return try evaluatePPMT(args)
+        case "NPV":
+            return try evaluateNPV(args)
+        case "IRR":
+            return try evaluateIRR(args)
+        case "XNPV":
+            return try evaluateXNPV(args)
+        case "XIRR":
+            return try evaluateXIRR(args)
         default:
             return .error("NAME")
         }
@@ -2570,6 +2593,416 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(Double(result))
+    }
+    
+    // MARK: - Financial Functions
+    
+    /// PMT - Payment for a loan based on constant payments and interest rate
+    private func evaluatePMT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "PMT", expected: 3, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        let pvVal = try evaluate(args[2])
+        let fvVal = args.count > 3 ? try evaluate(args[3]) : .number(0)
+        let typeVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        
+        guard let rate = rateVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if rate == 0 {
+            return .number(-(pv + fv) / nper)
+        }
+        
+        let pvif = pow(1 + rate, nper)
+        let pmt = -rate * (pv * pvif + fv) / (pvif - 1)
+        
+        if type == 1 {
+            return .number(pmt / (1 + rate))
+        } else {
+            return .number(pmt)
+        }
+    }
+    
+    /// PV - Present value of an investment
+    private func evaluatePV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "PV", expected: 3, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        let pmtVal = try evaluate(args[2])
+        let fvVal = args.count > 3 ? try evaluate(args[3]) : .number(0)
+        let typeVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        
+        guard let rate = rateVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pmt = pmtVal.asDouble,
+              let fv = fvVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if rate == 0 {
+            return .number(-pmt * nper - fv)
+        }
+        
+        let pvif = pow(1 + rate, nper)
+        let pv: Double
+        
+        if type == 1 {
+            pv = (-pmt * (1 + rate) * (pvif - 1) / rate - fv) / pvif
+        } else {
+            pv = (-pmt * (pvif - 1) / rate - fv) / pvif
+        }
+        
+        return .number(pv)
+    }
+    
+    /// FV - Future value of an investment
+    private func evaluateFV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "FV", expected: 3, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        let pmtVal = try evaluate(args[2])
+        let pvVal = args.count > 3 ? try evaluate(args[3]) : .number(0)
+        let typeVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        
+        guard let rate = rateVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pmt = pmtVal.asDouble,
+              let pv = pvVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if rate == 0 {
+            return .number(-pv - pmt * nper)
+        }
+        
+        let pvif = pow(1 + rate, nper)
+        let fv: Double
+        
+        if type == 1 {
+            fv = -pv * pvif - pmt * (1 + rate) * (pvif - 1) / rate
+        } else {
+            fv = -pv * pvif - pmt * (pvif - 1) / rate
+        }
+        
+        return .number(fv)
+    }
+    
+    /// RATE - Interest rate per period
+    private func evaluateRATE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 6 else {
+            throw FormulaError.invalidArgumentCount(function: "RATE", expected: 3, got: args.count)
+        }
+        
+        let nperVal = try evaluate(args[0])
+        let pmtVal = try evaluate(args[1])
+        let pvVal = try evaluate(args[2])
+        let fvVal = args.count > 3 ? try evaluate(args[3]) : .number(0)
+        let typeVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        let guessVal = args.count > 5 ? try evaluate(args[5]) : .number(0.1)
+        
+        guard let nper = nperVal.asDouble,
+              let pmt = pmtVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble,
+              let type = typeVal.asDouble,
+              var rate = guessVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Newton-Raphson method to solve for rate
+        let maxIterations = 100
+        let tolerance = 1e-7
+        
+        for _ in 0..<maxIterations {
+            let pvif = pow(1 + rate, nper)
+            let f: Double
+            let fDerivative: Double
+            
+            if type == 1 {
+                f = pv * pvif + pmt * (1 + rate) * (pvif - 1) / rate + fv
+                fDerivative = nper * pv * pow(1 + rate, nper - 1) + 
+                             pmt * ((1 + rate) * nper * pow(1 + rate, nper - 1) / rate + 
+                             (1 + rate) * (pvif - 1) / rate - (1 + rate) * (pvif - 1) / (rate * rate) +
+                             (pvif - 1) / rate)
+            } else {
+                f = pv * pvif + pmt * (pvif - 1) / rate + fv
+                fDerivative = nper * pv * pow(1 + rate, nper - 1) +
+                             pmt * (nper * pow(1 + rate, nper - 1) / rate - (pvif - 1) / (rate * rate))
+            }
+            
+            let newRate = rate - f / fDerivative
+            
+            if abs(newRate - rate) < tolerance {
+                return .number(newRate)
+            }
+            
+            rate = newRate
+        }
+        
+        return .error("NUM") // Did not converge
+    }
+    
+    /// NPER - Number of periods for an investment
+    private func evaluateNPER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "NPER", expected: 3, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let pmtVal = try evaluate(args[1])
+        let pvVal = try evaluate(args[2])
+        let fvVal = args.count > 3 ? try evaluate(args[3]) : .number(0)
+        let typeVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        
+        guard let rate = rateVal.asDouble,
+              let pmt = pmtVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if rate == 0 {
+            return .number(-(pv + fv) / pmt)
+        }
+        
+        let adjustedPmt = type == 1 ? pmt * (1 + rate) : pmt
+        let nper = log((adjustedPmt - fv * rate) / (adjustedPmt + pv * rate)) / log(1 + rate)
+        
+        return .number(nper)
+    }
+    
+    /// IPMT - Interest payment for a given period
+    private func evaluateIPMT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 4 && args.count <= 6 else {
+            throw FormulaError.invalidArgumentCount(function: "IPMT", expected: 4, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let perVal = try evaluate(args[1])
+        let nperVal = try evaluate(args[2])
+        let pvVal = try evaluate(args[3])
+        let fvVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        let typeVal = args.count > 5 ? try evaluate(args[5]) : .number(0)
+        
+        guard let rate = rateVal.asDouble,
+              let per = perVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard per >= 1 && per <= nper else {
+            return .error("NUM")
+        }
+        
+        // Calculate PMT first
+        let pvif = pow(1 + rate, nper)
+        let pmt = -rate * (pv * pvif + fv) / (pvif - 1)
+        let adjustedPmt = type == 1 ? pmt / (1 + rate) : pmt
+        
+        // Calculate remaining balance at period per-1
+        let remainingPV: Double
+        if per == 1 && type == 1 {
+            return .number(0)
+        } else if per == 1 {
+            remainingPV = pv
+        } else {
+            let perPaid = type == 1 ? per - 2 : per - 1
+            remainingPV = pv * pow(1 + rate, perPaid) + adjustedPmt * (pow(1 + rate, perPaid) - 1) / rate
+        }
+        
+        let ipmt = -remainingPV * rate
+        
+        return .number(ipmt)
+    }
+    
+    /// PPMT - Principal payment for a given period
+    private func evaluatePPMT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 4 && args.count <= 6 else {
+            throw FormulaError.invalidArgumentCount(function: "PPMT", expected: 4, got: args.count)
+        }
+        
+        // PPMT = PMT - IPMT
+        let pmtResult = try evaluatePMT([args[0], args[2], args[3]] + 
+                                       (args.count > 4 ? [args[4]] : []) + 
+                                       (args.count > 5 ? [args[5]] : []))
+        let ipmtResult = try evaluateIPMT(args)
+        
+        guard let pmt = pmtResult.asDouble,
+              let ipmt = ipmtResult.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(pmt - ipmt)
+    }
+    
+    /// NPV - Net present value of cash flows
+    private func evaluateNPV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "NPV", expected: 2, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        guard let rate = rateVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var npv: Double = 0
+        var period: Double = 1
+        
+        for i in 1..<args.count {
+            let val = try evaluate(args[i])
+            for cashFlow in flattenToNumbers(val) {
+                npv += cashFlow / pow(1 + rate, period)
+                period += 1
+            }
+        }
+        
+        return .number(npv)
+    }
+    
+    /// IRR - Internal rate of return
+    private func evaluateIRR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "IRR", expected: 1, got: args.count)
+        }
+        
+        let valuesExpr = try evaluate(args[0])
+        let guessVal = args.count > 1 ? try evaluate(args[1]) : .number(0.1)
+        
+        guard var rate = guessVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cashFlows = flattenToNumbers(valuesExpr)
+        guard cashFlows.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Newton-Raphson method
+        let maxIterations = 100
+        let tolerance = 1e-7
+        
+        for _ in 0..<maxIterations {
+            var npv: Double = 0
+            var npvDerivative: Double = 0
+            
+            for (i, cashFlow) in cashFlows.enumerated() {
+                let period = Double(i)
+                npv += cashFlow / pow(1 + rate, period)
+                npvDerivative += -period * cashFlow / pow(1 + rate, period + 1)
+            }
+            
+            if abs(npv) < tolerance {
+                return .number(rate)
+            }
+            
+            rate = rate - npv / npvDerivative
+        }
+        
+        return .error("NUM") // Did not converge
+    }
+    
+    /// XNPV - Net present value for non-periodic cash flows
+    private func evaluateXNPV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            throw FormulaError.invalidArgumentCount(function: "XNPV", expected: 3, got: args.count)
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let valuesExpr = try evaluate(args[1])
+        let datesExpr = try evaluate(args[2])
+        
+        guard let rate = rateVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cashFlows = flattenToNumbers(valuesExpr)
+        let dates = flattenToNumbers(datesExpr)
+        
+        guard cashFlows.count == dates.count && cashFlows.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let baseDate = dates[0]
+        var xnpv: Double = 0
+        
+        for (i, cashFlow) in cashFlows.enumerated() {
+            let daysDiff = dates[i] - baseDate
+            let years = daysDiff / 365.0
+            xnpv += cashFlow / pow(1 + rate, years)
+        }
+        
+        return .number(xnpv)
+    }
+    
+    /// XIRR - Internal rate of return for non-periodic cash flows
+    private func evaluateXIRR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "XIRR", expected: 2, got: args.count)
+        }
+        
+        let valuesExpr = try evaluate(args[0])
+        let datesExpr = try evaluate(args[1])
+        let guessVal = args.count > 2 ? try evaluate(args[2]) : .number(0.1)
+        
+        guard var rate = guessVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cashFlows = flattenToNumbers(valuesExpr)
+        let dates = flattenToNumbers(datesExpr)
+        
+        guard cashFlows.count == dates.count && cashFlows.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let baseDate = dates[0]
+        
+        // Newton-Raphson method
+        let maxIterations = 100
+        let tolerance = 1e-7
+        
+        for _ in 0..<maxIterations {
+            var xnpv: Double = 0
+            var xnpvDerivative: Double = 0
+            
+            for (i, cashFlow) in cashFlows.enumerated() {
+                let daysDiff = dates[i] - baseDate
+                let years = daysDiff / 365.0
+                let discount = pow(1 + rate, years)
+                
+                xnpv += cashFlow / discount
+                xnpvDerivative += -years * cashFlow / (discount * (1 + rate))
+            }
+            
+            if abs(xnpv) < tolerance {
+                return .number(rate)
+            }
+            
+            rate = rate - xnpv / xnpvDerivative
+        }
+        
+        return .error("NUM") // Did not converge
     }
 }
 
