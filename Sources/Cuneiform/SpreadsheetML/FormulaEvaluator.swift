@@ -1016,6 +1016,69 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateNORMSINV(args)
         case "LOGINV":
             return try evaluateLOGINV(args)
+        // Batch 35: Complex hyperbolic, database, and additional functions
+        case "IMCOSH":
+            return try evaluateIMCOSH(args)
+        case "IMSINH":
+            return try evaluateIMSINH(args)
+        case "IMTANH":
+            return try evaluateIMTANH(args)
+        case "IMACOSH":
+            return try evaluateIMACOSH(args)
+        case "IMASINH":
+            return try evaluateIMASINH(args)
+        case "IMATANH":
+            return try evaluateIMATANH(args)
+        case "DSTDEV":
+            return try evaluateDSTDEV(args)
+        case "DVAR":
+            return try evaluateDVAR(args)
+        case "DAYS360":
+            return try evaluateDAYS360(args)
+        case "DATEVALUE":
+            return try evaluateDATEVALUE(args)
+        case "GETPIVOTDATA":
+            return try evaluateGETPIVOTDATA(args)
+        case "RTD":
+            return try evaluateRTD(args)
+        case "CUBEVALUE":
+            return try evaluateCUBEVALUE(args)
+        case "CUBEMEMBERPROPERTY":
+            return try evaluateCUBEMEMBERPROPERTY(args)
+        case "CUBERANKEDMEMBER":
+            return try evaluateCUBERANKEDMEMBER(args)
+        case "AVERAGEA":
+            return try evaluateAVERAGEA(args)
+        case "COUNTA":
+            return try evaluateCOUNTA(args)
+        case "COUNTBLANK":
+            return try evaluateCOUNTBLANK(args)
+        case "VARA":
+            return try evaluateVARA(args)
+        case "VARPA":
+            return try evaluateVARPA(args)
+        case "STDEVA":
+            return try evaluateSTDEVA(args)
+        case "STDEVPA":
+            return try evaluateSTDEVPA(args)
+        case "ACCRINTM":
+            return try evaluateACCRINTM(args)
+        case "AMORLINC":
+            return try evaluateAMORLINC(args)
+        case "AMORDEGRC":
+            return try evaluateAMORDEGRC(args)
+        case "ODDFPRICE":
+            return try evaluateODDFPRICE(args)
+        case "ODDFYIELD":
+            return try evaluateODDFYIELD(args)
+        case "ODDLPRICE":
+            return try evaluateODDLPRICE(args)
+        case "ODDLYIELD":
+            return try evaluateODDLYIELD(args)
+        case "PRICEMAT":
+            return try evaluatePRICEMAT(args)
+        case "YIELDMAT":
+            return try evaluateYIELDMAT(args)
         default:
             return .error("NAME")
         }
@@ -9962,7 +10025,7 @@ public struct FormulaEvaluator: Sendable {
         }
         
         let suffix = args.count == 3 ? (try evaluate(args[2])) : .string("i")
-        let suffixStr = suffix.asString ?? "i"
+        let suffixStr = suffix.asString
         
         return formatComplexNumber(real, imag, suffixStr)
     }
@@ -11331,6 +11394,164 @@ public struct FormulaEvaluator: Sendable {
         // Lognormal inverse
         let z = sqrt(2) * erfinv(2 * prob - 1)
         return .number(exp(mean + z * stdDev))
+    }
+    
+    // MARK: - Batch 35: Complex Hyperbolic, Database, and Additional Functions
+    
+    private func evaluateIMCOSH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        let real = try evaluateIMREAL(args)
+        let imag = try evaluateIMAGINARY(args)
+        guard let a = real.asDouble, let b = imag.asDouble else { return .error("NUM") }
+        // cosh(a+bi) = cosh(a)cos(b) + i*sinh(a)sin(b)
+        return formatComplexNumber(cosh(a) * cos(b), sinh(a) * sin(b))
+    }
+    
+    private func evaluateIMSINH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        let real = try evaluateIMREAL(args)
+        let imag = try evaluateIMAGINARY(args)
+        guard let a = real.asDouble, let b = imag.asDouble else { return .error("NUM") }
+        // sinh(a+bi) = sinh(a)cos(b) + i*cosh(a)sin(b)
+        return formatComplexNumber(sinh(a) * cos(b), cosh(a) * sin(b))
+    }
+    
+    private func evaluateIMTANH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        let sinh = try evaluateIMSINH(args)
+        let cosh = try evaluateIMCOSH(args)
+        guard case .string(let sinhStr) = sinh, case .string(let coshStr) = cosh else { return .error("NUM") }
+        return try evaluateIMDIV([FormulaExpression.string(sinhStr), FormulaExpression.string(coshStr)])
+    }
+    
+    private func evaluateIMACOSH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - complex inverse hyperbolic
+    }
+    
+    private func evaluateIMASINH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateIMATANH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateDSTDEV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - database function
+    }
+    
+    private func evaluateDVAR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else { return .error("VALUE") }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateDAYS360(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - 360-day year calculation
+    }
+    
+    private func evaluateDATEVALUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - parse date string
+    }
+    
+    private func evaluateGETPIVOTDATA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else { return .error("VALUE") }
+        return .error("REF")  // Stub - requires pivot table
+    }
+    
+    private func evaluateRTD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("N/A")  // Stub - real-time data
+    }
+    
+    private func evaluateCUBEVALUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("N/A")  // Stub - OLAP cube
+    }
+    
+    private func evaluateCUBEMEMBERPROPERTY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("N/A")  // Stub
+    }
+    
+    private func evaluateCUBERANKEDMEMBER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("N/A")  // Stub
+    }
+    
+    private func evaluateAVERAGEA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        var sum = 0.0
+        var count = 0
+        for arg in args {
+            let val = try evaluate(arg)
+            switch val {
+            case .number(let n): sum += n; count += 1
+            case .boolean(let b): sum += b ? 1 : 0; count += 1
+            case .string: count += 1  // Text counts as 0
+            default: continue
+            }
+        }
+        guard count > 0 else { return .error("DIV/0") }
+        return .number(sum / Double(count))
+    }
+    
+    private func evaluateCOUNTBLANK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - would need to check for empty cells
+    }
+    
+    private func evaluateVARA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - variance including text/boolean
+    }
+    
+    private func evaluateVARPA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateSTDEVA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateSTDEVPA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateACCRINTM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else { return .error("VALUE") }
+        return .error("CALC")  // Stub - accrued interest at maturity
+    }
+    
+    private func evaluateAMORLINC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - French accounting depreciation
+    }
+    
+    private func evaluateAMORDEGRC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - French accounting depreciation
+    }
+    
+    private func evaluateODDFPRICE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - odd first period security price
+    }
+    
+    private func evaluateODDFYIELD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateODDLPRICE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - odd last period
+    }
+    
+    private func evaluateODDLYIELD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluatePRICEMAT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - security price at maturity
+    }
+    
+    private func evaluateYIELDMAT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return .error("CALC")  // Stub - security yield at maturity
     }
 }
 

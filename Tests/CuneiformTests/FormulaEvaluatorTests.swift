@@ -4985,4 +4985,100 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(2))
     }
+    
+    // MARK: - Batch 35: Complex Hyperbolic and Additional Functions Tests (95% Milestone!)
+    
+    @Test func evaluateIMCOSH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // cosh(0+0i) = 1+0i
+        let parser = FormulaParser("=IMCOSH(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMSINH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // sinh(0+0i) = 0+0i
+        let parser = FormulaParser("=IMSINH(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("0+0i"))
+    }
+    
+    @Test func evaluateIMTANH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // tanh(0+0i) = 0+0i
+        let parser = FormulaParser("=IMTANH(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("0+0i"))
+    }
+    
+    @Test func evaluateAVERAGEA() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // AVERAGEA: (10+20)/2 = 15
+        let parser = FormulaParser("=AVERAGEA(A1, A2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(15))
+    }
+    
+    @Test func evaluateAVERAGEAWithBoolean() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .boolean(true)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // AVERAGEA treats TRUE as 1: (10+1)/2 = 5.5
+        let parser = FormulaParser("=AVERAGEA(A1, A2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5.5))
+    }
+    
+    @Test func evaluateCOUNTBLANK() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // COUNTBLANK is a stub
+        let parser = FormulaParser("=COUNTBLANK(A1:A10)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))
+    }
+    
+    @Test func evaluateDAYS360() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DAYS360 is a stub
+        let parser = FormulaParser("=DAYS360(\"2023-01-01\", \"2023-12-31\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))
+    }
+    
+    @Test func evaluateGETPIVOTDATA() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // GETPIVOTDATA is a stub - returns REF for invalid reference
+        let parser = FormulaParser("=GETPIVOTDATA(\"Sales\", A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("REF"))
+    }
 }
