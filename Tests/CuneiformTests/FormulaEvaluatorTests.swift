@@ -2895,4 +2895,99 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .string("1F"))
     }
+    
+    @Test func evaluateHEX2BIN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=HEX2BIN(\"1F\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("11111"))
+    }
+    
+    @Test func evaluateHEX2OCT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=HEX2OCT(\"FF\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("377"))
+    }
+    
+    @Test func evaluateOCT2BIN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=OCT2BIN(\"7\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("111"))
+    }
+    
+    @Test func evaluateOCT2HEX() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=OCT2HEX(\"377\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("FF"))
+    }
+    
+    @Test func evaluateBIN2OCT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BIN2OCT(\"111\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("7"))
+    }
+    
+    @Test func evaluateBITAND() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BITAND(5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // 5 = 101, 3 = 011, AND = 001 = 1
+        #expect(result == .number(1))
+    }
+    
+    @Test func evaluateBITOR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BITOR(5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // 5 = 101, 3 = 011, OR = 111 = 7
+        #expect(result == .number(7))
+    }
+    
+    @Test func evaluateBITXOR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BITXOR(5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // 5 = 101, 3 = 011, XOR = 110 = 6
+        #expect(result == .number(6))
+    }
+    
+    @Test func evaluateBITLSHIFT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BITLSHIFT(4, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // 4 << 2 = 16
+        #expect(result == .number(16))
+    }
+    
+    @Test func evaluateBITRSHIFT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BITRSHIFT(16, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // 16 >> 2 = 4
+        #expect(result == .number(4))
+    }
 }

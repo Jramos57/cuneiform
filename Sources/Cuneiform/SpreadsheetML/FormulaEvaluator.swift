@@ -573,6 +573,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateHEX2DEC(args)
         case "BIN2HEX":
             return try evaluateBIN2HEX(args)
+        case "HEX2BIN":
+            return try evaluateHEX2BIN(args)
+        case "HEX2OCT":
+            return try evaluateHEX2OCT(args)
+        case "OCT2BIN":
+            return try evaluateOCT2BIN(args)
+        case "OCT2HEX":
+            return try evaluateOCT2HEX(args)
+        case "BIN2OCT":
+            return try evaluateBIN2OCT(args)
+        case "BITAND":
+            return try evaluateBITAND(args)
+        case "BITOR":
+            return try evaluateBITOR(args)
+        case "BITXOR":
+            return try evaluateBITXOR(args)
+        case "BITLSHIFT":
+            return try evaluateBITLSHIFT(args)
+        case "BITRSHIFT":
+            return try evaluateBITRSHIFT(args)
         // Financial functions
         case "PMT":
             return try evaluatePMT(args)
@@ -6259,6 +6279,258 @@ public struct FormulaEvaluator: Sendable {
         // Convert decimal to hex
         let hexArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
         return try evaluateDEC2HEX(hexArgs)
+    }
+    
+    /// HEX2BIN - Hexadecimal to binary
+    private func evaluateHEX2BIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert hex to decimal first
+        let decVal = try evaluateHEX2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from HEX2DEC
+        }
+        
+        // Convert decimal to binary
+        let binArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2BIN(binArgs)
+    }
+    
+    /// HEX2OCT - Hexadecimal to octal
+    private func evaluateHEX2OCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert hex to decimal first
+        let decVal = try evaluateHEX2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from HEX2DEC
+        }
+        
+        // Convert decimal to octal
+        let octArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2OCT(octArgs)
+    }
+    
+    /// OCT2BIN - Octal to binary
+    private func evaluateOCT2BIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert octal to decimal first
+        let decVal = try evaluateOCT2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from OCT2DEC
+        }
+        
+        // Convert decimal to binary
+        let binArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2BIN(binArgs)
+    }
+    
+    /// OCT2HEX - Octal to hexadecimal
+    private func evaluateOCT2HEX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert octal to decimal first
+        let decVal = try evaluateOCT2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from OCT2DEC
+        }
+        
+        // Convert decimal to hex
+        let hexArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2HEX(hexArgs)
+    }
+    
+    /// BIN2OCT - Binary to octal
+    private func evaluateBIN2OCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert binary to decimal first
+        let decVal = try evaluateBIN2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from BIN2DEC
+        }
+        
+        // Convert decimal to octal
+        let octArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2OCT(octArgs)
+    }
+    
+    /// BITAND - Bitwise AND operation
+    private func evaluateBITAND(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let num1Val = try evaluate(args[0])
+        let num2Val = try evaluate(args[1])
+        
+        guard let num1 = num1Val.asDouble,
+              let num2 = num2Val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let int1 = Int(num1)
+        let int2 = Int(num2)
+        
+        // Must be non-negative and less than 2^48
+        guard int1 >= 0 && int1 < (1 << 48) && int2 >= 0 && int2 < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        let result = int1 & int2
+        return .number(Double(result))
+    }
+    
+    /// BITOR - Bitwise OR operation
+    private func evaluateBITOR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let num1Val = try evaluate(args[0])
+        let num2Val = try evaluate(args[1])
+        
+        guard let num1 = num1Val.asDouble,
+              let num2 = num2Val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let int1 = Int(num1)
+        let int2 = Int(num2)
+        
+        // Must be non-negative and less than 2^48
+        guard int1 >= 0 && int1 < (1 << 48) && int2 >= 0 && int2 < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        let result = int1 | int2
+        return .number(Double(result))
+    }
+    
+    /// BITXOR - Bitwise XOR operation
+    private func evaluateBITXOR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let num1Val = try evaluate(args[0])
+        let num2Val = try evaluate(args[1])
+        
+        guard let num1 = num1Val.asDouble,
+              let num2 = num2Val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let int1 = Int(num1)
+        let int2 = Int(num2)
+        
+        // Must be non-negative and less than 2^48
+        guard int1 >= 0 && int1 < (1 << 48) && int2 >= 0 && int2 < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        let result = int1 ^ int2
+        return .number(Double(result))
+    }
+    
+    /// BITLSHIFT - Bitwise left shift
+    private func evaluateBITLSHIFT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let shiftVal = try evaluate(args[1])
+        
+        guard let num = numVal.asDouble,
+              let shift = shiftVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        let intShift = Int(shift)
+        
+        // Number must be non-negative and less than 2^48
+        guard intNum >= 0 && intNum < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        // Shift amount must be valid
+        guard abs(intShift) < 54 else {
+            return .error("NUM")
+        }
+        
+        let result: Int
+        if intShift >= 0 {
+            result = intNum << intShift
+        } else {
+            result = intNum >> (-intShift)
+        }
+        
+        // Result must be less than 2^48
+        guard result < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        return .number(Double(result))
+    }
+    
+    /// BITRSHIFT - Bitwise right shift
+    private func evaluateBITRSHIFT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let shiftVal = try evaluate(args[1])
+        
+        guard let num = numVal.asDouble,
+              let shift = shiftVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        let intShift = Int(shift)
+        
+        // Number must be non-negative and less than 2^48
+        guard intNum >= 0 && intNum < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        // Shift amount must be valid
+        guard abs(intShift) < 54 else {
+            return .error("NUM")
+        }
+        
+        let result: Int
+        if intShift >= 0 {
+            result = intNum >> intShift
+        } else {
+            result = intNum << (-intShift)
+        }
+        
+        // Result must be less than 2^48
+        guard result < (1 << 48) else {
+            return .error("NUM")
+        }
+        
+        return .number(Double(result))
     }
 }
 
