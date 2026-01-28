@@ -4112,4 +4112,68 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Batch 25: Financial and Utility Functions Tests
+    
+    @Test func evaluateDOLLARFR() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=DOLLARFR(1.25, 16)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1.0 + 0.25 * 16))  // 1.04 in 16ths = 5
+    }
+    
+    @Test func evaluateDOLLARDE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=DOLLARDE(1.04, 16)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1.25))  // 1.04 in 16ths = 1.25
+    }
+    
+    @Test func evaluateDAYS() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Days between two serial dates
+        let parser = FormulaParser("=DAYS(45000, 44900)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(100))
+    }
+    
+    @Test func evaluateFACTDOUBLE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=FACTDOUBLE(6)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(48))  // 6!! = 6*4*2 = 48
+        
+        let parser2 = FormulaParser("=FACTDOUBLE(7)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(105))  // 7!! = 7*5*3*1 = 105
+    }
+    
+    @Test func evaluateTBILLPRICE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Settlement date 44927, maturity 45108, discount 0.09
+        let parser = FormulaParser("=TBILLPRICE(44927, 45108, 0.09)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 90 && n < 100)  // Should be discounted price
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }

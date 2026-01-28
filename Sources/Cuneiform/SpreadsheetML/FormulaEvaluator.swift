@@ -767,6 +767,31 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateCONFIDENCENORM(args)
         case "CRITBINOM":
             return try evaluateCRITBINOM(args)
+        // Batch 25: Financial and utility functions
+        case "DOLLARFR":
+            return try evaluateDOLLARFR(args)
+        case "DOLLARDE":
+            return try evaluateDOLLARDE(args)
+        case "DISC":
+            return try evaluateDISC(args)
+        case "INTRATE":
+            return try evaluateINTRATE(args)
+        case "RECEIVED":
+            return try evaluateRECEIVED(args)
+        case "PRICEDISC":
+            return try evaluatePRICEDISC(args)
+        case "YIELDDISC":
+            return try evaluateYIELDDISC(args)
+        case "TBILLEQ":
+            return try evaluateTBILLEQ(args)
+        case "TBILLPRICE":
+            return try evaluateTBILLPRICE(args)
+        case "TBILLYIELD":
+            return try evaluateTBILLYIELD(args)
+        case "DAYS":
+            return try evaluateDAYS(args)
+        case "FACTDOUBLE":
+            return try evaluateFACTDOUBLE(args)
         default:
             return .error("NAME")
         }
@@ -8720,6 +8745,401 @@ public struct FormulaEvaluator: Sendable {
         let sign = x >= 0 ? 1.0 : -1.0
         
         return sign * sqrt(-b + sqrtPart)
+    }
+    
+    // MARK: - Batch 25: Financial and Utility Functions
+    
+    private func evaluateDOLLARFR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let decimalVal = try evaluate(args[0])
+        guard let decimal = decimalVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let fractionVal = try evaluate(args[1])
+        guard let fraction = fractionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard fraction >= 1 else {
+            return .error("DIV/0")
+        }
+        
+        let intPart = floor(decimal)
+        let decPart = decimal - intPart
+        let result = intPart + decPart * fraction
+        
+        return .number(result)
+    }
+    
+    private func evaluateDOLLARDE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let fractionalVal = try evaluate(args[0])
+        guard let fractional = fractionalVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let fractionVal = try evaluate(args[1])
+        guard let fraction = fractionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard fraction >= 1 else {
+            return .error("DIV/0")
+        }
+        
+        let intPart = floor(fractional)
+        let fracPart = fractional - intPart
+        // fracPart represents n/fraction where n is fracPart * 100 (as integer)
+        // For 1.04 with fraction=16: fracPart=0.04, n=4, result = 1 + 4/16 = 1.25
+        let numerator = round(fracPart * pow(10, floor(log10(fraction)) + 1))
+        let result = intPart + numerator / fraction
+        
+        return .number(result)
+    }
+    
+    private func evaluateDISC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 5 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let prVal = try evaluate(args[2])
+        guard let pr = prVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let redemptionVal = try evaluate(args[3])
+        guard let redemption = redemptionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let basisVal = try evaluate(args[4])
+        let basis = Int(basisVal.asDouble ?? 0)
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let days = maturity - settlement
+        let yearDays: Double = basis == 1 ? 365 : 360
+        
+        let discount = ((redemption - pr) / redemption) * (yearDays / days)
+        return .number(discount)
+    }
+    
+    private func evaluateINTRATE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 5 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let investmentVal = try evaluate(args[2])
+        guard let investment = investmentVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let redemptionVal = try evaluate(args[3])
+        guard let redemption = redemptionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let basisVal = try evaluate(args[4])
+        let basis = Int(basisVal.asDouble ?? 0)
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let days = maturity - settlement
+        let yearDays: Double = basis == 1 ? 365 : 360
+        
+        let rate = ((redemption - investment) / investment) * (yearDays / days)
+        return .number(rate)
+    }
+    
+    private func evaluateRECEIVED(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 5 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let investmentVal = try evaluate(args[2])
+        guard let investment = investmentVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let discountVal = try evaluate(args[3])
+        guard let discount = discountVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let basisVal = try evaluate(args[4])
+        let basis = Int(basisVal.asDouble ?? 0)
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let days = maturity - settlement
+        let yearDays: Double = basis == 1 ? 365 : 360
+        
+        let received = investment / (1 - (discount * days / yearDays))
+        return .number(received)
+    }
+    
+    private func evaluatePRICEDISC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 5 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let discountVal = try evaluate(args[2])
+        guard let discount = discountVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let redemptionVal = try evaluate(args[3])
+        guard let redemption = redemptionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let basisVal = try evaluate(args[4])
+        let basis = Int(basisVal.asDouble ?? 0)
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let days = maturity - settlement
+        let yearDays: Double = basis == 1 ? 365 : 360
+        
+        let price = redemption - (discount * redemption * days / yearDays)
+        return .number(price)
+    }
+    
+    private func evaluateYIELDDISC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 5 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let prVal = try evaluate(args[2])
+        guard let pr = prVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let redemptionVal = try evaluate(args[3])
+        guard let redemption = redemptionVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let basisVal = try evaluate(args[4])
+        let basis = Int(basisVal.asDouble ?? 0)
+        
+        guard maturity > settlement && pr > 0 else {
+            return .error("NUM")
+        }
+        
+        let days = maturity - settlement
+        let yearDays: Double = basis == 1 ? 365 : 360
+        
+        let yieldDisc = ((redemption - pr) / pr) * (yearDays / days)
+        return .number(yieldDisc)
+    }
+    
+    private func evaluateTBILLEQ(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let discountVal = try evaluate(args[2])
+        guard let discount = discountVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let dsm = maturity - settlement
+        guard dsm <= 365 else {
+            return .error("NUM")
+        }
+        
+        let eq = (365 * discount) / (360 - discount * dsm)
+        return .number(eq)
+    }
+    
+    private func evaluateTBILLPRICE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let discountVal = try evaluate(args[2])
+        guard let discount = discountVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard maturity > settlement else {
+            return .error("NUM")
+        }
+        
+        let dsm = maturity - settlement
+        guard dsm <= 365 else {
+            return .error("NUM")
+        }
+        
+        let price = 100 * (1 - discount * dsm / 360)
+        return .number(price)
+    }
+    
+    private func evaluateTBILLYIELD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        guard let settlement = settlementVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let maturityVal = try evaluate(args[1])
+        guard let maturity = maturityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let prVal = try evaluate(args[2])
+        guard let pr = prVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard maturity > settlement && pr > 0 else {
+            return .error("NUM")
+        }
+        
+        let dsm = maturity - settlement
+        guard dsm <= 365 else {
+            return .error("NUM")
+        }
+        
+        let yieldValue = ((100 - pr) / pr) * (360 / dsm)
+        return .number(yieldValue)
+    }
+    
+    private func evaluateDAYS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let endDateVal = try evaluate(args[0])
+        guard let endDate = endDateVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let startDateVal = try evaluate(args[1])
+        guard let startDate = startDateVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(endDate - startDate)
+    }
+    
+    private func evaluateFACTDOUBLE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard num >= 0 else {
+            return .error("NUM")
+        }
+        
+        let n = Int(num)
+        var result = 1.0
+        var current = n
+        
+        while current > 0 {
+            result *= Double(current)
+            current -= 2
+        }
+        
+        return .number(result)
     }
 }
 
