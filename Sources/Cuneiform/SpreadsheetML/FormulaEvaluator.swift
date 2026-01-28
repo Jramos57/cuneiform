@@ -487,12 +487,16 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateQUARTILE(args)
         case "MODE", "MODE.SNGL":
             return try evaluateMODE(args)
+        case "MODE.MULT":
+            return try evaluateMODE_MULT(args)
         case "LARGE":
             return try evaluateLARGE(args)
         case "SMALL":
             return try evaluateSMALL(args)
         case "RANK", "RANK.EQ":
             return try evaluateRANK(args)
+        case "RANK.AVG":
+            return try evaluateRANK_AVG(args)
         case "CORREL":
             return try evaluateCORREL(args)
         case "COVARIANCE.P":
@@ -501,6 +505,8 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateCOVARIANCE_S(args)
         case "SKEW":
             return try evaluateSKEW(args)
+        case "SKEW.P":
+            return try evaluateSKEW_P(args)
         case "KURT":
             return try evaluateKURT(args)
         case "GEOMEAN":
@@ -755,6 +761,8 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateGAMMADIST(args)
         case "GAMMA.INV":
             return try evaluateGAMMAINV(args)
+        case "GAMMA":
+            return try evaluateGAMMA(args)
         case "GAMMALN", "GAMMALN.PRECISE":
             return try evaluateGAMMALN(args)
         case "WEIBULL.DIST":
@@ -2839,6 +2847,42 @@ public struct FormulaEvaluator: Sendable {
         return .number(mode)
     }
     
+    /// MODE.MULT - Returns array of all modes (most frequent values)
+    /// Syntax: MODE.MULT(array)
+    private func evaluateMODE_MULT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        // Count frequencies
+        var frequencies: [Double: Int] = [:]
+        for num in numbers {
+            frequencies[num, default: 0] += 1
+        }
+        
+        // Find maximum frequency
+        guard let maxCount = frequencies.values.max(), maxCount > 1 else {
+            return .error("N/A") // No mode if all values appear only once
+        }
+        
+        // Get all values with maximum frequency
+        let modes = frequencies.filter { $0.value == maxCount }.keys.sorted()
+        
+        // Return as array
+        let modeValues = modes.map { FormulaValue.number($0) }
+        return .array([modeValues])
+    }
+    
     /// LARGE - K-th largest value
     /// Syntax: LARGE(array, k)
     private func evaluateLARGE(_ args: [FormulaExpression]) throws -> FormulaValue {
@@ -2913,6 +2957,47 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(Double(rank + 1))
+    }
+    
+    /// RANK.AVG - Rank with averaging for ties
+    /// Syntax: RANK.AVG(number, ref, [order])
+    private func evaluateRANK_AVG(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "RANK.AVG", expected: 2, got: args.count)
+        }
+        
+        let numberVal = try evaluate(args[0])
+        guard let number = numberVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let refVal = try evaluate(args[1])
+        var numbers = flattenToNumbers(refVal)
+        
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let ascending = args.count == 3 ? (try evaluate(args[2]).asDouble ?? 0) != 0 : false
+        
+        // Find all positions of the number
+        let indices = numbers.enumerated().filter { $0.element == number }.map { $0.offset }
+        guard !indices.isEmpty else {
+            return .error("N/A")
+        }
+        
+        // Sort and find ranks
+        let sorted = numbers.enumerated().sorted { ascending ? $0.element < $1.element : $0.element > $1.element }
+        var rankMap: [Int: Int] = [:]
+        for (rank, pair) in sorted.enumerated() {
+            rankMap[pair.offset] = rank + 1
+        }
+        
+        // Average the ranks for tied values
+        let ranks = indices.compactMap { rankMap[$0] }
+        let avgRank = Double(ranks.reduce(0, +)) / Double(ranks.count)
+        
+        return .number(avgRank)
     }
     
     /// CORREL - Correlation coefficient
@@ -3047,6 +3132,47 @@ public struct FormulaEvaluator: Sendable {
         }
         
         let skewness = (n / ((n - 1) * (n - 2))) * (m3 / pow(stdDev, 3))
+        return .number(skewness)
+    }
+    
+    /// SKEW.P - Population skewness
+    /// Syntax: SKEW.P(number1, [number2], ...)
+    private func evaluateSKEW_P(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard numbers.count >= 3 else {
+            return .error("DIV/0")
+        }
+        
+        let n = Double(numbers.count)
+        let mean = numbers.reduce(0, +) / n
+        
+        var m2: Double = 0
+        var m3: Double = 0
+        
+        for num in numbers {
+            let diff = num - mean
+            m2 += diff * diff
+            m3 += diff * diff * diff
+        }
+        
+        let variance = m2 / n
+        let stdDev = sqrt(variance)
+        
+        guard stdDev > 0 else {
+            return .error("DIV/0")
+        }
+        
+        // Population skewness (no adjustment factor)
+        let skewness = m3 / (n * pow(stdDev, 3))
         return .number(skewness)
     }
     
@@ -8834,6 +8960,28 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(lgamma(x))
+    }
+    
+    /// GAMMA - Gamma function value
+    /// Syntax: GAMMA(number)
+    private func evaluateGAMMA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let x = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Gamma function: Γ(x) = exp(ln(Γ(x)))
+        // Handle special cases
+        if x <= 0 && x == floor(x) {
+            // Gamma is undefined for non-positive integers
+            return .error("NUM")
+        }
+        
+        return .number(tgamma(x))
     }
     
     private func evaluateWEIBULLDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
