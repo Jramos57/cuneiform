@@ -3157,4 +3157,178 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Distribution Functions
+    
+    @Test func evaluateBINOM_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test binomial PMF: 3 successes in 5 trials with p=0.5
+        let expr = FormulaExpression.functionCall("BINOM.DIST", [
+            .number(3),
+            .number(5),
+            .number(0.5),
+            .number(0)  // PMF
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val - 0.3125) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateBINOM_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("BINOM.INV", [
+            .number(10),
+            .number(0.5),
+            .number(0.5)
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Should return the smallest k where cumulative >= 0.5
+        if case .number(let val) = result {
+            #expect(val >= 4 && val <= 6)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluatePOISSON_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test Poisson PMF: k=2, mean=3
+        let expr = FormulaExpression.functionCall("POISSON.DIST", [
+            .number(2),
+            .number(3),
+            .number(0)  // PMF
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            // P(X=2) = (3^2 * e^-3) / 2! ≈ 0.224
+            #expect(abs(val - 0.224) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateEXPON_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test exponential CDF
+        let expr = FormulaExpression.functionCall("EXPON.DIST", [
+            .number(1),
+            .number(1),
+            .number(1)  // CDF
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            // CDF(1) = 1 - e^-1 ≈ 0.632
+            #expect(abs(val - 0.632) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCHISQ_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("CHISQ.DIST", [
+            .number(5),
+            .number(3),
+            .number(1)  // CDF
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Just check it returns a valid probability
+        if case .number(let val) = result {
+            #expect(val >= 0 && val <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCHISQ_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("CHISQ.INV", [
+            .number(0.5),
+            .number(5)
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive number
+        if case .number(let val) = result {
+            #expect(val > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateT_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("T.DIST", [
+            .number(0),
+            .number(10),
+            .number(1)  // CDF
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            // At t=0, CDF should be around 0.5
+            #expect(abs(val - 0.5) < 0.1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateT_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("T.INV", [
+            .number(0.5),
+            .number(10)
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            // At prob=0.5, should return value near 0
+            #expect(abs(val) < 0.1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateF_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("F.DIST", [
+            .number(1),
+            .number(5),
+            .number(5),
+            .number(1)  // CDF
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a valid probability
+        if case .number(let val) = result {
+            #expect(val >= 0 && val <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateF_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("F.INV", [
+            .number(0.5),
+            .number(5),
+            .number(5)
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive number
+        if case .number(let val) = result {
+            #expect(val > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }

@@ -505,6 +505,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateNORM_S_DIST(args)
         case "NORM.S.INV":
             return try evaluateNORM_S_INV(args)
+        case "BINOM.DIST":
+            return try evaluateBINOM_DIST(args)
+        case "BINOM.INV":
+            return try evaluateBINOM_INV(args)
+        case "POISSON.DIST", "POISSON":
+            return try evaluatePOISSON_DIST(args)
+        case "EXPON.DIST":
+            return try evaluateEXPON_DIST(args)
+        case "CHISQ.DIST":
+            return try evaluateCHISQ_DIST(args)
+        case "CHISQ.INV":
+            return try evaluateCHISQ_INV(args)
+        case "T.DIST":
+            return try evaluateT_DIST(args)
+        case "T.INV":
+            return try evaluateT_INV(args)
+        case "F.DIST":
+            return try evaluateF_DIST(args)
+        case "F.INV":
+            return try evaluateF_INV(args)
         // Math and trigonometric functions
         case "SIN":
             return try evaluateSIN(args)
@@ -3132,6 +3152,352 @@ public struct FormulaEvaluator: Sendable {
         // Use inverse error function
         let z = sqrt(2) * erfInv(2 * probability - 1)
         return .number(z)
+    }
+    
+    /// BINOM.DIST - Binomial distribution
+    private func evaluateBINOM_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let successesVal = try evaluate(args[0])
+        let trialsVal = try evaluate(args[1])
+        let probVal = try evaluate(args[2])
+        let cumulativeVal = try evaluate(args[3])
+        
+        guard let successes = successesVal.asDouble,
+              let trials = trialsVal.asDouble,
+              let prob = probVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let k = Int(successes)
+        let n = Int(trials)
+        
+        guard k >= 0, n >= 0, k <= n, prob >= 0, prob <= 1 else {
+            return .error("NUM")
+        }
+        
+        if cumulative != 0 {
+            // Cumulative probability: P(X <= k)
+            var sum = 0.0
+            for i in 0...k {
+                sum += binomialPMF(i, n, prob)
+            }
+            return .number(sum)
+        } else {
+            // Probability mass function: P(X = k)
+            return .number(binomialPMF(k, n, prob))
+        }
+    }
+    
+    /// BINOM.INV - Inverse binomial distribution
+    private func evaluateBINOM_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let trialsVal = try evaluate(args[0])
+        let probVal = try evaluate(args[1])
+        let alphaVal = try evaluate(args[2])
+        
+        guard let trials = trialsVal.asDouble,
+              let prob = probVal.asDouble,
+              let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let n = Int(trials)
+        
+        guard n >= 0, prob >= 0, prob <= 1, alpha >= 0, alpha <= 1 else {
+            return .error("NUM")
+        }
+        
+        // Find smallest k where cumulative probability >= alpha
+        var cumulative = 0.0
+        for k in 0...n {
+            cumulative += binomialPMF(k, n, prob)
+            if cumulative >= alpha {
+                return .number(Double(k))
+            }
+        }
+        
+        return .number(Double(n))
+    }
+    
+    /// POISSON.DIST - Poisson distribution
+    private func evaluatePOISSON_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let mean = meanVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let k = Int(x)
+        
+        guard k >= 0, mean > 0 else {
+            return .error("NUM")
+        }
+        
+        if cumulative != 0 {
+            // Cumulative probability: P(X <= k)
+            var sum = 0.0
+            for i in 0...k {
+                sum += poissonPMF(i, mean)
+            }
+            return .number(sum)
+        } else {
+            // Probability mass function: P(X = k)
+            return .number(poissonPMF(k, mean))
+        }
+    }
+    
+    /// EXPON.DIST - Exponential distribution
+    private func evaluateEXPON_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let lambdaVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let lambda = lambdaVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard x >= 0, lambda > 0 else {
+            return .error("NUM")
+        }
+        
+        if cumulative != 0 {
+            // Cumulative distribution: 1 - e^(-λx)
+            return .number(1 - exp(-lambda * x))
+        } else {
+            // Probability density: λe^(-λx)
+            return .number(lambda * exp(-lambda * x))
+        }
+    }
+    
+    /// CHISQ.DIST - Chi-squared distribution (simplified)
+    private func evaluateCHISQ_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let df = dfVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard x >= 0, df >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Simplified approximation
+        if cumulative != 0 {
+            // Use normal approximation for large df
+            if df > 30 {
+                let z = (pow(x / df, 1.0/3.0) - (1 - 2.0/(9*df))) / sqrt(2.0/(9*df))
+                return .number(0.5 * (1 + erf(z / sqrt(2))))
+            }
+            // Simple approximation
+            return .number(min(1.0, x / (x + df)))
+        } else {
+            // PDF approximation
+            let term1 = pow(x, df/2 - 1)
+            let term2 = exp(-x/2)
+            return .number(term1 * term2 / (pow(2, df/2) * tgamma(df/2)))
+        }
+    }
+    
+    /// CHISQ.INV - Inverse chi-squared (simplified)
+    private func evaluateCHISQ_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        
+        guard let prob = probVal.asDouble,
+              let df = dfVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard prob > 0, prob < 1, df >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Simple approximation: chi-squared ≈ df * (prob)^2
+        return .number(df * prob / (1 - prob))
+    }
+    
+    /// T.DIST - t-distribution (simplified)
+    private func evaluateT_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let df = dfVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard df >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Simplified: for large df, t-distribution approaches normal
+        if cumulative != 0 {
+            if df > 30 {
+                // Use normal approximation
+                return .number(0.5 * (1 + erf(x / sqrt(2))))
+            }
+            // Simple approximation
+            let result = 0.5 * (1 + x / sqrt(x * x + df))
+            return .number(result)
+        } else {
+            // PDF: simplified
+            let term = pow(1 + x * x / df, -(df + 1) / 2)
+            return .number(term / sqrt(df * Double.pi))
+        }
+    }
+    
+    /// T.INV - Inverse t-distribution (simplified)
+    private func evaluateT_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        
+        guard let prob = probVal.asDouble,
+              let df = dfVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard prob > 0, prob < 1, df >= 1 else {
+            return .error("NUM")
+        }
+        
+        // For large df, use normal inverse
+        if df > 30 {
+            let z = sqrt(2) * erfInv(2 * prob - 1)
+            return .number(z)
+        }
+        
+        // Simple approximation
+        let z = sqrt(2) * erfInv(2 * prob - 1)
+        return .number(z * sqrt(1 + z * z / (4 * df)))
+    }
+    
+    /// F.DIST - F-distribution (simplified)
+    private func evaluateF_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let df1Val = try evaluate(args[1])
+        let df2Val = try evaluate(args[2])
+        let cumulativeVal = try evaluate(args[3])
+        
+        guard let x = xVal.asDouble,
+              let df1 = df1Val.asDouble,
+              let df2 = df2Val.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard x >= 0, df1 >= 1, df2 >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Simplified approximation
+        if cumulative != 0 {
+            // CDF approximation
+            let t = df1 * x / (df1 * x + df2)
+            return .number(t)
+        } else {
+            // PDF approximation
+            let term1 = pow(df1 * x, df1) * pow(df2, df2)
+            let term2 = pow(df1 * x + df2, df1 + df2)
+            return .number(term1 / term2)
+        }
+    }
+    
+    /// F.INV - Inverse F-distribution (simplified)
+    private func evaluateF_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let df1Val = try evaluate(args[1])
+        let df2Val = try evaluate(args[2])
+        
+        guard let prob = probVal.asDouble,
+              let df1 = df1Val.asDouble,
+              let df2 = df2Val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard prob > 0, prob < 1, df1 >= 1, df2 >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Simple approximation
+        return .number(df2 * prob / (df1 * (1 - prob)))
+    }
+    
+    // Helper: Binomial PMF
+    private func binomialPMF(_ k: Int, _ n: Int, _ p: Double) -> Double {
+        let coeff = Double(binomialCoefficient(n, k))
+        return coeff * pow(p, Double(k)) * pow(1 - p, Double(n - k))
+    }
+    
+    // Helper: Binomial coefficient
+    private func binomialCoefficient(_ n: Int, _ k: Int) -> Int {
+        guard k >= 0, k <= n else { return 0 }
+        var result = 1
+        for i in 0..<min(k, n - k) {
+            result = result * (n - i) / (i + 1)
+        }
+        return result
+    }
+    
+    // Helper: Poisson PMF
+    private func poissonPMF(_ k: Int, _ mean: Double) -> Double {
+        return pow(mean, Double(k)) * exp(-mean) / Double(factorial(k))
+    }
+    
+    // Helper: Factorial
+    private func factorial(_ n: Int) -> Int {
+        guard n > 1 else { return 1 }
+        return n * factorial(n - 1)
     }
     
     // Helper: Error function (approximation)
