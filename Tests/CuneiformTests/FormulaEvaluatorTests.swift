@@ -3848,4 +3848,114 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(5))  // max of 5, 3, 0
     }
+    
+    // MARK: - Batch 23: Aliases and Simple Variants Tests
+    
+    @Test func evaluateCEILINGPRECISE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CEILING.PRECISE(4.3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5))
+    }
+    
+    @Test func evaluateISOCEILING() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=ISO.CEILING(-4.3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(-4))
+    }
+    
+    @Test func evaluateFLOORPRECISE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=FLOOR.PRECISE(4.7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(4))
+    }
+    
+    @Test func evaluateROMAN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ROMAN(499)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .string("CDXCIX"))
+        
+        let parser2 = FormulaParser("=ROMAN(1984)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .string("MCMLXXXIV"))
+    }
+    
+    @Test func evaluateARABIC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ARABIC(\"CDXCIX\")")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(499))
+        
+        let parser2 = FormulaParser("=ARABIC(\"MCMLXXXIV\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(1984))
+    }
+    
+    @Test func evaluateLEFTB() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LEFTB(A1, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Hel"))
+    }
+    
+    @Test func evaluateRIGHTB() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("World")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=RIGHTB(A1, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("rld"))
+    }
+    
+    @Test func evaluateMIDB() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MIDB(A1, 2, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("ell"))
+    }
+    
+    @Test func evaluateLENB() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LENB(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5))
+    }
 }

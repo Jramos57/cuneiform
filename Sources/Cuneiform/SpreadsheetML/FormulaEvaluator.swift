@@ -723,6 +723,29 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateMINA(args)
         case "MAXA":
             return try evaluateMAXA(args)
+        // Batch 23: Aliases and simple variants
+        case "CEILING.PRECISE", "ISO.CEILING":
+            return try evaluateCEILING(args)
+        case "FLOOR.PRECISE":
+            return try evaluateFLOOR(args)
+        case "ROMAN":
+            return try evaluateROMAN(args)
+        case "ARABIC":
+            return try evaluateARABIC(args)
+        case "LEFTB":
+            return try evaluateLEFT(args)
+        case "RIGHTB":
+            return try evaluateRIGHT(args)
+        case "MIDB":
+            return try evaluateMID(args)
+        case "LENB":
+            return try evaluateLEN(args)
+        case "TRUNC":
+            return try evaluateTRUNC(args)
+        case "SIGN":
+            return try evaluateSIGN(args)
+        case "RANDBETWEEN":
+            return try evaluateRANDBETWEEN(args)
         default:
             return .error("NAME")
         }
@@ -8212,6 +8235,79 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(max)
+    }
+    
+    // MARK: - Batch 23: Aliases and Simple Variants
+    
+    private func evaluateROMAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard num >= 0 && num <= 3999 else {
+            return .error("VALUE")
+        }
+        
+        let n = Int(num)
+        
+        // Optional form argument (0-4), default 0 (classic form)
+        // For simplicity, we'll always use classic form
+        
+        let values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+        let numerals = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+        
+        var result = ""
+        var number = n
+        
+        for (i, value) in values.enumerated() {
+            while number >= value {
+                result += numerals[i]
+                number -= value
+            }
+        }
+        
+        return .string(result)
+    }
+    
+    private func evaluateARABIC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard case .string(let roman) = val else {
+            return .error("VALUE")
+        }
+        
+        let romanUpper = roman.uppercased()
+        var result = 0
+        var prevValue = 0
+        
+        let romanMap: [Character: Int] = [
+            "I": 1, "V": 5, "X": 10, "L": 50,
+            "C": 100, "D": 500, "M": 1000
+        ]
+        
+        // Process from right to left
+        for char in romanUpper.reversed() {
+            guard let value = romanMap[char] else {
+                return .error("VALUE")
+            }
+            
+            if value < prevValue {
+                result -= value
+            } else {
+                result += value
+            }
+            prevValue = value
+        }
+        
+        return .number(Double(result))
     }
 }
 

@@ -120,7 +120,7 @@ public struct FormulaParser {
                 
                 // Check for range or cell reference
                 var end = i
-                while end < chars.count && (chars[end].isLetter || chars[end].isNumber || chars[end] == "$") {
+                while end < chars.count && (chars[end].isLetter || chars[end].isNumber || chars[end] == "$" || chars[end] == ".") {
                     end += 1
                 }
                 
