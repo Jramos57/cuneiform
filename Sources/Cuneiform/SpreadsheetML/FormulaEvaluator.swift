@@ -487,6 +487,24 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateSTANDARDIZE(args)
         case "CONFIDENCE.NORM":
             return try evaluateCONFIDENCE_NORM(args)
+        case "FORECAST", "FORECAST.LINEAR":
+            return try evaluateFORECAST(args)
+        case "PERCENTILE.EXC":
+            return try evaluatePERCENTILE_EXC(args)
+        case "QUARTILE.EXC":
+            return try evaluateQUARTILE_EXC(args)
+        case "PERCENTRANK.INC":
+            return try evaluatePERCENTRANK_INC(args)
+        case "PERCENTRANK.EXC":
+            return try evaluatePERCENTRANK_EXC(args)
+        case "NORM.DIST":
+            return try evaluateNORM_DIST(args)
+        case "NORM.INV":
+            return try evaluateNORM_INV(args)
+        case "NORM.S.DIST":
+            return try evaluateNORM_S_DIST(args)
+        case "NORM.S.INV":
+            return try evaluateNORM_S_INV(args)
         // Math and trigonometric functions
         case "SIN":
             return try evaluateSIN(args)
@@ -2799,6 +2817,340 @@ public struct FormulaEvaluator: Sendable {
         
         let sign: Double = x < 0 ? -1 : 1
         return sign * sqrt(sqrt(b * b - c) - b)
+    }
+    
+    /// FORECAST / FORECAST.LINEAR - Linear forecast based on existing values
+    private func evaluateFORECAST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let knownYsVal = try evaluate(args[1])
+        let knownXsVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let knownYs = flattenToNumbers(knownYsVal)
+        let knownXs = flattenToNumbers(knownXsVal)
+        
+        guard !knownYs.isEmpty, knownYs.count == knownXs.count else {
+            return .error("N/A")
+        }
+        
+        // Calculate linear regression: y = mx + b
+        let n = Double(knownXs.count)
+        let sumX = knownXs.reduce(0, +)
+        let sumY = knownYs.reduce(0, +)
+        let sumXY = zip(knownXs, knownYs).map(*).reduce(0, +)
+        let sumX2 = knownXs.map { $0 * $0 }.reduce(0, +)
+        
+        let denominator = n * sumX2 - sumX * sumX
+        guard abs(denominator) > 1e-10 else {
+            return .error("DIV/0")
+        }
+        
+        // Slope (m) and intercept (b)
+        let m = (n * sumXY - sumX * sumY) / denominator
+        let b = (sumY - m * sumX) / n
+        
+        let forecast = m * x + b
+        return .number(forecast)
+    }
+    
+    /// PERCENTILE.EXC - Percentile (exclusive)
+    private func evaluatePERCENTILE_EXC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let k = kVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard k > 0, k < 1 else {
+            return .error("NUM")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        numbers.sort()
+        let n = Double(numbers.count)
+        
+        // Excel uses (n+1)*k - 1 as the index for exclusive
+        let index = (n + 1) * k - 1
+        
+        guard index >= 0 && index < n else {
+            return .error("NUM")
+        }
+        
+        let lower = Int(floor(index))
+        let upper = Int(ceil(index))
+        
+        if lower == upper {
+            return .number(numbers[lower])
+        } else {
+            let fraction = index - Double(lower)
+            let result = numbers[lower] + fraction * (numbers[upper] - numbers[lower])
+            return .number(result)
+        }
+    }
+    
+    /// QUARTILE.EXC - Quartile (exclusive)
+    private func evaluateQUARTILE_EXC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let quartVal = try evaluate(args[1])
+        
+        guard let quart = quartVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let q = Int(quart)
+        guard q >= 0 && q <= 4 else {
+            return .error("NUM")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        numbers.sort()
+        
+        if q == 0 {
+            return .number(numbers.first!)
+        } else if q == 4 {
+            return .number(numbers.last!)
+        }
+        
+        // Use PERCENTILE.EXC for q=1,2,3
+        let k = Double(q) * 0.25
+        return try evaluatePERCENTILE_EXC([args[0], FormulaExpression.number(k)])
+    }
+    
+    /// PERCENTRANK.INC - Percent rank (inclusive)
+    private func evaluatePERCENTRANK_INC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        let significanceVal = args.count > 2 ? try evaluate(args[2]) : .number(3)
+        
+        guard let x = xVal.asDouble,
+              let significance = significanceVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        numbers.sort()
+        
+        // Find rank of x
+        if let exactIndex = numbers.firstIndex(of: x) {
+            let rank = Double(exactIndex) / Double(numbers.count - 1)
+            let multiplier = pow(10.0, significance)
+            return .number(floor(rank * multiplier) / multiplier)
+        }
+        
+        // Interpolate if x is between values
+        for i in 0..<numbers.count - 1 {
+            if x > numbers[i] && x < numbers[i + 1] {
+                let fraction = (x - numbers[i]) / (numbers[i + 1] - numbers[i])
+                let rank = (Double(i) + fraction) / Double(numbers.count - 1)
+                let multiplier = pow(10.0, significance)
+                return .number(floor(rank * multiplier) / multiplier)
+            }
+        }
+        
+        return .error("N/A")
+    }
+    
+    /// PERCENTRANK.EXC - Percent rank (exclusive)
+    private func evaluatePERCENTRANK_EXC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        let significanceVal = args.count > 2 ? try evaluate(args[2]) : .number(3)
+        
+        guard let x = xVal.asDouble,
+              let significance = significanceVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var numbers = flattenToNumbers(arrayVal)
+        guard !numbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        numbers.sort()
+        let n = Double(numbers.count)
+        
+        // Find rank of x (exclusive uses n+1 divisor)
+        if let exactIndex = numbers.firstIndex(of: x) {
+            let rank = (Double(exactIndex) + 1) / (n + 1)
+            let multiplier = pow(10.0, significance)
+            return .number(floor(rank * multiplier) / multiplier)
+        }
+        
+        // Interpolate if x is between values
+        for i in 0..<numbers.count - 1 {
+            if x > numbers[i] && x < numbers[i + 1] {
+                let fraction = (x - numbers[i]) / (numbers[i + 1] - numbers[i])
+                let rank = (Double(i) + 1 + fraction) / (n + 1)
+                let multiplier = pow(10.0, significance)
+                return .number(floor(rank * multiplier) / multiplier)
+            }
+        }
+        
+        return .error("N/A")
+    }
+    
+    /// NORM.DIST - Normal distribution
+    private func evaluateNORM_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        let cumulativeVal = try evaluate(args[3])
+        
+        guard let x = xVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        let z = (x - mean) / stdDev
+        
+        if cumulative != 0 {
+            // Cumulative distribution function
+            let result = 0.5 * (1 + erf(z / sqrt(2)))
+            return .number(result)
+        } else {
+            // Probability density function
+            let coefficient = 1.0 / (stdDev * sqrt(2 * Double.pi))
+            let exponent = -0.5 * z * z
+            let result = coefficient * exp(exponent)
+            return .number(result)
+        }
+    }
+    
+    /// NORM.INV - Inverse normal distribution
+    private func evaluateNORM_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let probabilityVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        
+        guard let probability = probabilityVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard probability > 0, probability < 1, stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        // Use inverse error function
+        let z = sqrt(2) * erfInv(2 * probability - 1)
+        let result = mean + z * stdDev
+        return .number(result)
+    }
+    
+    /// NORM.S.DIST - Standard normal distribution
+    private func evaluateNORM_S_DIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let zVal = try evaluate(args[0])
+        let cumulativeVal = try evaluate(args[1])
+        
+        guard let z = zVal.asDouble,
+              let cumulative = cumulativeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if cumulative != 0 {
+            // Cumulative distribution function
+            let result = 0.5 * (1 + erf(z / sqrt(2)))
+            return .number(result)
+        } else {
+            // Probability density function
+            let result = exp(-0.5 * z * z) / sqrt(2 * Double.pi)
+            return .number(result)
+        }
+    }
+    
+    /// NORM.S.INV - Inverse standard normal distribution
+    private func evaluateNORM_S_INV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let probabilityVal = try evaluate(args[0])
+        
+        guard let probability = probabilityVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard probability > 0, probability < 1 else {
+            return .error("NUM")
+        }
+        
+        // Use inverse error function
+        let z = sqrt(2) * erfInv(2 * probability - 1)
+        return .number(z)
+    }
+    
+    // Helper: Error function (approximation)
+    private func erf(_ x: Double) -> Double {
+        // Abramowitz and Stegun approximation
+        let a1 =  0.254829592
+        let a2 = -0.284496736
+        let a3 =  1.421413741
+        let a4 = -1.453152027
+        let a5 =  1.061405429
+        let p  =  0.3275911
+        
+        let sign: Double = x < 0 ? -1 : 1
+        let absX = abs(x)
+        
+        let t = 1.0 / (1.0 + p * absX)
+        let y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-absX * absX)
+        
+        return sign * y
     }
     
     // MARK: - Math and Trigonometric Functions

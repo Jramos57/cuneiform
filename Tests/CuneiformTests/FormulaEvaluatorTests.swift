@@ -2990,4 +2990,171 @@ struct FormulaEvaluatorTests {
         // 16 >> 2 = 4
         #expect(result == .number(4))
     }
+    
+    // MARK: - Advanced Statistical Functions
+    
+    @Test func evaluateFORECAST() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(10),
+            "B2": .number(20),
+            "B3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // FORECAST with perfect linear relationship (y = 10x)
+        let expr = FormulaExpression.functionCall("FORECAST", [
+            .number(4),
+            .range(CellReference(column: "B", row: 1), CellReference(column: "B", row: 3)),
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 3))
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(40))
+    }
+    
+    @Test func evaluatePERCENTILE_EXC() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("PERCENTILE.EXC", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 5)),
+            .number(0.5)
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateQUARTILE_EXC() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("QUARTILE.EXC", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 5)),
+            .number(2)
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluatePERCENTRANK_INC() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .number(20),
+            "A3": .number(30),
+            "A4": .number(40)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("PERCENTRANK.INC", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 4)),
+            .number(30)
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val - 0.666) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluatePERCENTRANK_EXC() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .number(20),
+            "A3": .number(30),
+            "A4": .number(40)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("PERCENTRANK.EXC", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 4)),
+            .number(20)
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val - 0.4) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNORM_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test cumulative normal distribution at mean
+        let expr = FormulaExpression.functionCall("NORM.DIST", [
+            .number(0),
+            .number(0),
+            .number(1),
+            .number(1)  // Cumulative
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val - 0.5) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNORM_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test inverse: probability 0.5 at mean 0, stddev 1 should give 0
+        let expr = FormulaExpression.functionCall("NORM.INV", [
+            .number(0.5),
+            .number(0),
+            .number(1)
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNORM_S_DIST() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test standard normal cumulative at 0
+        let expr = FormulaExpression.functionCall("NORM.S.DIST", [
+            .number(0),
+            .number(1)  // Cumulative
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val - 0.5) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNORM_S_INV() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test inverse standard normal at probability 0.5
+        let expr = FormulaExpression.functionCall("NORM.S.INV", [
+            .number(0.5)
+        ])
+        let result = try evaluator.evaluate(expr)
+        if case .number(let val) = result {
+            #expect(abs(val) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }
