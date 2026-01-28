@@ -993,6 +993,29 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateDECIMAL(args)
         case "ERROR.TYPE":
             return try evaluateERROR_TYPE(args)
+        // Batch 34: Legacy distribution and statistical functions
+        case "CONFIDENCE":
+            return try evaluateCONFIDENCE(args)
+        case "FISHER":
+            return try evaluateFISHER(args)
+        case "FISHERINV":
+            return try evaluateFISHERINV(args)
+        case "POISSON":
+            return try evaluatePOISSON(args)
+        case "EXPONDIST":
+            return try evaluateEXPONDIST(args)
+        case "BINOMDIST":
+            return try evaluateBINOMDIST(args)
+        case "NORMDIST":
+            return try evaluateNORMDIST(args)
+        case "NORMINV":
+            return try evaluateNORMINV(args)
+        case "NORMSDIST":
+            return try evaluateNORMSDIST(args)
+        case "NORMSINV":
+            return try evaluateNORMSINV(args)
+        case "LOGINV":
+            return try evaluateLOGINV(args)
         default:
             return .error("NAME")
         }
@@ -11041,6 +11064,273 @@ public struct FormulaEvaluator: Sendable {
         case "N/A": return .number(7)
         default: return .error("N/A")
         }
+    }
+    
+    // MARK: - Batch 34: Legacy Distribution and Statistical Functions
+    
+    private func evaluateCONFIDENCE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy CONFIDENCE function (same as CONFIDENCE.NORM)
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[0])
+        let stdDevVal = try evaluate(args[1])
+        let sizeVal = try evaluate(args[2])
+        
+        guard let alpha = alphaVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              let size = sizeVal.asDouble,
+              alpha > 0 && alpha < 1,
+              stdDev > 0,
+              size >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Confidence interval = z * (stddev / sqrt(n))
+        // For 95% confidence, z ≈ 1.96
+        // Approximate z-score from alpha
+        let z = sqrt(2) * erfinv(1 - alpha)
+        let confidence = z * (stdDev / sqrt(size))
+        
+        return .number(confidence)
+    }
+    
+    private func evaluateFISHER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble, x > -1 && x < 1 else {
+            return .error("NUM")
+        }
+        
+        // Fisher transformation: 0.5 * ln((1+x)/(1-x))
+        return .number(0.5 * log((1 + x) / (1 - x)))
+    }
+    
+    private func evaluateFISHERINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let yVal = try evaluate(args[0])
+        guard let y = yVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Inverse Fisher: (e^(2y) - 1) / (e^(2y) + 1)
+        let e2y = exp(2 * y)
+        return .number((e2y - 1) / (e2y + 1))
+    }
+    
+    private func evaluatePOISSON(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy POISSON function
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let mean = meanVal.asDouble,
+              let cumulative = cumulativeVal.asBoolean,
+              x >= 0, mean > 0 else {
+            return .error("NUM")
+        }
+        
+        let k = Int(x)
+        
+        if cumulative {
+            // Cumulative Poisson - sum from 0 to k
+            var sum = 0.0
+            for i in 0...k {
+                let prob = exp(-mean) * pow(mean, Double(i)) / tgamma(Double(i + 1))
+                sum += prob
+            }
+            return .number(sum)
+        } else {
+            // PMF: P(X = k) = (e^-λ * λ^k) / k!
+            let prob = exp(-mean) * pow(mean, Double(k)) / tgamma(Double(k + 1))
+            return .number(prob)
+        }
+    }
+    
+    private func evaluateEXPONDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy EXPONDIST function
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let lambdaVal = try evaluate(args[1])
+        let cumulativeVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let lambda = lambdaVal.asDouble,
+              let cumulative = cumulativeVal.asBoolean,
+              x >= 0, lambda > 0 else {
+            return .error("NUM")
+        }
+        
+        if cumulative {
+            // CDF: 1 - e^(-λx)
+            return .number(1 - exp(-lambda * x))
+        } else {
+            // PDF: λe^(-λx)
+            return .number(lambda * exp(-lambda * x))
+        }
+    }
+    
+    private func evaluateBINOMDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy BINOMDIST function
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let numSVal = try evaluate(args[0])
+        let trialsVal = try evaluate(args[1])
+        let probSVal = try evaluate(args[2])
+        let cumulativeVal = try evaluate(args[3])
+        
+        guard let numS = numSVal.asDouble,
+              let trials = trialsVal.asDouble,
+              let probS = probSVal.asDouble,
+              let cumulative = cumulativeVal.asBoolean,
+              numS >= 0, trials >= numS, probS >= 0, probS <= 1 else {
+            return .error("NUM")
+        }
+        
+        let n = Int(trials)
+        let k = Int(numS)
+        
+        // Binomial coefficient: n! / (k! * (n-k)!)
+        let binomCoeff = tgamma(Double(n + 1)) / (tgamma(Double(k + 1)) * tgamma(Double(n - k + 1)))
+        
+        if cumulative {
+            // Cumulative - sum from 0 to k
+            var sum = 0.0
+            for i in 0...k {
+                let coeff = tgamma(Double(n + 1)) / (tgamma(Double(i + 1)) * tgamma(Double(n - i + 1)))
+                sum += coeff * pow(probS, Double(i)) * pow(1 - probS, Double(n - i))
+            }
+            return .number(sum)
+        } else {
+            // PMF
+            let prob = binomCoeff * pow(probS, Double(k)) * pow(1 - probS, Double(n - k))
+            return .number(prob)
+        }
+    }
+    
+    private func evaluateNORMDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy NORMDIST function
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        let cumulativeVal = try evaluate(args[3])
+        
+        guard let x = xVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              let cumulative = cumulativeVal.asBoolean,
+              stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        let z = (x - mean) / stdDev
+        
+        if cumulative {
+            // CDF using error function
+            let cdf = 0.5 * (1 + erf(z / sqrt(2)))
+            return .number(cdf)
+        } else {
+            // PDF: (1 / (σ√(2π))) * e^(-(x-μ)²/(2σ²))
+            let pdf = (1 / (stdDev * sqrt(2 * .pi))) * exp(-0.5 * z * z)
+            return .number(pdf)
+        }
+    }
+    
+    private func evaluateNORMINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy NORMINV function
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        
+        guard let prob = probVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              prob > 0 && prob < 1,
+              stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        // Use inverse error function
+        let z = sqrt(2) * erfinv(2 * prob - 1)
+        return .number(mean + z * stdDev)
+    }
+    
+    private func evaluateNORMSDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy NORMSDIST (standard normal CDF)
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let zVal = try evaluate(args[0])
+        guard let z = zVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cdf = 0.5 * (1 + erf(z / sqrt(2)))
+        return .number(cdf)
+    }
+    
+    private func evaluateNORMSINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy NORMSINV (standard normal inverse)
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        guard let prob = probVal.asDouble, prob > 0 && prob < 1 else {
+            return .error("NUM")
+        }
+        
+        let z = sqrt(2) * erfinv(2 * prob - 1)
+        return .number(z)
+    }
+    
+    private func evaluateLOGINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Legacy LOGINV function
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        
+        guard let prob = probVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              prob > 0 && prob < 1,
+              stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        // Lognormal inverse
+        let z = sqrt(2) * erfinv(2 * prob - 1)
+        return .number(exp(mean + z * stdDev))
     }
 }
 
