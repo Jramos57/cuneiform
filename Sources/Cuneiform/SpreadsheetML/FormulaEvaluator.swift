@@ -966,6 +966,33 @@ public struct FormulaEvaluator: Sendable {
             return try evaluatePROB(args)
         case "TRIMMEAN":
             return try evaluateTRIMMEAN(args)
+        // Batch 33: Hyperbolic, trig, and utility functions
+        case "SEC":
+            return try evaluateSEC(args)
+        case "CSC":
+            return try evaluateCSC(args)
+        case "COT":
+            return try evaluateCOT(args)
+        case "ACOT":
+            return try evaluateACOT(args)
+        case "ACOTH":
+            return try evaluateACOTH(args)
+        case "ASINH":
+            return try evaluateASINH(args)
+        case "ATANH":
+            return try evaluateATANH(args)
+        case "COTH":
+            return try evaluateCOTH(args)
+        case "CSCH":
+            return try evaluateCSCH(args)
+        case "SECH":
+            return try evaluateSECH(args)
+        case "BASE":
+            return try evaluateBASE(args)
+        case "DECIMAL":
+            return try evaluateDECIMAL(args)
+        case "ERROR.TYPE":
+            return try evaluateERROR_TYPE(args)
         default:
             return .error("NAME")
         }
@@ -10763,6 +10790,257 @@ public struct FormulaEvaluator: Sendable {
         let mean = trimmed.reduce(0, +) / Double(trimmed.count)
         
         return .number(mean)
+    }
+    
+    // MARK: - Batch 33: Hyperbolic, Trig, and Utility Functions
+    
+    private func evaluateSEC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cosVal = cos(num)
+        guard cosVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / cosVal)
+    }
+    
+    private func evaluateCSC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let sinVal = sin(num)
+        guard sinVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / sinVal)
+    }
+    
+    private func evaluateCOT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let tanVal = tan(num)
+        guard tanVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / tanVal)
+    }
+    
+    private func evaluateACOT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // acot(x) = atan(1/x) for x != 0, π/2 for x = 0
+        if num == 0 {
+            return .number(.pi / 2)
+        }
+        
+        return .number(atan(1 / num))
+    }
+    
+    private func evaluateACOTH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble, abs(num) > 1 else {
+            return .error("NUM")
+        }
+        
+        // acoth(x) = 0.5 * ln((x+1)/(x-1))
+        return .number(0.5 * log((num + 1) / (num - 1)))
+    }
+    
+    private func evaluateASINH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // asinh(x) = ln(x + sqrt(x^2 + 1))
+        return .number(log(num + sqrt(num * num + 1)))
+    }
+    
+    private func evaluateATANH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble, abs(num) < 1 else {
+            return .error("NUM")
+        }
+        
+        // atanh(x) = 0.5 * ln((1+x)/(1-x))
+        return .number(0.5 * log((1 + num) / (1 - num)))
+    }
+    
+    private func evaluateCOTH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let tanhVal = tanh(num)
+        guard tanhVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / tanhVal)
+    }
+    
+    private func evaluateCSCH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let sinhVal = sinh(num)
+        guard sinhVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / sinhVal)
+    }
+    
+    private func evaluateSECH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let coshVal = cosh(num)
+        guard coshVal != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(1 / coshVal)
+    }
+    
+    private func evaluateBASE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let radixVal = try evaluate(args[1])
+        
+        guard let number = numberVal.asDouble,
+              let radix = radixVal.asDouble,
+              number >= 0,
+              radix >= 2 && radix <= 36 else {
+            return .error("NUM")
+        }
+        
+        let intNumber = Int(number)
+        let intRadix = Int(radix)
+        
+        var result = String(intNumber, radix: intRadix, uppercase: true)
+        
+        // Apply minimum length if specified
+        if args.count == 3 {
+            let minLengthVal = try evaluate(args[2])
+            if let minLength = minLengthVal.asDouble {
+                let targetLength = Int(minLength)
+                while result.count < targetLength {
+                    result = "0" + result
+                }
+            }
+        }
+        
+        return .string(result)
+    }
+    
+    private func evaluateDECIMAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let textVal = try evaluate(args[0])
+        let radixVal = try evaluate(args[1])
+        
+        guard case .string(let text) = textVal,
+              let radix = radixVal.asDouble,
+              radix >= 2 && radix <= 36 else {
+            return .error("VALUE")
+        }
+        
+        let intRadix = Int(radix)
+        
+        if let intValue = Int(text, radix: intRadix) {
+            return .number(Double(intValue))
+        } else {
+            return .error("NUM")
+        }
+    }
+    
+    private func evaluateERROR_TYPE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        guard case .error(let errorStr) = val else {
+            return .error("N/A")
+        }
+        
+        // Return error type number
+        switch errorStr {
+        case "NULL": return .number(1)
+        case "DIV/0": return .number(2)
+        case "VALUE": return .number(3)
+        case "REF": return .number(4)
+        case "NAME": return .number(5)
+        case "NUM": return .number(6)
+        case "N/A": return .number(7)
+        default: return .error("N/A")
+        }
     }
 }
 

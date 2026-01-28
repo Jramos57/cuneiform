@@ -4867,4 +4867,122 @@ struct FormulaEvaluatorTests {
         // After sorting: [1,2,3,4,5,6,7,8,9,100], trim 1 from each end -> [2,3,4,5,6,7,8,9], mean = 5.5
         #expect(result == .number(5.5))
     }
+    
+    // MARK: - Batch 33: Hyperbolic, Trig, and Utility Functions Tests
+    
+    @Test func evaluateSEC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // sec(0) = 1/cos(0) = 1
+        let parser = FormulaParser("=SEC(0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1))
+    }
+    
+    @Test func evaluateCSC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // csc(π/2) = 1/sin(π/2) = 1
+        let parser = FormulaParser("=CSC(PI()/2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        if case .number(let n) = result {
+            #expect(abs(n - 1) < 0.0001)
+        }
+    }
+    
+    @Test func evaluateCOT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // cot(π/4) = 1/tan(π/4) = 1
+        let parser = FormulaParser("=COT(PI()/4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        if case .number(let n) = result {
+            #expect(abs(n - 1) < 0.0001)
+        }
+    }
+    
+    @Test func evaluateACOT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // acot(1) = π/4
+        let parser = FormulaParser("=ACOT(1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        if case .number(let n) = result {
+            #expect(abs(n - .pi/4) < 0.0001)
+        }
+    }
+    
+    @Test func evaluateASINH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // asinh(0) = 0
+        let parser = FormulaParser("=ASINH(0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(0))
+    }
+    
+    @Test func evaluateATANH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // atanh(0) = 0
+        let parser = FormulaParser("=ATANH(0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(0))
+    }
+    
+    @Test func evaluateBASE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // 255 in base 16 is FF
+        let parser = FormulaParser("=BASE(255, 16)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("FF"))
+    }
+    
+    @Test func evaluateBASEWithPadding() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // 7 in base 2 with 8-digit padding is 00000111
+        let parser = FormulaParser("=BASE(7, 2, 8)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("00000111"))
+    }
+    
+    @Test func evaluateDECIMAL() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // FF in base 16 is 255
+        let parser = FormulaParser("=DECIMAL(\"FF\", 16)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(255))
+    }
+    
+    @Test func evaluateERROR_TYPE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DIV/0 error type is 2
+        let parser = FormulaParser("=ERROR.TYPE(1/0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2))
+    }
 }
