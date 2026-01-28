@@ -229,6 +229,34 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateMONTH(args)
         case "DAY":
             return try evaluateDAY(args)
+        case "WEEKDAY":
+            return try evaluateWEEKDAY(args)
+        case "WEEKNUM":
+            return try evaluateWEEKNUM(args)
+        case "ISOWEEKNUM":
+            return try evaluateISOWEEKNUM(args)
+        case "EOMONTH":
+            return try evaluateEOMONTH(args)
+        case "EDATE":
+            return try evaluateEDATE(args)
+        case "NETWORKDAYS":
+            return try evaluateNETWORKDAYS(args)
+        case "WORKDAY":
+            return try evaluateWORKDAY(args)
+        case "DATEDIF":
+            return try evaluateDATEDIF(args)
+        case "YEARFRAC":
+            return try evaluateYEARFRAC(args)
+        case "TIME":
+            return try evaluateTIME(args)
+        case "TIMEVALUE":
+            return try evaluateTIMEVALUE(args)
+        case "HOUR":
+            return try evaluateHOUR(args)
+        case "MINUTE":
+            return try evaluateMINUTE(args)
+        case "SECOND":
+            return try evaluateSECOND(args)
         // String functions
         case "LEFT":
             return try evaluateLEFT(args)
@@ -3003,6 +3031,359 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .error("NUM") // Did not converge
+    }
+    
+    // MARK: - Date/Time Functions (Extended)
+    
+    /// WEEKDAY - Returns the day of week (1-7, Sunday=1 by default)
+    private func evaluateWEEKDAY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "WEEKDAY", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        let returnTypeVal = args.count > 1 ? try evaluate(args[1]) : .number(1)
+        
+        guard let serial = serialVal.asDouble,
+              let returnType = returnTypeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Excel serial date: Jan 1, 1900 is day 1 (which was a Monday in Excel's calendar)
+        // But Excel incorrectly treats 1900 as a leap year, so we need to account for this
+        let dayOfWeek = Int(serial.truncatingRemainder(dividingBy: 7))
+        
+        switch Int(returnType) {
+        case 1: // 1 (Sunday) to 7 (Saturday)
+            return .number(Double((dayOfWeek + 6) % 7 + 1))
+        case 2: // 1 (Monday) to 7 (Sunday)
+            return .number(Double((dayOfWeek + 5) % 7 + 1))
+        case 3: // 0 (Monday) to 6 (Sunday)
+            return .number(Double((dayOfWeek + 5) % 7))
+        default:
+            return .error("NUM")
+        }
+    }
+    
+    /// WEEKNUM - Returns the week number of the year
+    private func evaluateWEEKNUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "WEEKNUM", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        let returnTypeVal = args.count > 1 ? try evaluate(args[1]) : .number(1)
+        
+        guard let serial = serialVal.asDouble,
+              let _ = returnTypeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Simplified: week number based on day of year
+        let dayOfYear = Int(serial - 1) % 365 + 1
+        let weekNum = (dayOfYear - 1) / 7 + 1
+        
+        return .number(Double(weekNum))
+    }
+    
+    /// ISOWEEKNUM - Returns the ISO week number of the year
+    private func evaluateISOWEEKNUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ISOWEEKNUM", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        guard let serial = serialVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // ISO week starts on Monday, week 1 contains Jan 4
+        let dayOfYear = Int(serial - 1) % 365 + 1
+        let weekNum = (dayOfYear + 3) / 7
+        
+        return .number(Double(max(1, weekNum)))
+    }
+    
+    /// EOMONTH - Returns the last day of the month n months from start date
+    private func evaluateEOMONTH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "EOMONTH", expected: 2, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let monthsVal = try evaluate(args[1])
+        
+        guard let startDate = startDateVal.asDouble,
+              let months = monthsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Extract year, month, day from Excel serial
+        let daysFrom1900 = Int(startDate)
+        let year = 1900 + (daysFrom1900 - 1) / 365
+        let dayOfYear = (daysFrom1900 - 1) % 365 + 1
+        var month = (dayOfYear - 1) / 30 + 1
+        
+        // Add months
+        month += Int(months)
+        var adjustedYear = year
+        while month > 12 {
+            month -= 12
+            adjustedYear += 1
+        }
+        while month < 1 {
+            month += 12
+            adjustedYear -= 1
+        }
+        
+        // Get last day of target month
+        let daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        var lastDay = daysInMonth[month - 1]
+        
+        // Adjust for leap year (including Excel's 1900 bug)
+        if month == 2 && (adjustedYear % 4 == 0) {
+            lastDay = 29
+        }
+        
+        // Calculate new serial date (approximate)
+        let newSerial = startDate + Double(Int(months) * 30) + Double(lastDay - 15)
+        
+        return .number(newSerial)
+    }
+    
+    /// EDATE - Returns date n months from start date
+    private func evaluateEDATE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "EDATE", expected: 2, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let monthsVal = try evaluate(args[1])
+        
+        guard let startDate = startDateVal.asDouble,
+              let months = monthsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Approximate: 30 days per month
+        return .number(startDate + months * 30)
+    }
+    
+    /// NETWORKDAYS - Number of working days between two dates
+    private func evaluateNETWORKDAYS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "NETWORKDAYS", expected: 2, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let endDateVal = try evaluate(args[1])
+        
+        guard let startDate = startDateVal.asDouble,
+              let endDate = endDateVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let totalDays = Int(abs(endDate - startDate)) + 1
+        let weeks = totalDays / 7
+        let remainingDays = totalDays % 7
+        
+        // 5 working days per week
+        let workDays = weeks * 5 + min(remainingDays, 5)
+        
+        return .number(Double(workDays))
+    }
+    
+    /// WORKDAY - Returns date n working days from start
+    private func evaluateWORKDAY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "WORKDAY", expected: 2, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let daysVal = try evaluate(args[1])
+        
+        guard let startDate = startDateVal.asDouble,
+              let days = daysVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Approximate: 1.4 calendar days per work day (5/7 ratio)
+        let calendarDays = days * 1.4
+        
+        return .number(startDate + calendarDays)
+    }
+    
+    /// DATEDIF - Difference between two dates
+    private func evaluateDATEDIF(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            throw FormulaError.invalidArgumentCount(function: "DATEDIF", expected: 3, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let endDateVal = try evaluate(args[1])
+        let unitVal = try evaluate(args[2])
+        
+        guard let startDate = startDateVal.asDouble,
+              let endDate = endDateVal.asDouble,
+              case .string(let unit) = unitVal else {
+            return .error("VALUE")
+        }
+        
+        let days = endDate - startDate
+        
+        switch unit.uppercased() {
+        case "D": // Days
+            return .number(days)
+        case "M": // Months (approximate)
+            return .number(days / 30)
+        case "Y": // Years (approximate)
+            return .number(days / 365)
+        case "MD": // Days ignoring months/years
+            return .number(days.truncatingRemainder(dividingBy: 30))
+        case "YM": // Months ignoring years
+            return .number((days / 30).truncatingRemainder(dividingBy: 12))
+        case "YD": // Days ignoring years
+            return .number(days.truncatingRemainder(dividingBy: 365))
+        default:
+            return .error("NUM")
+        }
+    }
+    
+    /// YEARFRAC - Fraction of year between two dates
+    private func evaluateYEARFRAC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "YEARFRAC", expected: 2, got: args.count)
+        }
+        
+        let startDateVal = try evaluate(args[0])
+        let endDateVal = try evaluate(args[1])
+        let basisVal = args.count > 2 ? try evaluate(args[2]) : .number(0)
+        
+        guard let startDate = startDateVal.asDouble,
+              let endDate = endDateVal.asDouble,
+              let basis = basisVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let days = abs(endDate - startDate)
+        
+        switch Int(basis) {
+        case 0: // US (NASD) 30/360
+            return .number(days / 360)
+        case 1: // Actual/actual
+            return .number(days / 365.25)
+        case 2: // Actual/360
+            return .number(days / 360)
+        case 3: // Actual/365
+            return .number(days / 365)
+        case 4: // European 30/360
+            return .number(days / 360)
+        default:
+            return .error("NUM")
+        }
+    }
+    
+    /// TIME - Returns serial number for a time
+    private func evaluateTIME(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            throw FormulaError.invalidArgumentCount(function: "TIME", expected: 3, got: args.count)
+        }
+        
+        let hourVal = try evaluate(args[0])
+        let minuteVal = try evaluate(args[1])
+        let secondVal = try evaluate(args[2])
+        
+        guard let hour = hourVal.asDouble,
+              let minute = minuteVal.asDouble,
+              let second = secondVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let totalSeconds = hour * 3600 + minute * 60 + second
+        let fraction = totalSeconds / 86400.0 // Seconds in a day
+        
+        return .number(fraction)
+    }
+    
+    /// TIMEVALUE - Converts time text to serial number
+    private func evaluateTIMEVALUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "TIMEVALUE", expected: 1, got: args.count)
+        }
+        
+        let timeTextVal = try evaluate(args[0])
+        guard case .string(let timeText) = timeTextVal else {
+            return .error("VALUE")
+        }
+        
+        // Parse simple time format "HH:MM:SS" or "HH:MM"
+        let components = timeText.split(separator: ":").map { Double($0) ?? 0 }
+        guard components.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let hour = components[0]
+        let minute = components[1]
+        let second = components.count > 2 ? components[2] : 0
+        
+        let totalSeconds = hour * 3600 + minute * 60 + second
+        let fraction = totalSeconds / 86400.0
+        
+        return .number(fraction)
+    }
+    
+    /// HOUR - Returns the hour component (0-23)
+    private func evaluateHOUR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "HOUR", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        guard let serial = serialVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let fraction = serial - floor(serial)
+        let totalSeconds = fraction * 86400
+        let hour = Int(totalSeconds) / 3600
+        
+        return .number(Double(hour))
+    }
+    
+    /// MINUTE - Returns the minute component (0-59)
+    private func evaluateMINUTE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "MINUTE", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        guard let serial = serialVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let fraction = serial - floor(serial)
+        let totalSeconds = fraction * 86400
+        let minute = (Int(totalSeconds) % 3600) / 60
+        
+        return .number(Double(minute))
+    }
+    
+    /// SECOND - Returns the second component (0-59)
+    private func evaluateSECOND(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "SECOND", expected: 1, got: args.count)
+        }
+        
+        let serialVal = try evaluate(args[0])
+        guard let serial = serialVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let fraction = serial - floor(serial)
+        let totalSeconds = fraction * 86400
+        let second = Int(totalSeconds) % 60
+        
+        return .number(Double(second))
     }
 }
 

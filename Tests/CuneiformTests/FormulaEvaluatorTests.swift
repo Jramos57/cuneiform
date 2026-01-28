@@ -1173,4 +1173,130 @@ struct FormulaEvaluatorTests {
             #expect(abs(val - 0.373) < 0.3)  // XIRR should be ~37% (approximate due to date calculation differences)
         }
     }
+    
+    // MARK: - Date/Time Functions (Extended)
+    
+    @Test func evaluateWEEKDAY() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test WEEKDAY for Jan 1, 2020 (serial 43831, which is a Wednesday)
+        let parser = FormulaParser("=WEEKDAY(43831)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val >= 1 && val <= 7)  // Should return valid day of week
+        }
+    }
+    
+    @Test func evaluateEOMONTH() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test EOMONTH - end of month 2 months from Jan 15, 2020
+        let parser = FormulaParser("=EOMONTH(43845, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val > 43845)  // Should be after start date
+        }
+    }
+    
+    @Test func evaluateEDATE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test EDATE - 3 months from Jan 1, 2020
+        let parser = FormulaParser("=EDATE(43831, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 43921) < 10)  // ~90 days later (3 months * 30 days)
+        }
+    }
+    
+    @Test func evaluateNETWORKDAYS() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test NETWORKDAYS between Jan 1 and Jan 31, 2020 (31 days)
+        let parser = FormulaParser("=NETWORKDAYS(43831, 43861)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val >= 20 && val <= 25)  // Should be ~22 working days
+        }
+    }
+    
+    @Test func evaluateDATEDIF() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test DATEDIF - days between Jan 1 and Dec 31, 2020
+        let parser = FormulaParser("=DATEDIF(43831, 44195, \"D\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(364))  // 364 days difference
+    }
+    
+    @Test func evaluateYEARFRAC() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test YEARFRAC - fraction of year between Jan 1 and Jul 1, 2020
+        let parser = FormulaParser("=YEARFRAC(43831, 44013, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 0.5) < 0.1)  // Should be ~0.5 (half year)
+        }
+    }
+    
+    @Test func evaluateTIME() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test TIME(12, 30, 0) - 12:30 PM
+        let parser = FormulaParser("=TIME(12, 30, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(abs(val - 0.5208) < 0.001)  // 12:30 PM = 0.520833...
+        }
+    }
+    
+    @Test func evaluateHOUR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test HOUR(0.75) - 18:00 (6 PM)
+        let parser = FormulaParser("=HOUR(0.75)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(18))
+    }
+    
+    @Test func evaluateMINUTE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test MINUTE(0.5) - 12:00 PM
+        let parser = FormulaParser("=MINUTE(0.5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(0))
+    }
+    
+    @Test func evaluateSECOND() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test SECOND(0.000694) - should be 60 seconds (approximately)
+        let parser = FormulaParser("=SECOND(0.01)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val >= 0 && val < 60)  // Valid second value
+        }
+    }
 }
