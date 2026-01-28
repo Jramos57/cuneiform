@@ -499,6 +499,10 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateRANK_AVG(args)
         case "CORREL":
             return try evaluateCORREL(args)
+        case "PEARSON":
+            return try evaluatePEARSON(args)
+        case "STEYX":
+            return try evaluateSTEYX(args)
         case "COVARIANCE.P":
             return try evaluateCOVARIANCE_P(args)
         case "COVARIANCE.S":
@@ -555,8 +559,14 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateCHISQ_INV(args)
         case "T.DIST":
             return try evaluateT_DIST(args)
+        case "T.DIST.RT":
+            return try evaluateT_DIST_RT(args)
+        case "T.DIST.2T":
+            return try evaluateT_DIST_2T(args)
         case "T.INV":
             return try evaluateT_INV(args)
+        case "T.INV.2T":
+            return try evaluateT_INV_2T(args)
         case "F.DIST":
             return try evaluateF_DIST(args)
         case "F.INV":
@@ -3036,6 +3046,59 @@ public struct FormulaEvaluator: Sendable {
         return .number(sumProduct / sqrt(sumSq1 * sumSq2))
     }
     
+    /// PEARSON - Pearson correlation coefficient (alias to CORREL)
+    private func evaluatePEARSON(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return try evaluateCORREL(args)
+    }
+    
+    /// STEYX - Standard error of predicted y for each x in regression
+    private func evaluateSTEYX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "STEYX", expected: 2, got: args.count)
+        }
+        
+        let yVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        
+        let yArray = flattenToNumbers(yVal)
+        let xArray = flattenToNumbers(xVal)
+        
+        guard yArray.count == xArray.count, yArray.count >= 3 else {
+            return .error("N/A")
+        }
+        
+        let n = Double(yArray.count)
+        let meanY = yArray.reduce(0, +) / n
+        let meanX = xArray.reduce(0, +) / n
+        
+        var sumXY: Double = 0
+        var sumXX: Double = 0
+        
+        for i in 0..<yArray.count {
+            let dx = xArray[i] - meanX
+            let dy = yArray[i] - meanY
+            sumXY += dx * dy
+            sumXX += dx * dx
+        }
+        
+        guard sumXX > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let slope = sumXY / sumXX
+        let intercept = meanY - slope * meanX
+        
+        var sumSquaredResiduals = 0.0
+        for i in 0..<yArray.count {
+            let predicted = slope * xArray[i] + intercept
+            let residual = yArray[i] - predicted
+            sumSquaredResiduals += residual * residual
+        }
+        
+        let standardError = sqrt(sumSquaredResiduals / (n - 2))
+        return .number(standardError)
+    }
+    
     /// COVARIANCE.P - Population covariance
     private func evaluateCOVARIANCE_P(_ args: [FormulaExpression]) throws -> FormulaValue {
         guard args.count == 2 else {
@@ -3998,6 +4061,89 @@ public struct FormulaEvaluator: Sendable {
         
         // Simple approximation
         let z = sqrt(2) * erfInv(2 * prob - 1)
+        return .number(z * sqrt(1 + z * z / (4 * df)))
+    }
+    
+    /// T.DIST.RT - Right-tailed t-distribution
+    private func evaluateT_DIST_RT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        
+        guard let x = xVal.asDouble,
+              let df = dfVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard df >= 1 else {
+            return .error("NUM")
+        }
+        
+        if df > 30 {
+            let p = 0.5 * (1 - erf(x / sqrt(2)))
+            return .number(p)
+        }
+        
+        let result = 0.5 * (1 - x / sqrt(x * x + df))
+        return .number(max(0, min(1, result)))
+    }
+    
+    /// T.DIST.2T - Two-tailed t-distribution
+    private func evaluateT_DIST_2T(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        
+        guard let x = xVal.asDouble,
+              let df = dfVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard x >= 0, df >= 1 else {
+            return .error("NUM")
+        }
+        
+        if df > 30 {
+            let p = 2 * 0.5 * (1 - erf(abs(x) / sqrt(2)))
+            return .number(p)
+        }
+        
+        let oneTailed = 0.5 * (1 - abs(x) / sqrt(x * x + df))
+        return .number(2 * max(0, min(0.5, oneTailed)))
+    }
+    
+    /// T.INV.2T - Inverse two-tailed t-distribution
+    private func evaluateT_INV_2T(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let probVal = try evaluate(args[0])
+        let dfVal = try evaluate(args[1])
+        
+        guard let prob = probVal.asDouble,
+              let df = dfVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard prob > 0, prob < 1, df >= 1 else {
+            return .error("NUM")
+        }
+        
+        let oneTailedProb = 1 - prob / 2
+        
+        if df > 30 {
+            let z = sqrt(2) * erfinv(2 * oneTailedProb - 1)
+            return .number(z)
+        }
+        
+        let z = sqrt(2) * erfinv(2 * oneTailedProb - 1)
         return .number(z * sqrt(1 + z * z / (4 * df)))
     }
     
