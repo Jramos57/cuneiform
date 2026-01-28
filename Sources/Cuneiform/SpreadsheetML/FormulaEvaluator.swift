@@ -668,6 +668,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateXNPV(args)
         case "XIRR":
             return try evaluateXIRR(args)
+        case "DB":
+            return try evaluateDB(args)
+        case "DDB":
+            return try evaluateDDB(args)
+        case "SLN":
+            return try evaluateSLN(args)
+        case "SYD":
+            return try evaluateSYD(args)
+        case "VDB":
+            return try evaluateVDB(args)
+        case "PRICE":
+            return try evaluatePRICE(args)
+        case "YIELD":
+            return try evaluateYIELD(args)
+        case "ACCRINT":
+            return try evaluateACCRINT(args)
+        case "CUMIPMT":
+            return try evaluateCUMIPMT(args)
+        case "CUMPRINC":
+            return try evaluateCUMPRINC(args)
         default:
             return .error("NAME")
         }
@@ -4496,6 +4516,386 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .error("NUM") // Did not converge
+    }
+    
+    // MARK: - Depreciation Functions
+    
+    /// DB - Declining balance depreciation
+    private func evaluateDB(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 4 && args.count <= 5 else {
+            return .error("VALUE")
+        }
+        
+        let costVal = try evaluate(args[0])
+        let salvageVal = try evaluate(args[1])
+        let lifeVal = try evaluate(args[2])
+        let periodVal = try evaluate(args[3])
+        let monthVal = args.count > 4 ? try evaluate(args[4]) : .number(12)
+        
+        guard let cost = costVal.asDouble,
+              let salvage = salvageVal.asDouble,
+              let life = lifeVal.asDouble,
+              let period = periodVal.asDouble,
+              let month = monthVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard cost >= 0, salvage >= 0, life > 0, period > 0, month >= 1, month <= 12 else {
+            return .error("NUM")
+        }
+        
+        // Fixed declining balance rate
+        let rate = 1 - pow(salvage / cost, 1 / life)
+        
+        var depreciation = 0.0
+        let p = Int(period)
+        
+        if p == 1 {
+            depreciation = cost * rate * month / 12
+        } else {
+            var totalDepreciation = cost * rate * month / 12
+            for _ in 2...p {
+                depreciation = (cost - totalDepreciation) * rate
+                totalDepreciation += depreciation
+            }
+        }
+        
+        return .number(depreciation)
+    }
+    
+    /// DDB - Double declining balance depreciation
+    private func evaluateDDB(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 4 && args.count <= 5 else {
+            return .error("VALUE")
+        }
+        
+        let costVal = try evaluate(args[0])
+        let salvageVal = try evaluate(args[1])
+        let lifeVal = try evaluate(args[2])
+        let periodVal = try evaluate(args[3])
+        let factorVal = args.count > 4 ? try evaluate(args[4]) : .number(2)
+        
+        guard let cost = costVal.asDouble,
+              let salvage = salvageVal.asDouble,
+              let life = lifeVal.asDouble,
+              let period = periodVal.asDouble,
+              let factor = factorVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard cost >= 0, salvage >= 0, life > 0, period > 0, period <= life, factor > 0 else {
+            return .error("NUM")
+        }
+        
+        let rate = factor / life
+        var bookValue = cost
+        var depreciation = 0.0
+        
+        for _ in 1...Int(period) {
+            depreciation = min(bookValue * rate, bookValue - salvage)
+            bookValue -= depreciation
+        }
+        
+        return .number(depreciation)
+    }
+    
+    /// SLN - Straight-line depreciation
+    private func evaluateSLN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let costVal = try evaluate(args[0])
+        let salvageVal = try evaluate(args[1])
+        let lifeVal = try evaluate(args[2])
+        
+        guard let cost = costVal.asDouble,
+              let salvage = salvageVal.asDouble,
+              let life = lifeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard life > 0 else {
+            return .error("NUM")
+        }
+        
+        let depreciation = (cost - salvage) / life
+        return .number(depreciation)
+    }
+    
+    /// SYD - Sum-of-years digits depreciation
+    private func evaluateSYD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let costVal = try evaluate(args[0])
+        let salvageVal = try evaluate(args[1])
+        let lifeVal = try evaluate(args[2])
+        let periodVal = try evaluate(args[3])
+        
+        guard let cost = costVal.asDouble,
+              let salvage = salvageVal.asDouble,
+              let life = lifeVal.asDouble,
+              let period = periodVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard life > 0, period > 0, period <= life else {
+            return .error("NUM")
+        }
+        
+        let depreciableBase = cost - salvage
+        let sumOfYears = life * (life + 1) / 2
+        let depreciation = depreciableBase * (life - period + 1) / sumOfYears
+        
+        return .number(depreciation)
+    }
+    
+    /// VDB - Variable declining balance (simplified)
+    private func evaluateVDB(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 5 && args.count <= 7 else {
+            return .error("VALUE")
+        }
+        
+        let costVal = try evaluate(args[0])
+        let salvageVal = try evaluate(args[1])
+        let lifeVal = try evaluate(args[2])
+        let startPeriodVal = try evaluate(args[3])
+        let endPeriodVal = try evaluate(args[4])
+        let factorVal = args.count > 5 ? try evaluate(args[5]) : .number(2)
+        
+        guard let cost = costVal.asDouble,
+              let salvage = salvageVal.asDouble,
+              let life = lifeVal.asDouble,
+              let startPeriod = startPeriodVal.asDouble,
+              let endPeriod = endPeriodVal.asDouble,
+              let factor = factorVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard life > 0, startPeriod >= 0, endPeriod <= life, startPeriod < endPeriod else {
+            return .error("NUM")
+        }
+        
+        // Simplified: use DDB for the period range
+        let rate = factor / life
+        var bookValue = cost
+        var totalDepreciation = 0.0
+        
+        for p in 1...Int(endPeriod) {
+            let depreciation = min(bookValue * rate, bookValue - salvage)
+            bookValue -= depreciation
+            
+            if Double(p) > startPeriod {
+                totalDepreciation += depreciation
+            }
+        }
+        
+        return .number(totalDepreciation)
+    }
+    
+    // MARK: - Securities Functions
+    
+    /// PRICE - Security price (simplified)
+    private func evaluatePRICE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 6 && args.count <= 7 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        let maturityVal = try evaluate(args[1])
+        let rateVal = try evaluate(args[2])
+        let yldVal = try evaluate(args[3])
+        let redemptionVal = try evaluate(args[4])
+        let frequencyVal = try evaluate(args[5])
+        
+        guard let settlement = settlementVal.asDouble,
+              let maturity = maturityVal.asDouble,
+              let rate = rateVal.asDouble,
+              let yld = yldVal.asDouble,
+              let redemption = redemptionVal.asDouble,
+              let frequency = frequencyVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard maturity > settlement, rate >= 0, yld >= 0, redemption > 0 else {
+            return .error("NUM")
+        }
+        
+        // Simplified bond pricing formula
+        let periods = frequency * (maturity - settlement) / 365.0
+        let coupon = redemption * rate / frequency
+        
+        var price = 0.0
+        for n in 1...Int(periods) {
+            price += coupon / pow(1 + yld / frequency, Double(n))
+        }
+        price += redemption / pow(1 + yld / frequency, periods)
+        
+        return .number(price)
+    }
+    
+    /// YIELD - Security yield (simplified)
+    private func evaluateYIELD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 6 && args.count <= 7 else {
+            return .error("VALUE")
+        }
+        
+        let settlementVal = try evaluate(args[0])
+        let maturityVal = try evaluate(args[1])
+        let rateVal = try evaluate(args[2])
+        let priceVal = try evaluate(args[3])
+        let redemptionVal = try evaluate(args[4])
+        let frequencyVal = try evaluate(args[5])
+        
+        guard let settlement = settlementVal.asDouble,
+              let maturity = maturityVal.asDouble,
+              let rate = rateVal.asDouble,
+              let price = priceVal.asDouble,
+              let redemption = redemptionVal.asDouble,
+              let frequency = frequencyVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard maturity > settlement, rate >= 0, price > 0, redemption > 0 else {
+            return .error("NUM")
+        }
+        
+        // Simplified yield approximation
+        let periods = frequency * (maturity - settlement) / 365.0
+        let coupon = redemption * rate / frequency
+        let yield = (coupon * periods + (redemption - price)) / (price * periods)
+        
+        return .number(yield * frequency)
+    }
+    
+    /// ACCRINT - Accrued interest (simplified)
+    private func evaluateACCRINT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 6 && args.count <= 8 else {
+            return .error("VALUE")
+        }
+        
+        let issueVal = try evaluate(args[0])
+        let _ = try evaluate(args[1])  // firstInterestVal - not used in simplified implementation
+        let settlementVal = try evaluate(args[2])
+        let rateVal = try evaluate(args[3])
+        let parVal = try evaluate(args[4])
+        let _ = try evaluate(args[5])  // frequencyVal - not used in simplified implementation
+        
+        guard let issue = issueVal.asDouble,
+              let settlement = settlementVal.asDouble,
+              let rate = rateVal.asDouble,
+              let par = parVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard settlement > issue, rate >= 0, par > 0 else {
+            return .error("NUM")
+        }
+        
+        // Simplified: accrued interest = par * rate * (days / 365)
+        let days = settlement - issue
+        let accruedInterest = par * rate * days / 365.0
+        
+        return .number(accruedInterest)
+    }
+    
+    /// CUMIPMT - Cumulative interest payment
+    private func evaluateCUMIPMT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 6 else {
+            return .error("VALUE")
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        let pvVal = try evaluate(args[2])
+        let startPeriodVal = try evaluate(args[3])
+        let endPeriodVal = try evaluate(args[4])
+        let typeVal = try evaluate(args[5])
+        
+        guard let rate = rateVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pv = pvVal.asDouble,
+              let startPeriod = startPeriodVal.asDouble,
+              let endPeriod = endPeriodVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard rate > 0, nper > 0, startPeriod >= 1, endPeriod <= nper, startPeriod <= endPeriod else {
+            return .error("NUM")
+        }
+        
+        // Calculate cumulative interest
+        var cumInterest = 0.0
+        var balance = pv
+        
+        let payment: Double
+        if type == 0 {
+            payment = pv * rate / (1 - pow(1 + rate, -nper))
+        } else {
+            payment = pv * rate / ((1 + rate) * (1 - pow(1 + rate, -nper)))
+        }
+        
+        for period in 1...Int(endPeriod) {
+            let interest = balance * rate
+            if Double(period) >= startPeriod {
+                cumInterest += interest
+            }
+            balance -= (payment - interest)
+        }
+        
+        return .number(-cumInterest)
+    }
+    
+    /// CUMPRINC - Cumulative principal payment
+    private func evaluateCUMPRINC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 6 else {
+            return .error("VALUE")
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        let pvVal = try evaluate(args[2])
+        let startPeriodVal = try evaluate(args[3])
+        let endPeriodVal = try evaluate(args[4])
+        let typeVal = try evaluate(args[5])
+        
+        guard let rate = rateVal.asDouble,
+              let nper = nperVal.asDouble,
+              let pv = pvVal.asDouble,
+              let startPeriod = startPeriodVal.asDouble,
+              let endPeriod = endPeriodVal.asDouble,
+              let type = typeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard rate > 0, nper > 0, startPeriod >= 1, endPeriod <= nper, startPeriod <= endPeriod else {
+            return .error("NUM")
+        }
+        
+        // Calculate cumulative principal
+        var cumPrincipal = 0.0
+        var balance = pv
+        
+        let payment: Double
+        if type == 0 {
+            payment = pv * rate / (1 - pow(1 + rate, -nper))
+        } else {
+            payment = pv * rate / ((1 + rate) * (1 - pow(1 + rate, -nper)))
+        }
+        
+        for period in 1...Int(endPeriod) {
+            let interest = balance * rate
+            let principal = payment - interest
+            if Double(period) >= startPeriod {
+                cumPrincipal += principal
+            }
+            balance -= principal
+        }
+        
+        return .number(-cumPrincipal)
     }
     
     // MARK: - Date/Time Functions (Extended)

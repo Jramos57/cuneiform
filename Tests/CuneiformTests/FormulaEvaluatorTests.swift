@@ -3430,4 +3430,188 @@ struct FormulaEvaluatorTests {
         let result2 = try evaluator.evaluate(expr2)
         #expect(result2 == .boolean(false))
     }
+    
+    // MARK: - Financial Functions (Depreciation & Securities)
+    
+    @Test func evaluateDB() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("DB", [
+            .number(10000),  // cost
+            .number(1000),   // salvage
+            .number(5),      // life
+            .number(1)       // period
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive depreciation value
+        if case .number(let val) = result {
+            #expect(val > 0 && val < 10000)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateDDB() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("DDB", [
+            .number(10000),  // cost
+            .number(1000),   // salvage
+            .number(5),      // life
+            .number(1)       // period
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive depreciation value
+        if case .number(let val) = result {
+            #expect(val > 0 && val < 10000)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateSLN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("SLN", [
+            .number(10000),  // cost
+            .number(1000),   // salvage
+            .number(5)       // life
+        ])
+        let result = try evaluator.evaluate(expr)
+        // SLN = (10000 - 1000) / 5 = 1800
+        #expect(result == .number(1800))
+    }
+    
+    @Test func evaluateSYD() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("SYD", [
+            .number(10000),  // cost
+            .number(1000),   // salvage
+            .number(5),      // life
+            .number(1)       // period
+        ])
+        let result = try evaluator.evaluate(expr)
+        // SYD for period 1: (10000-1000) * (5/15) = 3000
+        #expect(result == .number(3000))
+    }
+    
+    @Test func evaluateVDB() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("VDB", [
+            .number(10000),  // cost
+            .number(1000),   // salvage
+            .number(5),      // life
+            .number(0),      // start period
+            .number(1)       // end period
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive depreciation value
+        if case .number(let val) = result {
+            #expect(val > 0 && val < 10000)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluatePRICE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("PRICE", [
+            .number(44562),  // settlement (Excel date)
+            .number(44927),  // maturity
+            .number(0.05),   // rate
+            .number(0.06),   // yield
+            .number(100),    // redemption
+            .number(2)       // frequency
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive price
+        if case .number(let val) = result {
+            #expect(val > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateYIELD() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("YIELD", [
+            .number(44562),  // settlement
+            .number(44927),  // maturity
+            .number(0.05),   // rate
+            .number(95),     // price
+            .number(100),    // redemption
+            .number(2)       // frequency
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive yield
+        if case .number(let val) = result {
+            #expect(val > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateACCRINT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("ACCRINT", [
+            .number(44562),  // issue
+            .number(44653),  // first interest
+            .number(44652),  // settlement
+            .number(0.05),   // rate
+            .number(1000),   // par
+            .number(2)       // frequency
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a positive accrued interest
+        if case .number(let val) = result {
+            #expect(val > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCUMIPMT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("CUMIPMT", [
+            .number(0.05/12),  // rate per period
+            .number(360),      // nper (30 years * 12)
+            .number(100000),   // pv
+            .number(1),        // start period
+            .number(12),       // end period
+            .number(0)         // type (end of period)
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a negative interest (payment)
+        if case .number(let val) = result {
+            #expect(val < 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCUMPRINC() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("CUMPRINC", [
+            .number(0.05/12),  // rate per period
+            .number(360),      // nper (30 years * 12)
+            .number(100000),   // pv
+            .number(1),        // start period
+            .number(12),       // end period
+            .number(0)         // type (end of period)
+        ])
+        let result = try evaluator.evaluate(expr)
+        // Check it returns a negative principal (payment)
+        if case .number(let val) = result {
+            #expect(val < 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }
