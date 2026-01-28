@@ -451,6 +451,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateRANK(args)
         case "CORREL":
             return try evaluateCORREL(args)
+        case "COVARIANCE.P":
+            return try evaluateCOVARIANCE_P(args)
+        case "COVARIANCE.S":
+            return try evaluateCOVARIANCE_S(args)
+        case "SKEW":
+            return try evaluateSKEW(args)
+        case "KURT":
+            return try evaluateKURT(args)
+        case "GEOMEAN":
+            return try evaluateGEOMEAN(args)
+        case "HARMEAN":
+            return try evaluateHARMEAN(args)
+        case "AVEDEV":
+            return try evaluateAVEDEV(args)
+        case "DEVSQ":
+            return try evaluateDEVSQ(args)
+        case "STANDARDIZE":
+            return try evaluateSTANDARDIZE(args)
+        case "CONFIDENCE.NORM":
+            return try evaluateCONFIDENCE_NORM(args)
         // Math and trigonometric functions
         case "SIN":
             return try evaluateSIN(args)
@@ -2393,6 +2413,315 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(sumProduct / sqrt(sumSq1 * sumSq2))
+    }
+    
+    /// COVARIANCE.P - Population covariance
+    private func evaluateCOVARIANCE_P(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let array1Val = try evaluate(args[0])
+        let array2Val = try evaluate(args[1])
+        
+        let array1 = flattenToNumbers(array1Val)
+        let array2 = flattenToNumbers(array2Val)
+        
+        guard array1.count == array2.count, !array1.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(array1.count)
+        let mean1 = array1.reduce(0, +) / n
+        let mean2 = array2.reduce(0, +) / n
+        
+        var covariance: Double = 0
+        for i in 0..<array1.count {
+            covariance += (array1[i] - mean1) * (array2[i] - mean2)
+        }
+        
+        return .number(covariance / n)
+    }
+    
+    /// COVARIANCE.S - Sample covariance
+    private func evaluateCOVARIANCE_S(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let array1Val = try evaluate(args[0])
+        let array2Val = try evaluate(args[1])
+        
+        let array1 = flattenToNumbers(array1Val)
+        let array2 = flattenToNumbers(array2Val)
+        
+        guard array1.count == array2.count, array1.count > 1 else {
+            return .error("N/A")
+        }
+        
+        let n = Double(array1.count)
+        let mean1 = array1.reduce(0, +) / n
+        let mean2 = array2.reduce(0, +) / n
+        
+        var covariance: Double = 0
+        for i in 0..<array1.count {
+            covariance += (array1[i] - mean1) * (array2[i] - mean2)
+        }
+        
+        return .number(covariance / (n - 1))
+    }
+    
+    /// SKEW - Skewness of a distribution
+    private func evaluateSKEW(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard numbers.count >= 3 else {
+            return .error("DIV/0")
+        }
+        
+        let n = Double(numbers.count)
+        let mean = numbers.reduce(0, +) / n
+        
+        var m2: Double = 0
+        var m3: Double = 0
+        
+        for num in numbers {
+            let diff = num - mean
+            m2 += diff * diff
+            m3 += diff * diff * diff
+        }
+        
+        let variance = m2 / n
+        let stdDev = sqrt(variance)
+        
+        guard stdDev > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let skewness = (n / ((n - 1) * (n - 2))) * (m3 / pow(stdDev, 3))
+        return .number(skewness)
+    }
+    
+    /// KURT - Kurtosis of a distribution
+    private func evaluateKURT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard numbers.count >= 4 else {
+            return .error("DIV/0")
+        }
+        
+        let n = Double(numbers.count)
+        let mean = numbers.reduce(0, +) / n
+        
+        var m2: Double = 0
+        var m4: Double = 0
+        
+        for num in numbers {
+            let diff = num - mean
+            let diff2 = diff * diff
+            m2 += diff2
+            m4 += diff2 * diff2
+        }
+        
+        let variance = m2 / n
+        
+        guard variance > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let kurtosis = (n * (n + 1) * m4) / ((n - 1) * (n - 2) * (n - 3) * variance * variance) - 
+                       (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3))
+        return .number(kurtosis)
+    }
+    
+    /// GEOMEAN - Geometric mean
+    private func evaluateGEOMEAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        // Check for non-positive values
+        for num in numbers {
+            if num <= 0 {
+                return .error("NUM")
+            }
+        }
+        
+        let product = numbers.reduce(1.0) { $0 * $1 }
+        let geomean = pow(product, 1.0 / Double(numbers.count))
+        
+        return .number(geomean)
+    }
+    
+    /// HARMEAN - Harmonic mean
+    private func evaluateHARMEAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        // Check for zero or negative values
+        var sumReciprocals: Double = 0
+        for num in numbers {
+            if num <= 0 {
+                return .error("NUM")
+            }
+            sumReciprocals += 1.0 / num
+        }
+        
+        let harmean = Double(numbers.count) / sumReciprocals
+        return .number(harmean)
+    }
+    
+    /// AVEDEV - Average of absolute deviations from mean
+    private func evaluateAVEDEV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        let mean = numbers.reduce(0, +) / Double(numbers.count)
+        let sumAbsDev = numbers.reduce(0) { $0 + abs($1 - mean) }
+        
+        return .number(sumAbsDev / Double(numbers.count))
+    }
+    
+    /// DEVSQ - Sum of squares of deviations from mean
+    private func evaluateDEVSQ(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        let mean = numbers.reduce(0, +) / Double(numbers.count)
+        let devsq = numbers.reduce(0) { result, num in
+            let diff = num - mean
+            return result + diff * diff
+        }
+        
+        return .number(devsq)
+    }
+    
+    /// STANDARDIZE - Returns a normalized value
+    private func evaluateSTANDARDIZE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let meanVal = try evaluate(args[1])
+        let stdDevVal = try evaluate(args[2])
+        
+        guard let x = xVal.asDouble,
+              let mean = meanVal.asDouble,
+              let stdDev = stdDevVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        return .number((x - mean) / stdDev)
+    }
+    
+    /// CONFIDENCE.NORM - Confidence interval for a population mean
+    private func evaluateCONFIDENCE_NORM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[0])
+        let stdDevVal = try evaluate(args[1])
+        let sizeVal = try evaluate(args[2])
+        
+        guard let alpha = alphaVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              let size = sizeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard alpha > 0, alpha < 1, stdDev > 0, size >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Z-score for confidence level (approximate for common values)
+        // For alpha=0.05, z≈1.96
+        let z: Double
+        if abs(alpha - 0.05) < 0.001 {
+            z = 1.95996
+        } else if abs(alpha - 0.01) < 0.001 {
+            z = 2.57583
+        } else {
+            // Approximation using normal distribution
+            z = sqrt(2) * erfInv(1 - alpha)
+        }
+        
+        let margin = z * stdDev / sqrt(size)
+        return .number(margin)
+    }
+    
+    // Helper: Inverse error function (approximation)
+    private func erfInv(_ x: Double) -> Double {
+        let a = 0.147
+        let b = 2.0 / (Double.pi * a) + log(1 - x * x) / 2.0
+        let c = log(1 - x * x) / a
+        
+        let sign: Double = x < 0 ? -1 : 1
+        return sign * sqrt(sqrt(b * b - c) - b)
     }
     
     // MARK: - Math and Trigonometric Functions

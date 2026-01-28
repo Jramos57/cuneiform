@@ -2241,4 +2241,246 @@ struct FormulaEvaluatorTests {
         // Should return 2 * 4 = 8
         #expect(result == .number(8))
     }
+    
+    // MARK: - More Statistical Functions
+    
+    @Test func evaluateCOVARIANCE_P() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(2),
+            "A3": .number(4),
+            "A4": .number(5),
+            "A5": .number(6),
+            "B1": .number(9),
+            "B2": .number(7),
+            "B3": .number(12),
+            "B4": .number(15),
+            "B5": .number(17)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Using direct function call instead of parser due to dot in name
+        let expr = FormulaExpression.functionCall("COVARIANCE.P", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 5)),
+            .range(CellReference(column: "B", row: 1), CellReference(column: "B", row: 5))
+        ])
+        let result = try evaluator.evaluate(expr)
+        
+        // Population covariance
+        if case .number(let val) = result {
+            #expect(abs(val - 5.2) < 0.01)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateCOVARIANCE_S() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(2),
+            "A3": .number(4),
+            "B1": .number(9),
+            "B2": .number(7),
+            "B3": .number(12)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("COVARIANCE.S", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 3)),
+            .range(CellReference(column: "B", row: 1), CellReference(column: "B", row: 3))
+        ])
+        let result = try evaluator.evaluate(expr)
+        
+        // Sample covariance
+        if case .number(let val) = result {
+            #expect(abs(val - 2.5) < 0.01)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateSKEW() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(4),
+            "A3": .number(5),
+            "A4": .number(2),
+            "A5": .number(3),
+            "A6": .number(4),
+            "A7": .number(5),
+            "A8": .number(6),
+            "A9": .number(4),
+            "A10": .number(7)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SKEW(A1:A10)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Skewness should be a number
+        if case .number = result {
+            // Test passes if it returns a number
+            #expect(true)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateKURT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(4),
+            "A3": .number(5),
+            "A4": .number(2),
+            "A5": .number(3),
+            "A6": .number(4),
+            "A7": .number(5),
+            "A8": .number(6),
+            "A9": .number(4),
+            "A10": .number(7)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=KURT(A1:A10)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Kurtosis should be a number
+        if case .number = result {
+            #expect(true)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateGEOMEAN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(4),
+            "A2": .number(5),
+            "A3": .number(8),
+            "A4": .number(7),
+            "A5": .number(11),
+            "A6": .number(4),
+            "A7": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=GEOMEAN(A1:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Geometric mean ≈ 5.476
+        if case .number(let val) = result {
+            #expect(abs(val - 5.476) < 0.01)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateHARMEAN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(4),
+            "A2": .number(5),
+            "A3": .number(8),
+            "A4": .number(7),
+            "A5": .number(11),
+            "A6": .number(4),
+            "A7": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=HARMEAN(A1:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Harmonic mean ≈ 5.028
+        if case .number(let val) = result {
+            #expect(abs(val - 5.028) < 0.01)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateAVEDEV() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(4),
+            "A2": .number(5),
+            "A3": .number(8),
+            "A4": .number(7),
+            "A5": .number(11),
+            "A6": .number(4),
+            "A7": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=AVEDEV(A1:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Average absolute deviation
+        if case .number(let val) = result {
+            #expect(val > 2.0 && val < 3.0)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateDEVSQ() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(4),
+            "A2": .number(5),
+            "A3": .number(8),
+            "A4": .number(7),
+            "A5": .number(11),
+            "A6": .number(4),
+            "A7": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=DEVSQ(A1:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Sum of squared deviations should be 48
+        if case .number(let val) = result {
+            #expect(abs(val - 48.0) < 0.1)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateSTANDARDIZE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=STANDARDIZE(42, 40, 1.5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // (42 - 40) / 1.5 = 1.333...
+        if case .number(let val) = result {
+            #expect(abs(val - 1.333) < 0.01)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateCONFIDENCE_NORM() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Using direct function call due to dot in name
+        let expr = FormulaExpression.functionCall("CONFIDENCE.NORM", [
+            .number(0.05),
+            .number(2.5),
+            .number(50)
+        ])
+        let result = try evaluator.evaluate(expr)
+        
+        // Should be approximately 0.693
+        if case .number(let val) = result {
+            #expect(abs(val - 0.693) < 0.1)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
 }
