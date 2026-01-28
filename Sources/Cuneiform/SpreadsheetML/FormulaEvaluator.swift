@@ -242,6 +242,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateCELL(args)
         case "INFO":
             return try evaluateINFO(args)
+        case "ISFORMULA":
+            return try evaluateISFORMULA(args)
+        case "ISEVEN":
+            return try evaluateISEVEN(args)
+        case "ISODD":
+            return try evaluateISODD(args)
+        case "SHEET":
+            return try evaluateSHEET(args)
+        case "SHEETS":
+            return try evaluateSHEETS(args)
+        case "ISTEXT":
+            return try evaluateISTEXT(args)
+        case "ISNUMBER":
+            return try evaluateISNUMBER(args)
+        case "ISLOGICAL":
+            return try evaluateISLOGICAL(args)
+        case "ISBLANK":
+            return try evaluateISBLANK(args)
+        case "ISNONTEXT":
+            return try evaluateISNONTEXT(args)
         case "LEN":
             return try evaluateLEN(args)
         case "UPPER":
@@ -379,12 +399,6 @@ public struct FormulaEvaluator: Sendable {
         case "TEXT":
             return try evaluateTEXT(args)
         // Tier 2: Type checking
-        case "ISBLANK":
-            return try evaluateISBLANK(args)
-        case "ISNUMBER":
-            return try evaluateISNUMBER(args)
-        case "ISTEXT":
-            return try evaluateISTEXT(args)
         case "ISERROR":
             return try evaluateISERROR(args)
         // Excel 365 high-priority functions
@@ -5758,6 +5772,92 @@ public struct FormulaEvaluator: Sendable {
         default:
             return .error("VALUE")
         }
+    }
+    
+    /// ISFORMULA - Check if cell contains a formula
+    private func evaluateISFORMULA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // In this simplified implementation, we check if the expression is a cell reference
+        // For now, return false as we don't track formula status in the evaluator
+        // Full implementation would need access to the cell's formula property
+        return .boolean(false)
+    }
+    
+    /// ISEVEN - Check if number is even
+    private func evaluateISEVEN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        return .boolean(intNum % 2 == 0)
+    }
+    
+    /// ISODD - Check if number is odd
+    private func evaluateISODD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        return .boolean(intNum % 2 != 0)
+    }
+    
+    /// SHEET - Get sheet number (simplified - returns 1)
+    private func evaluateSHEET(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Simplified: always return 1 for current sheet
+        // Full implementation would need workbook context
+        return .number(1)
+    }
+    
+    /// SHEETS - Get total number of sheets (simplified - returns 1)
+    private func evaluateSHEETS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Simplified: always return 1
+        // Full implementation would need workbook context
+        return .number(1)
+    }
+    
+    /// ISLOGICAL - Check if value is logical
+    private func evaluateISLOGICAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        if case .boolean = val {
+            return .boolean(true)
+        }
+        return .boolean(false)
+    }
+    
+    /// ISNONTEXT - Check if value is not text
+    private func evaluateISNONTEXT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        if case .string = val {
+            return .boolean(false)
+        }
+        return .boolean(true)
     }
     
     // MARK: - Dynamic Array Functions (Excel 365)

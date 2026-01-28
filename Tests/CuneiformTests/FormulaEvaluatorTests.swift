@@ -3331,4 +3331,103 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Information Functions
+    
+    @Test func evaluateISFORMULA() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(42)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=ISFORMULA(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // Simplified implementation returns false
+        #expect(result == .boolean(false))
+    }
+    
+    @Test func evaluateISEVEN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=ISEVEN(4)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .boolean(true))
+        
+        let parser2 = FormulaParser("=ISEVEN(5)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .boolean(false))
+    }
+    
+    @Test func evaluateISODD() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=ISODD(5)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .boolean(true))
+        
+        let parser2 = FormulaParser("=ISODD(4)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .boolean(false))
+    }
+    
+    @Test func evaluateSHEET() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=SHEET()")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // Simplified implementation returns 1
+        #expect(result == .number(1))
+    }
+    
+    @Test func evaluateSHEETS() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=SHEETS()")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        // Simplified implementation returns 1
+        #expect(result == .number(1))
+    }
+    
+    @Test func evaluateISLOGICAL() throws {
+        let cells: [String: CellValue] = [
+            "A1": .boolean(true),
+            "A2": .number(1)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ISLOGICAL(A1)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .boolean(true))
+        
+        let parser2 = FormulaParser("=ISLOGICAL(A2)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .boolean(false))
+    }
+    
+    @Test func evaluateISNONTEXT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(42),
+            "A2": .text("Hello")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ISNONTEXT(A1)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .boolean(true))
+        
+        let parser2 = FormulaParser("=ISNONTEXT(A2)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .boolean(false))
+    }
 }
