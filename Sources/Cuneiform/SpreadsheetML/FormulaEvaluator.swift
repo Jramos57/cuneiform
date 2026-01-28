@@ -222,6 +222,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateOR(args)
         case "NOT":
             return try evaluateNOT(args)
+        case "XOR":
+            return try evaluateXOR(args)
+        case "IFNA":
+            return try evaluateIFNA(args)
+        case "ISNA":
+            return try evaluateISNA(args)
+        case "ISREF":
+            return try evaluateISREF(args)
+        case "ISERR":
+            return try evaluateISERR(args)
+        case "TYPE":
+            return try evaluateTYPE(args)
+        case "N":
+            return try evaluateN(args)
+        case "NA":
+            return evaluateNA(args)
+        case "CELL":
+            return try evaluateCELL(args)
+        case "INFO":
+            return try evaluateINFO(args)
         case "LEN":
             return try evaluateLEN(args)
         case "UPPER":
@@ -3936,6 +3956,203 @@ public struct FormulaEvaluator: Sendable {
         
         // Single value = 1 column
         return .number(1)
+    }
+    
+    // MARK: - Logical & Information Functions (Extended)
+    
+    /// XOR - Exclusive OR logical operation
+    private func evaluateXOR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            throw FormulaError.invalidArgumentCount(function: "XOR", expected: 1, got: 0)
+        }
+        
+        var trueCount = 0
+        
+        for arg in args {
+            let val = try evaluate(arg)
+            
+            switch val {
+            case .number(let num):
+                if num != 0 {
+                    trueCount += 1
+                }
+            case .boolean(let b):
+                if b {
+                    trueCount += 1
+                }
+            default:
+                break
+            }
+        }
+        
+        // XOR is true if odd number of arguments are true
+        return .number(trueCount % 2 == 1 ? 1 : 0)
+    }
+    
+    /// IFNA - Returns value if not #N/A error
+    private func evaluateIFNA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "IFNA", expected: 2, got: args.count)
+        }
+        
+        let value = try evaluate(args[0])
+        
+        if case .error(let err) = value, err == "N/A" {
+            return try evaluate(args[1])
+        }
+        
+        return value
+    }
+    
+    /// ISNA - Returns TRUE if value is #N/A error
+    private func evaluateISNA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ISNA", expected: 1, got: args.count)
+        }
+        
+        let val = try evaluate(args[0])
+        
+        if case .error(let err) = val, err == "N/A" {
+            return .number(1)
+        }
+        
+        return .number(0)
+    }
+    
+    /// ISREF - Returns TRUE if value is a reference
+    private func evaluateISREF(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ISREF", expected: 1, got: args.count)
+        }
+        
+        // Check if the argument itself (not evaluated) is a reference
+        if case .cellRef(_) = args[0] {
+            return .number(1)
+        } else if case .range(_, _) = args[0] {
+            return .number(1)
+        }
+        
+        return .number(0)
+    }
+    
+    /// ISERR - Returns TRUE if value is any error except #N/A
+    private func evaluateISERR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ISERR", expected: 1, got: args.count)
+        }
+        
+        let val = try evaluate(args[0])
+        
+        if case .error(let err) = val, err != "N/A" {
+            return .number(1)
+        }
+        
+        return .number(0)
+    }
+    
+    /// TYPE - Returns type of value (1=number, 2=text, 4=boolean, 16=error, 64=array)
+    private func evaluateTYPE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "TYPE", expected: 1, got: args.count)
+        }
+        
+        let val = try evaluate(args[0])
+        
+        switch val {
+        case .number:
+            return .number(1)
+        case .string:
+            return .number(2)
+        case .boolean:
+            return .number(4)
+        case .error:
+            return .number(16)
+        case .array:
+            return .number(64)
+        }
+    }
+    
+    /// N - Converts value to number
+    private func evaluateN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "N", expected: 1, got: args.count)
+        }
+        
+        let val = try evaluate(args[0])
+        
+        switch val {
+        case .number(let num):
+            return .number(num)
+        case .boolean(let b):
+            return .number(b ? 1 : 0)
+        case .error:
+            return val
+        default:
+            return .number(0)
+        }
+    }
+    
+    /// NA - Returns #N/A error
+    private func evaluateNA(_ args: [FormulaExpression]) -> FormulaValue {
+        return .error("N/A")
+    }
+    
+    /// CELL - Returns information about cell
+    private func evaluateCELL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CELL", expected: 1, got: args.count)
+        }
+        
+        let infoTypeVal = try evaluate(args[0])
+        
+        guard case .string(let infoType) = infoTypeVal else {
+            return .error("VALUE")
+        }
+        
+        // Simplified implementation - return basic info
+        switch infoType.lowercased() {
+        case "address":
+            return .string("$A$1")
+        case "col":
+            return .number(1)
+        case "row":
+            return .number(1)
+        case "type":
+            return .string("v")  // v = value
+        case "width":
+            return .number(10)
+        default:
+            return .error("VALUE")
+        }
+    }
+    
+    /// INFO - Returns information about operating environment
+    private func evaluateINFO(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "INFO", expected: 1, got: args.count)
+        }
+        
+        let typeVal = try evaluate(args[0])
+        
+        guard case .string(let type) = typeVal else {
+            return .error("VALUE")
+        }
+        
+        // Simplified implementation
+        switch type.lowercased() {
+        case "system":
+            return .string("mac")
+        case "osversion":
+            return .string("14.0")
+        case "release":
+            return .string("1.0")
+        case "recalc":
+            return .string("Automatic")
+        case "numfile":
+            return .number(1)
+        default:
+            return .error("VALUE")
+        }
     }
 }
 

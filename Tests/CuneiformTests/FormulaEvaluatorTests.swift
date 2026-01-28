@@ -1543,4 +1543,108 @@ struct FormulaEvaluatorTests {
         
         #expect(result == .number(42))
     }
+    
+    // MARK: - Logical & Information Functions (Extended)
+    
+    @Test func evaluateXOR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test XOR(1, 0, 0) = 1 (odd number of true)
+        let parser1 = FormulaParser("=XOR(1, 0, 0)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(1))
+        
+        // Test XOR(1, 1, 0) = 0 (even number of true)
+        let parser2 = FormulaParser("=XOR(1, 1, 0)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(0))
+    }
+    
+    @Test func evaluateIFNA() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test IFNA with non-error value
+        let parser1 = FormulaParser("=IFNA(10, 0)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(10))
+        
+        // Test IFNA with #N/A - needs NA() function
+        let parser2 = FormulaParser("=IFNA(NA(), 999)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(999))
+    }
+    
+    @Test func evaluateISNA() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test ISNA(10) = 0
+        let parser1 = FormulaParser("=ISNA(10)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(0))
+        
+        // Test ISNA(NA()) = 1
+        let parser2 = FormulaParser("=ISNA(NA())")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(1))
+    }
+    
+    @Test func evaluateTYPE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test TYPE(123) = 1 (number)
+        let parser1 = FormulaParser("=TYPE(123)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(1))
+        
+        // Test TYPE("hello") = 2 (text)
+        let parser2 = FormulaParser("=TYPE(\"hello\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(2))
+    }
+    
+    @Test func evaluateN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test N(42) = 42
+        let parser1 = FormulaParser("=N(42)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(42))
+        
+        // Test N("text") = 0
+        let parser2 = FormulaParser("=N(\"text\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(0))
+    }
+    
+    @Test func evaluateNA() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test NA() returns #N/A error
+        let parser = FormulaParser("=NA()")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .error("N/A"))
+    }
+    
+    @Test func evaluateCELL() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test CELL("row") - simplified implementation
+        let parser = FormulaParser("=CELL(\"row\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(1))
+    }
 }
