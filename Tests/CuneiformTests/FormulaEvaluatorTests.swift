@@ -3614,4 +3614,88 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Lookup & Reference Functions
+    
+    @Test func evaluateADDRESS() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=ADDRESS(5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("C5"))
+    }
+    
+    @Test func evaluateAREAS() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=AREAS(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1))
+    }
+    
+    @Test func evaluateFORMULATEXT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(42)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=FORMULATEXT(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("N/A"))
+    }
+    
+    @Test func evaluateHYPERLINK() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=HYPERLINK(\"http://example.com\", \"Example\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("Example"))
+    }
+    
+    @Test func evaluateLOOKUP() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(10),
+            "B2": .number(20),
+            "B3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("LOOKUP", [
+            .number(2),
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 3)),
+            .range(CellReference(column: "B", row: 1), CellReference(column: "B", row: 3))
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(20))
+    }
+    
+    @Test func evaluateCOLUMN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("COLUMN", [
+            .cellRef(CellReference(column: "C", row: 5))
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateROW() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let expr = FormulaExpression.functionCall("ROW", [
+            .cellRef(CellReference(column: "C", row: 5))
+        ])
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5))
+    }
 }

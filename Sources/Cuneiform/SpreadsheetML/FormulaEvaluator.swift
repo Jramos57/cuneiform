@@ -208,6 +208,20 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateROWS(args)
         case "COLUMNS":
             return try evaluateCOLUMNS(args)
+        case "ADDRESS":
+            return try evaluateADDRESS(args)
+        case "AREAS":
+            return try evaluateAREAS(args)
+        case "FORMULATEXT":
+            return try evaluateFORMULATEXT(args)
+        case "HYPERLINK":
+            return try evaluateHYPERLINK(args)
+        case "LOOKUP":
+            return try evaluateLOOKUP(args)
+        case "COLUMN":
+            return try evaluateCOLUMN(args)
+        case "ROW":
+            return try evaluateROW(args)
         case "MIN":
             return try evaluateMIN(args)
         case "MAX":
@@ -5974,6 +5988,166 @@ public struct FormulaEvaluator: Sendable {
         }
         
         // Single value = 1 column
+        return .number(1)
+    }
+    
+    /// ADDRESS - Returns cell address as text
+    private func evaluateADDRESS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 5 else {
+            return .error("VALUE")
+        }
+        
+        let rowVal = try evaluate(args[0])
+        let colVal = try evaluate(args[1])
+        
+        guard let row = rowVal.asDouble,
+              let col = colVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let r = Int(row)
+        let c = Int(col)
+        
+        guard r > 0, c > 0 else {
+            return .error("VALUE")
+        }
+        
+        let colLetter = columnLetterFrom(index: c - 1)
+        return .string("\(colLetter)\(r)")
+    }
+    
+    /// AREAS - Returns number of areas in a reference (simplified)
+    private func evaluateAREAS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // Simplified: return 1 for any reference
+        return .number(1)
+    }
+    
+    /// FORMULATEXT - Returns formula as text (simplified)
+    private func evaluateFORMULATEXT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // Simplified: return N/A as we don't track formulas
+        return .error("N/A")
+    }
+    
+    /// HYPERLINK - Creates a hyperlink (returns link text)
+    private func evaluateHYPERLINK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let linkVal = try evaluate(args[0])
+        let nameVal = args.count > 1 ? try evaluate(args[1]) : linkVal
+        
+        guard case .string(let name) = nameVal else {
+            return .error("VALUE")
+        }
+        
+        return .string(name)
+    }
+    
+    /// LOOKUP - Vector or array lookup
+    private func evaluateLOOKUP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let lookupVal = try evaluate(args[0])
+        let lookupVectorVal = try evaluate(args[1])
+        
+        guard let lookupNum = lookupVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let lookupVector = flattenToNumbers(lookupVectorVal)
+        
+        if args.count == 2 {
+            // Vector form: find closest value <= lookup
+            var closest: Double?
+            var closestIdx = -1
+            
+            for (i, val) in lookupVector.enumerated() {
+                if val <= lookupNum {
+                    if closest == nil || val > closest! {
+                        closest = val
+                        closestIdx = i
+                    }
+                }
+            }
+            
+            if closestIdx >= 0 {
+                return .number(lookupVector[closestIdx])
+            }
+        } else {
+            // Array form with result vector
+            let resultVectorVal = try evaluate(args[2])
+            let resultVector = flattenToNumbers(resultVectorVal)
+            
+            var closestIdx = -1
+            var closestVal: Double?
+            
+            for (i, val) in lookupVector.enumerated() {
+                if val <= lookupNum {
+                    if closestVal == nil || val > closestVal! {
+                        closestVal = val
+                        closestIdx = i
+                    }
+                }
+            }
+            
+            if closestIdx >= 0 && closestIdx < resultVector.count {
+                return .number(resultVector[closestIdx])
+            }
+        }
+        
+        return .error("N/A")
+    }
+    
+    /// COLUMN - Returns column number
+    private func evaluateCOLUMN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        if args.isEmpty {
+            // No args: return 1 (simplified)
+            return .number(1)
+        }
+        
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        if case .cellRef(let ref) = args[0] {
+            // Parse column letter to number
+            let col = ref.column
+            var result = 0
+            for char in col {
+                result = result * 26 + Int(char.asciiValue! - 64)
+            }
+            return .number(Double(result))
+        }
+        
+        return .number(1)
+    }
+    
+    /// ROW - Returns row number
+    private func evaluateROW(_ args: [FormulaExpression]) throws -> FormulaValue {
+        if args.isEmpty {
+            // No args: return 1 (simplified)
+            return .number(1)
+        }
+        
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        if case .cellRef(let ref) = args[0] {
+            return .number(Double(ref.row))
+        }
+        
         return .number(1)
     }
     
