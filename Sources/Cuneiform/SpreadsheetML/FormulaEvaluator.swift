@@ -521,6 +521,8 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateSTANDARDIZE(args)
         case "CONFIDENCE.NORM":
             return try evaluateCONFIDENCE_NORM(args)
+        case "CONFIDENCE.T":
+            return try evaluateCONFIDENCE_T(args)
         case "FORECAST", "FORECAST.LINEAR":
             return try evaluateFORECAST(args)
         case "PERCENTILE.EXC":
@@ -854,22 +856,16 @@ public struct FormulaEvaluator: Sendable {
         // Batch 28: Legacy statistical test functions
         case "CHITEST":
             return try evaluateCHITEST(args)
-        case "CHIDIST":
-            return try evaluateCHIDIST(args)
-        case "CHIINV":
-            return try evaluateCHIINV(args)
-        case "FDIST":
-            return try evaluateFDIST(args)
-        case "FINV":
-            return try evaluateFINV(args)
-        case "TDIST":
-            return try evaluateTDIST(args)
-        case "TINV":
-            return try evaluateTINV(args)
+        case "CHISQ.TEST":
+            return try evaluateCHISQ_TEST(args)
         case "ZTEST":
             return try evaluateZTEST(args)
+        case "Z.TEST":
+            return try evaluateZ_TEST(args)
         case "FTEST":
             return try evaluateFTEST(args)
+        case "F.TEST":
+            return try evaluateF_TEST(args)
         case "TTEST":
             return try evaluateTTEST(args)
         case "PERCENTRANK":
@@ -3377,6 +3373,46 @@ public struct FormulaEvaluator: Sendable {
         }
         
         let margin = z * stdDev / sqrt(size)
+        return .number(margin)
+    }
+    
+    /// CONFIDENCE.T - Confidence interval using Student's t-distribution
+    /// Syntax: CONFIDENCE.T(alpha, standard_dev, size)
+    private func evaluateCONFIDENCE_T(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[0])
+        let stdDevVal = try evaluate(args[1])
+        let sizeVal = try evaluate(args[2])
+        
+        guard let alpha = alphaVal.asDouble,
+              let stdDev = stdDevVal.asDouble,
+              let size = sizeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard alpha > 0, alpha < 1, stdDev > 0, size >= 1 else {
+            return .error("NUM")
+        }
+        
+        let n = size
+        let df = n - 1
+        
+        // For t-distribution, use approximation
+        let z = sqrt(2.0) * erfinv(1 - alpha)
+        
+        // Simple approximation for t-value
+        let tValue: Double
+        if df > 30 {
+            tValue = z
+        } else {
+            // Better approximation for small samples
+            tValue = z * sqrt((df + 1) / (df - z * z / 6))
+        }
+        
+        let margin = tValue * stdDev / sqrt(n)
         return .number(margin)
     }
     
@@ -9892,6 +9928,11 @@ public struct FormulaEvaluator: Sendable {
         return .number(max(0, min(1, p)))
     }
     
+    /// CHISQ.TEST - Modern chi-square test (same as CHITEST)
+    private func evaluateCHISQ_TEST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return try evaluateCHITEST(args)
+    }
+    
     private func evaluateCHIDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
         // Legacy chi-square right-tailed distribution
         guard args.count == 2 else {
@@ -10012,6 +10053,11 @@ public struct FormulaEvaluator: Sendable {
         return .number(p)
     }
     
+    /// Z.TEST - Modern z-test (same as ZTEST)
+    private func evaluateZ_TEST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return try evaluateZTEST(args)
+    }
+    
     private func evaluateFTEST(_ args: [FormulaExpression]) throws -> FormulaValue {
         guard args.count == 2 else {
             return .error("VALUE")
@@ -10039,6 +10085,11 @@ public struct FormulaEvaluator: Sendable {
         
         let f = var1 / var2
         return .number(f)  // Simplified - returns F-statistic
+    }
+    
+    /// F.TEST - Modern F-test (same as FTEST)
+    private func evaluateF_TEST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        return try evaluateFTEST(args)
     }
     
     private func evaluateTTEST(_ args: [FormulaExpression]) throws -> FormulaValue {
