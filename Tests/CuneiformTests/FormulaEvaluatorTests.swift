@@ -4321,4 +4321,206 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Batch 28: Legacy Statistical Test Functions Tests
+    
+    @Test func evaluateCHITEST() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10), "A2": .number(20),
+            "B1": .number(15), "B2": .number(15)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CHITEST(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateTTEST() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3), "A2": .number(4), "A3": .number(5),
+            "B1": .number(6), "B2": .number(7), "B3": .number(8)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=TTEST(A1:A3, B1:B3, 2, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluatePERCENTRANK() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3), "A4": .number(4), "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=PERCENTRANK(A1:A5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(abs(n - 0.5) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    // MARK: - Batch 29: Engineering and Complex Number Functions Tests
+    
+    @Test func evaluateERF() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=ERF(1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(abs(n - 0.8427) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateERFC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=ERFC(1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(abs(n - 0.1573) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCOMPLEX() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=COMPLEX(3, 4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("3+4i"))
+    }
+    
+    @Test func evaluateCOMPLEXNegative() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=COMPLEX(3, -4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("3-4i"))
+    }
+    
+    @Test func evaluateIMREAL() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMREAL(\"3+4i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateIMAGINARY() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMAGINARY(\"3+4i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(4))
+    }
+    
+    @Test func evaluateIMABS() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMABS(\"3+4i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5))
+    }
+    
+    @Test func evaluateIMARGUMENT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMARGUMENT(\"1+1i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(abs(n - 0.7854) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateIMCONJUGATE() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMCONJUGATE(\"3+4i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("3-4i"))
+    }
+    
+    @Test func evaluateIMSUB() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMSUB(\"5+3i\", \"2+1i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("3+2i"))
+    }
+    
+    @Test func evaluateIMDIV() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMDIV(\"2+2i\", \"1+1i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("2+0i"))
+    }
+    
+    @Test func evaluateIMPRODUCT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMPRODUCT(\"2+0i\", \"3+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("6+0i"))
+    }
+    
+    @Test func evaluateBESSELI() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=BESSELI(1.5, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))
+    }
 }

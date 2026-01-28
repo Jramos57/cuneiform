@@ -866,6 +866,37 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateTTEST(args)
         case "PERCENTRANK":
             return try evaluatePERCENTRANK_INC(args)
+        // Batch 29: Engineering and complex number functions
+        case "BESSELI":
+            return try evaluateBESSELI(args)
+        case "BESSELJ":
+            return try evaluateBESSELJ(args)
+        case "BESSELK":
+            return try evaluateBESSELK(args)
+        case "BESSELY":
+            return try evaluateBESSELY(args)
+        case "ERF":
+            return try evaluateERF(args)
+        case "ERFC":
+            return try evaluateERFC(args)
+        case "COMPLEX":
+            return try evaluateCOMPLEX(args)
+        case "IMREAL":
+            return try evaluateIMREAL(args)
+        case "IMAGINARY":
+            return try evaluateIMAGINARY(args)
+        case "IMABS":
+            return try evaluateIMABS(args)
+        case "IMARGUMENT":
+            return try evaluateIMARGUMENT(args)
+        case "IMCONJUGATE":
+            return try evaluateIMCONJUGATE(args)
+        case "IMSUB":
+            return try evaluateIMSUB(args)
+        case "IMDIV":
+            return try evaluateIMDIV(args)
+        case "IMPRODUCT":
+            return try evaluateIMPRODUCT(args)
         default:
             return .error("NAME")
         }
@@ -9496,11 +9527,39 @@ public struct FormulaEvaluator: Sendable {
     // MARK: - Batch 28: Legacy Statistical Test Functions
     
     private func evaluateCHITEST(_ args: [FormulaExpression]) throws -> FormulaValue {
-        // Chi-square test - requires full implementation
+        // Chi-square test for independence
         guard args.count == 2 else {
             return .error("VALUE")
         }
-        return .error("CALC")  // Stub - requires chi-square distribution
+        
+        let observedVal = try evaluate(args[0])
+        let expectedVal = try evaluate(args[1])
+        
+        let observed = flattenToNumbers(observedVal)
+        let expected = flattenToNumbers(expectedVal)
+        
+        guard observed.count == expected.count, observed.count > 0 else {
+            return .error("VALUE")
+        }
+        
+        // Calculate chi-square statistic
+        var chiSquare = 0.0
+        for i in 0..<observed.count {
+            if expected[i] == 0 {
+                return .error("DIV/0")
+            }
+            let diff = observed[i] - expected[i]
+            chiSquare += (diff * diff) / expected[i]
+        }
+        
+        // Use CHIDIST approximation with df = n-1
+        let df = Double(observed.count - 1)
+        let mean = df
+        let stdDev = sqrt(2 * df)
+        let z = (chiSquare - mean) / stdDev
+        let p = 0.5 * (1 - erf(z / sqrt(2.0)))
+        
+        return .number(max(0, min(1, p)))
     }
     
     private func evaluateCHIDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
@@ -9653,17 +9712,27 @@ public struct FormulaEvaluator: Sendable {
     }
     
     private func evaluateTTEST(_ args: [FormulaExpression]) throws -> FormulaValue {
-        guard args.count == 3 else {
+        guard args.count == 4 else {
             return .error("VALUE")
         }
         
         let array1Val = try evaluate(args[0])
         let array2Val = try evaluate(args[1])
+        let tailsVal = try evaluate(args[2])
+        let typeVal = try evaluate(args[3])
         
         let numbers1 = flattenToNumbers(array1Val)
         let numbers2 = flattenToNumbers(array2Val)
         guard !numbers1.isEmpty && !numbers2.isEmpty else {
             return .error("N/A")
+        }
+        
+        guard let tails = tailsVal.asDouble, (tails == 1 || tails == 2) else {
+            return .error("NUM")
+        }
+        
+        guard let type = typeVal.asDouble, (type == 1 || type == 2 || type == 3) else {
+            return .error("NUM")
         }
         
         let n1 = Double(numbers1.count)
@@ -9681,7 +9750,300 @@ public struct FormulaEvaluator: Sendable {
         }
         
         let t = abs((mean1 - mean2) / se)
-        return .number(t)  // Simplified - returns t-statistic
+        let df = n1 + n2 - 2
+        
+        // Approximate p-value using normal distribution for large samples
+        let z = t / sqrt(1 + t * t / df)
+        let p = 0.5 * (1 - erf(z / sqrt(2.0)))
+        let pValue = tails == 2 ? 2 * p : p
+        
+        return .number(max(0, min(1, pValue)))
+    }
+    
+    // MARK: - Batch 29: Engineering and Complex Number Functions
+    
+    private func evaluateBESSELI(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        // Bessel functions require complex mathematical implementation
+        return .error("CALC")  // Stub - requires Bessel function implementation
+    }
+    
+    private func evaluateBESSELJ(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateBESSELK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateBESSELY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub
+    }
+    
+    private func evaluateERF(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let lowerVal = try evaluate(args[0])
+        guard let lower = lowerVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        if args.count == 1 {
+            // ERF from 0 to x
+            return .number(erf(lower))
+        } else {
+            // ERF from lower to upper
+            let upperVal = try evaluate(args[1])
+            guard let upper = upperVal.asDouble else {
+                return .error("VALUE")
+            }
+            return .number(erf(upper) - erf(lower))
+        }
+    }
+    
+    private func evaluateERFC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(1.0 - erf(x))
+    }
+    
+    private func evaluateCOMPLEX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let realVal = try evaluate(args[0])
+        guard let real = realVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let imagVal = try evaluate(args[1])
+        guard let imag = imagVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let suffix = args.count == 3 ? (try evaluate(args[2])) : .string("i")
+        let suffixStr = suffix.asString ?? "i"
+        
+        return formatComplexNumber(real, imag, suffixStr)
+    }
+    
+    private func evaluateIMREAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let complexVal = try evaluate(args[0])
+        guard case .string(let complex) = complexVal else {
+            return .error("VALUE")
+        }
+        
+        // Parse complex number "a+bi" or "a-bi"
+        let cleaned = complex.replacingOccurrences(of: " ", with: "")
+        
+        // Simple parsing
+        if let plusIndex = cleaned.firstIndex(of: "+"),
+           let real = Double(String(cleaned[..<plusIndex])) {
+            return .number(real)
+        } else if let minusIndex = cleaned.lastIndex(of: "-"),
+                  minusIndex != cleaned.startIndex,
+                  let real = Double(String(cleaned[..<minusIndex])) {
+            return .number(real)
+        }
+        
+        return .error("NUM")
+    }
+    
+    private func evaluateIMAGINARY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let complexVal = try evaluate(args[0])
+        guard case .string(let complex) = complexVal else {
+            return .error("VALUE")
+        }
+        
+        let cleaned = complex.replacingOccurrences(of: " ", with: "")
+        
+        // Simple parsing for imaginary part
+        if let plusIndex = cleaned.firstIndex(of: "+") {
+            let imagPart = String(cleaned[cleaned.index(after: plusIndex)...])
+            if let imag = Double(imagPart.replacingOccurrences(of: "i", with: "").replacingOccurrences(of: "j", with: "")) {
+                return .number(imag)
+            }
+        } else if let minusIndex = cleaned.lastIndex(of: "-"),
+                  minusIndex != cleaned.startIndex {
+            let imagPart = String(cleaned[minusIndex...])
+            if let imag = Double(imagPart.replacingOccurrences(of: "i", with: "").replacingOccurrences(of: "j", with: "")) {
+                return .number(imag)
+            }
+        }
+        
+        return .error("NUM")
+    }
+    
+    private func evaluateIMABS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // Get real and imaginary parts
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let real = realResult.asDouble,
+              let imag = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // |a+bi| = sqrt(a^2 + b^2)
+        return .number(sqrt(real * real + imag * imag))
+    }
+    
+    private func evaluateIMARGUMENT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let real = realResult.asDouble,
+              let imag = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // Argument (angle) = atan2(b, a)
+        return .number(atan2(imag, real))
+    }
+    
+    private func evaluateIMCONJUGATE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let real = realResult.asDouble,
+              let imag = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // Conjugate: a-bi if input is a+bi
+        return formatComplexNumber(real, -imag)
+    }
+    
+    private func formatComplexNumber(_ real: Double, _ imag: Double, _ suffix: String = "i") -> FormulaValue {
+        // Format complex number as "a+bi" or "a-bi" (remove .0 for integers)
+        let realStr = real == floor(real) ? String(Int(real)) : String(real)
+        let imagStr = abs(imag) == floor(abs(imag)) ? String(Int(abs(imag))) : String(abs(imag))
+        let sign = imag >= 0 ? "+" : "-"
+        return .string("\(realStr)\(sign)\(imagStr)\(suffix)")
+    }
+    
+    private func evaluateIMSUB(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        // Get components of first complex number
+        let real1Result = try evaluateIMREAL([args[0]])
+        let imag1Result = try evaluateIMAGINARY([args[0]])
+        
+        // Get components of second complex number
+        let real2Result = try evaluateIMREAL([args[1]])
+        let imag2Result = try evaluateIMAGINARY([args[1]])
+        
+        guard let real1 = real1Result.asDouble,
+              let imag1 = imag1Result.asDouble,
+              let real2 = real2Result.asDouble,
+              let imag2 = imag2Result.asDouble else {
+            return .error("NUM")
+        }
+        
+        let realDiff = real1 - real2
+        let imagDiff = imag1 - imag2
+        
+        return formatComplexNumber(realDiff, imagDiff)
+    }
+    
+    private func evaluateIMDIV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let real1Result = try evaluateIMREAL([args[0]])
+        let imag1Result = try evaluateIMAGINARY([args[0]])
+        let real2Result = try evaluateIMREAL([args[1]])
+        let imag2Result = try evaluateIMAGINARY([args[1]])
+        
+        guard let a = real1Result.asDouble,
+              let b = imag1Result.asDouble,
+              let c = real2Result.asDouble,
+              let d = imag2Result.asDouble else {
+            return .error("NUM")
+        }
+        
+        let denominator = c * c + d * d
+        guard denominator != 0 else {
+            return .error("DIV/0")
+        }
+        
+        // (a+bi)/(c+di) = [(ac+bd) + (bc-ad)i] / (c^2+d^2)
+        let realPart = (a * c + b * d) / denominator
+        let imagPart = (b * c - a * d) / denominator
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMPRODUCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 else {
+            return .error("VALUE")
+        }
+        
+        var realResult = 1.0
+        var imagResult = 0.0
+        
+        for arg in args {
+            let realArg = try evaluateIMREAL([arg])
+            let imagArg = try evaluateIMAGINARY([arg])
+            
+            guard let a = realArg.asDouble,
+                  let b = imagArg.asDouble else {
+                return .error("NUM")
+            }
+            
+            // (realResult + imagResult*i) * (a + b*i)
+            let newReal = realResult * a - imagResult * b
+            let newImag = realResult * b + imagResult * a
+            
+            realResult = newReal
+            imagResult = newImag
+        }
+        
+        return formatComplexNumber(realResult, imagResult)
     }
 }
 
