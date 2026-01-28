@@ -792,6 +792,42 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateDAYS(args)
         case "FACTDOUBLE":
             return try evaluateFACTDOUBLE(args)
+        // Batch 26: LAMBDA functions (stubs) and more aliases
+        case "LAMBDA":
+            return .error("CALC")  // Requires dynamic function creation
+        case "LET":
+            return .error("CALC")  // Requires variable binding
+        case "MAP":
+            return .error("CALC")  // Requires LAMBDA support
+        case "REDUCE":
+            return .error("CALC")  // Requires LAMBDA support
+        case "SCAN":
+            return .error("CALC")  // Requires LAMBDA support
+        case "BYROW":
+            return .error("CALC")  // Requires LAMBDA support
+        case "BYCOL":
+            return .error("CALC")  // Requires LAMBDA support
+        case "MAKEARRAY":
+            return .error("CALC")  // Requires LAMBDA support
+        // Statistical function aliases
+        case "BETADIST":
+            return try evaluateBETADIST(args)
+        case "BETAINV":
+            return try evaluateBETAINV(args)
+        case "GAMMADIST":
+            return try evaluateGAMMADIST(args)
+        case "GAMMAINV":
+            return try evaluateGAMMAINV(args)
+        case "LOGNORMDIST":
+            return try evaluateLOGNORMDIST(args)
+        case "LOGNORMINV":
+            return try evaluateLOGNORMINV(args)
+        case "WEIBULL":
+            return try evaluateWEIBULLDIST(args)
+        case "HYPGEOMDIST", "HYPGEOM.DIST":
+            return try evaluateHYPGEOMDIST(args)
+        case "NEGBINOMDIST", "NEGBINOM.DIST":
+            return try evaluateNEGBINOMDIST(args)
         default:
             return .error("NAME")
         }
@@ -9140,6 +9176,109 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(result)
+    }
+    
+    // MARK: - Batch 26: Additional Statistical Distributions
+    
+    private func evaluateHYPGEOMDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 4 && args.count <= 5 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let nVal = try evaluate(args[1])
+        guard let n = nVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let MVal = try evaluate(args[2])
+        guard let M = MVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let NVal = try evaluate(args[3])
+        guard let N = NVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cumulative = args.count == 5 ? (try evaluate(args[4]).asDouble ?? 1) != 0 : true
+        
+        guard x >= 0 && n >= 0 && M >= 0 && N >= 0 && x <= n && x <= M && n <= N else {
+            return .error("NUM")
+        }
+        
+        let sampleSuccesses = Int(x)
+        let sampleSize = Int(n)
+        let populationSuccesses = Int(M)
+        let populationSize = Int(N)
+        
+        if cumulative {
+            var cumProb = 0.0
+            for k in 0...sampleSuccesses {
+                // Hypergeometric probability: C(M,k) * C(N-M,n-k) / C(N,n)
+                let logProb = lgamma(Double(populationSuccesses + 1)) - lgamma(Double(k + 1)) - lgamma(Double(populationSuccesses - k + 1)) +
+                             lgamma(Double(populationSize - populationSuccesses + 1)) - lgamma(Double(sampleSize - k + 1)) - lgamma(Double(populationSize - populationSuccesses - sampleSize + k + 1)) -
+                             (lgamma(Double(populationSize + 1)) - lgamma(Double(sampleSize + 1)) - lgamma(Double(populationSize - sampleSize + 1)))
+                cumProb += exp(logProb)
+            }
+            return .number(min(1.0, cumProb))
+        } else {
+            // PMF
+            let logProb = lgamma(Double(populationSuccesses + 1)) - lgamma(Double(sampleSuccesses + 1)) - lgamma(Double(populationSuccesses - sampleSuccesses + 1)) +
+                         lgamma(Double(populationSize - populationSuccesses + 1)) - lgamma(Double(sampleSize - sampleSuccesses + 1)) - lgamma(Double(populationSize - populationSuccesses - sampleSize + sampleSuccesses + 1)) -
+                         (lgamma(Double(populationSize + 1)) - lgamma(Double(sampleSize + 1)) - lgamma(Double(populationSize - sampleSize + 1)))
+            return .number(exp(logProb))
+        }
+    }
+    
+    private func evaluateNEGBINOMDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        
+        let fVal = try evaluate(args[0])
+        guard let f = fVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let rVal = try evaluate(args[1])
+        guard let r = rVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let pVal = try evaluate(args[2])
+        guard let p = pVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cumulative = args.count == 4 ? (try evaluate(args[3]).asDouble ?? 1) != 0 : true
+        
+        guard f >= 0 && r > 0 && p > 0 && p <= 1 else {
+            return .error("NUM")
+        }
+        
+        let failures = Int(f)
+        let successes = Int(r)
+        
+        if cumulative {
+            var cumProb = 0.0
+            for k in 0...failures {
+                // Negative binomial: C(k+r-1, k) * p^r * (1-p)^k
+                let logProb = lgamma(Double(k + successes)) - lgamma(Double(k + 1)) - lgamma(Double(successes)) +
+                             Double(successes) * log(p) + Double(k) * log(1 - p)
+                cumProb += exp(logProb)
+            }
+            return .number(min(1.0, cumProb))
+        } else {
+            // PMF
+            let logProb = lgamma(Double(failures + successes)) - lgamma(Double(failures + 1)) - lgamma(Double(successes)) +
+                         Double(successes) * log(p) + Double(failures) * log(1 - p)
+            return .number(exp(logProb))
+        }
     }
 }
 

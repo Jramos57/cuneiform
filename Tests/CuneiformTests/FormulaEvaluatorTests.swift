@@ -4176,4 +4176,57 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Batch 26: LAMBDA Stubs and Distribution Aliases Tests
+    
+    // Note: LAMBDA functions return CALC errors (not implemented)
+    // They cannot be tested via parser as they require special syntax
+    
+    @Test func evaluateBETADIST_alias() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test legacy BETADIST alias
+        let parser = FormulaParser("=BETADIST(0.5, 2, 3, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateHYPGEOMDIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Hypergeometric distribution: sample 4 items from population of 12 with 5 successes
+        let parser = FormulaParser("=HYPGEOM.DIST(2, 4, 5, 12, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)  // Probability
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNEGBINOMDIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Negative binomial: 10 failures before 5 successes with p=0.25
+        let parser = FormulaParser("=NEGBINOM.DIST(10, 5, 0.25, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }
