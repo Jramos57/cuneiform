@@ -1655,18 +1655,19 @@ struct FormulaEvaluatorTests {
             "A1": .number(10),
             "A2": .number(20),
             "A3": .number(30),
-            "B1": .number(5),
-            "B2": .number(15),
-            "B3": .number(25)
+            // Boolean criteria - include row 2 and 3, exclude row 1
+            "B1": .boolean(false),
+            "B2": .boolean(true),
+            "B3": .boolean(true)
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        // Filter A1:A3 where B1:B3 > 10
-        let parser = FormulaParser("=FILTER(A1:A3, B1:B3>10)")
+        // Filter A1:A3 using boolean array B1:B3
+        let parser = FormulaParser("=FILTER(A1:A3, B1:B3)")
         let expr = try parser.parse()
         let result = try evaluator.evaluate(expr)
         
-        // Should return 20 and 30 (where criteria > 10)
+        // Should return 20 and 30 (where criteria is TRUE)
         if case .array(let rows) = result {
             #expect(rows.count == 2)
             #expect(rows[0][0] == .number(20))
@@ -2090,5 +2091,154 @@ struct FormulaEvaluatorTests {
         } else {
             Issue.record("Expected array result")
         }
+    }
+    
+    // MARK: - Database Functions
+    
+    @Test func evaluateDSUM() throws {
+        // Database: Tree, Height, Age, Yield, Profit
+        let cells: [String: CellValue] = [
+            // Headers
+            "A1": .text("Tree"), "B1": .text("Height"), "C1": .text("Age"), "D1": .text("Yield"), "E1": .text("Profit"),
+            // Data rows
+            "A2": .text("Apple"), "B2": .number(18), "C2": .number(20), "D2": .number(14), "E2": .number(105),
+            "A3": .text("Pear"), "B3": .number(12), "C3": .number(12), "D3": .number(10), "E3": .number(96),
+            "A4": .text("Cherry"), "B4": .number(13), "C4": .number(14), "D4": .number(9), "E4": .number(105),
+            "A5": .text("Apple"), "B5": .number(14), "C5": .number(15), "D5": .number(10), "E5": .number(75),
+            "A6": .text("Pear"), "B6": .number(9), "C6": .number(8), "D6": .number(8), "E6": .number(76),
+            // Criteria: Tree = "Apple"
+            "A8": .text("Tree"),
+            "A9": .text("Apple")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DSUM: Sum profit for Apple trees
+        let parser = FormulaParser("=DSUM(A1:E6, \"Profit\", A8:A9)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 105 + 75 = 180
+        #expect(result == .number(180))
+    }
+    
+    @Test func evaluateDAVERAGE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Tree"), "B1": .text("Height"), "C1": .text("Yield"),
+            "A2": .text("Apple"), "B2": .number(18), "C2": .number(14),
+            "A3": .text("Pear"), "B3": .number(12), "C3": .number(10),
+            "A4": .text("Apple"), "B4": .number(14), "C4": .number(10),
+            "A6": .text("Tree"),
+            "A7": .text("Apple")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DAVERAGE: Average yield for Apple trees
+        let parser = FormulaParser("=DAVERAGE(A1:C4, \"Yield\", A6:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return (14 + 10) / 2 = 12
+        #expect(result == .number(12))
+    }
+    
+    @Test func evaluateDCOUNT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Tree"), "B1": .text("Age"),
+            "A2": .text("Apple"), "B2": .number(20),
+            "A3": .text("Pear"), "B3": .number(12),
+            "A4": .text("Apple"), "B4": .number(15),
+            "A5": .text("Cherry"), "B5": .number(14),
+            "A7": .text("Tree"),
+            "A8": .text("Apple")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DCOUNT: Count Apple trees
+        let parser = FormulaParser("=DCOUNT(A1:B5, \"Age\", A7:A8)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 2 (two Apple trees)
+        #expect(result == .number(2))
+    }
+    
+    @Test func evaluateDMAX() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Tree"), "B1": .text("Height"),
+            "A2": .text("Apple"), "B2": .number(18),
+            "A3": .text("Pear"), "B3": .number(12),
+            "A4": .text("Apple"), "B4": .number(14),
+            "A6": .text("Tree"),
+            "A7": .text("Apple")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DMAX: Maximum height for Apple trees
+        let parser = FormulaParser("=DMAX(A1:B4, \"Height\", A6:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 18
+        #expect(result == .number(18))
+    }
+    
+    @Test func evaluateDMIN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Tree"), "B1": .text("Height"),
+            "A2": .text("Apple"), "B2": .number(18),
+            "A3": .text("Pear"), "B3": .number(12),
+            "A4": .text("Apple"), "B4": .number(14),
+            "A6": .text("Tree"),
+            "A7": .text("Apple")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DMIN: Minimum height for Apple trees
+        let parser = FormulaParser("=DMIN(A1:B4, \"Height\", A6:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 14
+        #expect(result == .number(14))
+    }
+    
+    @Test func evaluateDGET() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Tree"), "B1": .text("Height"), "C1": .text("Yield"),
+            "A2": .text("Apple"), "B2": .number(18), "C2": .number(14),
+            "A3": .text("Pear"), "B3": .number(12), "C3": .number(10),
+            "A4": .text("Cherry"), "B4": .number(13), "C4": .number(9),
+            "A6": .text("Tree"),
+            "A7": .text("Pear")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DGET: Get yield for Pear (single match)
+        let parser = FormulaParser("=DGET(A1:C4, \"Yield\", A6:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 10
+        #expect(result == .number(10))
+    }
+    
+    @Test func evaluateDPRODUCT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Product"), "B1": .text("Quantity"),
+            "A2": .text("Apples"), "B2": .number(2),
+            "A3": .text("Oranges"), "B3": .number(3),
+            "A4": .text("Apples"), "B4": .number(4),
+            "A6": .text("Product"),
+            "A7": .text("Apples")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // DPRODUCT: Product of quantities for Apples
+        let parser = FormulaParser("=DPRODUCT(A1:B4, \"Quantity\", A6:A7)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 2 * 4 = 8
+        #expect(result == .number(8))
     }
 }

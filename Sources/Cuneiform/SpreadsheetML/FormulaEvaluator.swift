@@ -411,6 +411,23 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateTOCOL(args)
         case "TOROW":
             return try evaluateTOROW(args)
+        // Database functions
+        case "DSUM":
+            return try evaluateDSUM(args)
+        case "DAVERAGE":
+            return try evaluateDAVERAGE(args)
+        case "DCOUNT":
+            return try evaluateDCOUNT(args)
+        case "DCOUNTA":
+            return try evaluateDCOUNTA(args)
+        case "DMAX":
+            return try evaluateDMAX(args)
+        case "DMIN":
+            return try evaluateDMIN(args)
+        case "DGET":
+            return try evaluateDGET(args)
+        case "DPRODUCT":
+            return try evaluateDPRODUCT(args)
         // Statistical functions
         case "STDEV", "STDEV.S":
             return try evaluateSTDEV(args, sample: true)
@@ -4763,6 +4780,231 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .array([row])
+    }
+    
+    // MARK: - Database Functions
+    
+    /// DSUM - Sums values in a database that match criteria
+    /// Syntax: DSUM(database, field, criteria)
+    private func evaluateDSUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        let sum = records.reduce(0.0) { $0 + $1 }
+        return .number(sum)
+    }
+    
+    /// DAVERAGE - Averages values in a database that match criteria
+    /// Syntax: DAVERAGE(database, field, criteria)
+    private func evaluateDAVERAGE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        guard !records.isEmpty else {
+            return .error("DIV/0")
+        }
+        let avg = records.reduce(0.0, +) / Double(records.count)
+        return .number(avg)
+    }
+    
+    /// DCOUNT - Counts cells containing numbers in a database that match criteria
+    /// Syntax: DCOUNT(database, field, criteria)
+    private func evaluateDCOUNT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        return .number(Double(records.count))
+    }
+    
+    /// DCOUNTA - Counts non-empty cells in a database that match criteria
+    /// Syntax: DCOUNTA(database, field, criteria)
+    private func evaluateDCOUNTA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        // For DCOUNTA, we need all matching records including non-numeric
+        let records = try getDatabaseRecordsAll(database: args[0], field: args[1], criteria: args[2])
+        return .number(Double(records.count))
+    }
+    
+    /// DMAX - Returns the maximum value from selected database entries
+    /// Syntax: DMAX(database, field, criteria)
+    private func evaluateDMAX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        guard let max = records.max() else {
+            return .number(0)
+        }
+        return .number(max)
+    }
+    
+    /// DMIN - Returns the minimum value from selected database entries
+    /// Syntax: DMIN(database, field, criteria)
+    private func evaluateDMIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        guard let min = records.min() else {
+            return .number(0)
+        }
+        return .number(min)
+    }
+    
+    /// DGET - Extracts a single value from a database that matches criteria
+    /// Syntax: DGET(database, field, criteria)
+    private func evaluateDGET(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecordsAll(database: args[0], field: args[1], criteria: args[2])
+        
+        if records.isEmpty {
+            return .error("VALUE")
+        } else if records.count > 1 {
+            return .error("NUM")  // Multiple records found
+        } else {
+            return records[0]
+        }
+    }
+    
+    /// DPRODUCT - Multiplies values in a database that match criteria
+    /// Syntax: DPRODUCT(database, field, criteria)
+    private func evaluateDPRODUCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let records = try getDatabaseRecords(database: args[0], field: args[1], criteria: args[2])
+        guard !records.isEmpty else {
+            return .number(0)
+        }
+        let product = records.reduce(1.0) { $0 * $1 }
+        return .number(product)
+    }
+    
+    // Helper function for database functions - returns numeric values only
+    private func getDatabaseRecords(database: FormulaExpression, field: FormulaExpression, criteria: FormulaExpression) throws -> [Double] {
+        let allRecords = try getDatabaseRecordsAll(database: database, field: field, criteria: criteria)
+        return allRecords.compactMap { $0.asDouble }
+    }
+    
+    // Helper function for database functions - returns all matching values
+    private func getDatabaseRecordsAll(database: FormulaExpression, field: FormulaExpression, criteria: FormulaExpression) throws -> [FormulaValue] {
+        // Evaluate database range
+        let dbVal = try evaluate(database)
+        guard case .array(let dbArray) = dbVal, !dbArray.isEmpty else {
+            return []
+        }
+        
+        // First row is headers
+        let headers = dbArray[0]
+        let dataRows = Array(dbArray.dropFirst())
+        
+        // Determine field column index
+        let fieldVal = try evaluate(field)
+        var fieldIndex: Int?
+        
+        if let fieldNum = fieldVal.asDouble {
+            // Field specified as column number (1-based)
+            fieldIndex = Int(fieldNum) - 1
+        } else if case .string(let fieldName) = fieldVal {
+            // Field specified as column name
+            fieldIndex = headers.firstIndex { header in
+                if case .string(let headerName) = header {
+                    return headerName.lowercased() == fieldName.lowercased()
+                }
+                return false
+            }
+        }
+        
+        guard let colIndex = fieldIndex, colIndex >= 0, colIndex < headers.count else {
+            return []
+        }
+        
+        // Evaluate criteria range
+        let critVal = try evaluate(criteria)
+        guard case .array(let critArray) = critVal, critArray.count >= 2 else {
+            return []
+        }
+        
+        // First row of criteria is field names, subsequent rows are conditions
+        let critHeaders = critArray[0]
+        let critRows = Array(critArray.dropFirst())
+        
+        // Build criteria map: column name -> [values to match]
+        var criteriaMap: [String: [FormulaValue]] = [:]
+        for (idx, header) in critHeaders.enumerated() {
+            if case .string(let headerName) = header {
+                var values: [FormulaValue] = []
+                for critRow in critRows {
+                    if idx < critRow.count {
+                        values.append(critRow[idx])
+                    }
+                }
+                criteriaMap[headerName.lowercased()] = values
+            }
+        }
+        
+        // Filter data rows based on criteria
+        var matchingValues: [FormulaValue] = []
+        
+        for dataRow in dataRows {
+            var matches = true
+            
+            // Check each criterion
+            for (critFieldName, critValues) in criteriaMap {
+                // Find column index for this criterion field
+                guard let critColIndex = headers.firstIndex(where: { header in
+                    if case .string(let name) = header {
+                        return name.lowercased() == critFieldName
+                    }
+                    return false
+                }) else {
+                    matches = false
+                    break
+                }
+                
+                // Check if data row value matches any of the criteria values
+                guard critColIndex < dataRow.count else {
+                    matches = false
+                    break
+                }
+                
+                let cellValue = dataRow[critColIndex]
+                var foundMatch = false
+                
+                for critValue in critValues {
+                    if matchesCriteria(cellValue, critValue) {
+                        foundMatch = true
+                        break
+                    }
+                }
+                
+                if !foundMatch {
+                    matches = false
+                    break
+                }
+            }
+            
+            if matches && colIndex < dataRow.count {
+                matchingValues.append(dataRow[colIndex])
+            }
+        }
+        
+        return matchingValues
     }
 }
 
