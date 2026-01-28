@@ -266,6 +266,28 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateMID(args)
         case "TRIM":
             return try evaluateTRIM(args)
+        case "PROPER":
+            return try evaluatePROPER(args)
+        case "CLEAN":
+            return try evaluateCLEAN(args)
+        case "CHAR":
+            return try evaluateCHAR(args)
+        case "CODE":
+            return try evaluateCODE(args)
+        case "EXACT":
+            return try evaluateEXACT(args)
+        case "REPLACE":
+            return try evaluateREPLACE(args)
+        case "REPT":
+            return try evaluateREPT(args)
+        case "VALUE":
+            return try evaluateVALUE(args)
+        case "TEXTBEFORE":
+            return try evaluateTEXTBEFORE(args)
+        case "TEXTAFTER":
+            return try evaluateTEXTAFTER(args)
+        case "TEXTSPLIT":
+            return try evaluateTEXTSPLIT(args)
         // Conditional aggregates
         case "SUMIF":
             return try evaluateSUMIF(args)
@@ -3384,6 +3406,248 @@ public struct FormulaEvaluator: Sendable {
         let second = Int(totalSeconds) % 60
         
         return .number(Double(second))
+    }
+    
+    // MARK: - Text Functions (Extended)
+    
+    /// PROPER - Capitalizes first letter of each word
+    private func evaluatePROPER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "PROPER", expected: 1, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        guard case .string(let text) = textVal else {
+            return .error("VALUE")
+        }
+        
+        let result = text.capitalized
+        return .string(result)
+    }
+    
+    /// CLEAN - Removes non-printable characters
+    private func evaluateCLEAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "CLEAN", expected: 1, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        guard case .string(let text) = textVal else {
+            return .error("VALUE")
+        }
+        
+        // Remove characters with ASCII values 0-31
+        let cleaned = text.filter { $0.unicodeScalars.first?.value ?? 0 >= 32 }
+        return .string(String(cleaned))
+    }
+    
+    /// CHAR - Returns character for ASCII code
+    private func evaluateCHAR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "CHAR", expected: 1, got: args.count)
+        }
+        
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let code = Int(num)
+        guard code > 0 && code <= 255 else {
+            return .error("VALUE")
+        }
+        
+        if let scalar = UnicodeScalar(code) {
+            return .string(String(Character(scalar)))
+        }
+        
+        return .error("VALUE")
+    }
+    
+    /// CODE - Returns ASCII code for first character
+    private func evaluateCODE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "CODE", expected: 1, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        guard case .string(let text) = textVal, !text.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        if let firstChar = text.first, let scalar = firstChar.unicodeScalars.first {
+            return .number(Double(scalar.value))
+        }
+        
+        return .error("VALUE")
+    }
+    
+    /// EXACT - Case-sensitive comparison
+    private func evaluateEXACT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "EXACT", expected: 2, got: args.count)
+        }
+        
+        let text1Val = try evaluate(args[0])
+        let text2Val = try evaluate(args[1])
+        
+        let text1: String
+        let text2: String
+        
+        switch (text1Val, text2Val) {
+        case (.string(let t1), .string(let t2)):
+            text1 = t1
+            text2 = t2
+        default:
+            return .error("VALUE")
+        }
+        
+        return .number(text1 == text2 ? 1 : 0)
+    }
+    
+    /// REPLACE - Replaces part of text string
+    private func evaluateREPLACE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            throw FormulaError.invalidArgumentCount(function: "REPLACE", expected: 4, got: args.count)
+        }
+        
+        let oldTextVal = try evaluate(args[0])
+        let startNumVal = try evaluate(args[1])
+        let numCharsVal = try evaluate(args[2])
+        let newTextVal = try evaluate(args[3])
+        
+        guard case .string(let oldText) = oldTextVal,
+              let startNum = startNumVal.asDouble,
+              let numChars = numCharsVal.asDouble,
+              case .string(let newText) = newTextVal else {
+            return .error("VALUE")
+        }
+        
+        let start = Int(startNum) - 1  // Excel uses 1-based indexing
+        let count = Int(numChars)
+        
+        guard start >= 0 && start <= oldText.count else {
+            return .error("VALUE")
+        }
+        
+        var result = oldText
+        let startIndex = result.index(result.startIndex, offsetBy: start)
+        let endIndex = result.index(startIndex, offsetBy: min(count, result.count - start))
+        result.replaceSubrange(startIndex..<endIndex, with: newText)
+        
+        return .string(result)
+    }
+    
+    /// REPT - Repeats text a given number of times
+    private func evaluateREPT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "REPT", expected: 2, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        let numTimesVal = try evaluate(args[1])
+        
+        guard case .string(let text) = textVal,
+              let numTimes = numTimesVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let times = Int(numTimes)
+        guard times >= 0 && times <= 32767 else {
+            return .error("VALUE")
+        }
+        
+        return .string(String(repeating: text, count: times))
+    }
+    
+    /// VALUE - Converts text to number
+    private func evaluateVALUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "VALUE", expected: 1, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        
+        switch textVal {
+        case .number(let num):
+            return .number(num)
+        case .string(let text):
+            // Remove common formatting characters
+            let cleaned = text.replacingOccurrences(of: ",", with: "")
+                             .replacingOccurrences(of: "$", with: "")
+                             .replacingOccurrences(of: "%", with: "")
+                             .trimmingCharacters(in: .whitespaces)
+            
+            if let num = Double(cleaned) {
+                return .number(num)
+            } else {
+                return .error("VALUE")
+            }
+        default:
+            return .error("VALUE")
+        }
+    }
+    
+    /// TEXTBEFORE - Returns text before delimiter (Excel 365)
+    private func evaluateTEXTBEFORE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "TEXTBEFORE", expected: 2, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        let delimiterVal = try evaluate(args[1])
+        
+        guard case .string(let text) = textVal,
+              case .string(let delimiter) = delimiterVal else {
+            return .error("VALUE")
+        }
+        
+        if let range = text.range(of: delimiter) {
+            return .string(String(text[..<range.lowerBound]))
+        } else {
+            return .error("N/A")
+        }
+    }
+    
+    /// TEXTAFTER - Returns text after delimiter (Excel 365)
+    private func evaluateTEXTAFTER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 5 else {
+            throw FormulaError.invalidArgumentCount(function: "TEXTAFTER", expected: 2, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        let delimiterVal = try evaluate(args[1])
+        
+        guard case .string(let text) = textVal,
+              case .string(let delimiter) = delimiterVal else {
+            return .error("VALUE")
+        }
+        
+        if let range = text.range(of: delimiter) {
+            return .string(String(text[range.upperBound...]))
+        } else {
+            return .error("N/A")
+        }
+    }
+    
+    /// TEXTSPLIT - Splits text into array (Excel 365)
+    private func evaluateTEXTSPLIT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 4 else {
+            throw FormulaError.invalidArgumentCount(function: "TEXTSPLIT", expected: 2, got: args.count)
+        }
+        
+        let textVal = try evaluate(args[0])
+        let colDelimiterVal = try evaluate(args[1])
+        
+        guard case .string(let text) = textVal,
+              case .string(let colDelimiter) = colDelimiterVal else {
+            return .error("VALUE")
+        }
+        
+        let parts = text.split(separator: colDelimiter).map { FormulaValue.string(String($0)) }
+        
+        // For now, return as a 1D array (single row)
+        return .array([parts])
     }
 }
 

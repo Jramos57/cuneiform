@@ -1299,4 +1299,136 @@ struct FormulaEvaluatorTests {
             #expect(val >= 0 && val < 60)  // Valid second value
         }
     }
+    
+    // MARK: - Text Functions (Extended)
+    
+    @Test func evaluatePROPER() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=PROPER(\"hello world\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("Hello World"))
+    }
+    
+    @Test func evaluateCLEAN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello\nWorld")
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CLEAN(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("HelloWorld"))
+    }
+    
+    @Test func evaluateCHAR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test CHAR(65) = "A"
+        let parser = FormulaParser("=CHAR(65)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("A"))
+    }
+    
+    @Test func evaluateCODE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test CODE("A") = 65
+        let parser = FormulaParser("=CODE(\"A\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(65))
+    }
+    
+    @Test func evaluateEXACT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test case-sensitive comparison
+        let parser1 = FormulaParser("=EXACT(\"Hello\", \"Hello\")")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(1))
+        
+        let parser2 = FormulaParser("=EXACT(\"Hello\", \"hello\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(0))
+    }
+    
+    @Test func evaluateREPLACE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test REPLACE("abcdefgh", 3, 2, "XY") = "abXYefgh"
+        let parser = FormulaParser("=REPLACE(\"abcdefgh\", 3, 2, \"XY\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("abXYefgh"))
+    }
+    
+    @Test func evaluateREPT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test REPT("*", 5) = "*****"
+        let parser = FormulaParser("=REPT(\"*\", 5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("*****"))
+    }
+    
+    @Test func evaluateVALUE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test VALUE("$1,234.56") = 1234.56
+        let parser = FormulaParser("=VALUE(\"$1,234.56\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(1234.56))
+    }
+    
+    @Test func evaluateTEXTBEFORE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test TEXTBEFORE("Hello-World", "-") = "Hello"
+        let parser = FormulaParser("=TEXTBEFORE(\"Hello-World\", \"-\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("Hello"))
+    }
+    
+    @Test func evaluateTEXTAFTER() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test TEXTAFTER("Hello-World", "-") = "World"
+        let parser = FormulaParser("=TEXTAFTER(\"Hello-World\", \"-\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("World"))
+    }
+    
+    @Test func evaluateTEXTSPLIT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test TEXTSPLIT("A,B,C", ",")
+        let parser = FormulaParser("=TEXTSPLIT(\"A,B,C\", \",\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return an array
+        if case .array(let rows) = result {
+            #expect(rows.count == 1)
+            #expect(rows[0].count == 3)
+        }
+    }
 }
