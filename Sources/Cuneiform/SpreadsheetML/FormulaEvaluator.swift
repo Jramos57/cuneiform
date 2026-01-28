@@ -702,6 +702,27 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateCUMIPMT(args)
         case "CUMPRINC":
             return try evaluateCUMPRINC(args)
+        // Math functions (Batch 22)
+        case "ROUNDUP":
+            return try evaluateROUNDUP(args)
+        case "ROUNDDOWN":
+            return try evaluateROUNDDOWN(args)
+        case "SQRTPI":
+            return try evaluateSQRTPI(args)
+        case "SUMSQ":
+            return try evaluateSUMSQ(args)
+        case "SUMX2MY2":
+            return try evaluateSUMX2MY2(args)
+        case "SUMX2PY2":
+            return try evaluateSUMX2PY2(args)
+        case "SUMXMY2":
+            return try evaluateSUMXMY2(args)
+        case "SERIESSUM":
+            return try evaluateSERIESSUM(args)
+        case "MINA":
+            return try evaluateMINA(args)
+        case "MAXA":
+            return try evaluateMAXA(args)
         default:
             return .error("NAME")
         }
@@ -7923,6 +7944,274 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(Double(result))
+    }
+    
+    // MARK: - Batch 22: Additional Math Functions
+    
+    private func evaluateROUNDUP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let digitsVal = try evaluate(args[1])
+        guard let digits = digitsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let factor = pow(10.0, digits)
+        // ROUNDUP rounds away from zero
+        let result = (num >= 0) ? ceil(num * factor) / factor : -ceil(abs(num) * factor) / factor
+        return .number(result)
+    }
+    
+    private func evaluateROUNDDOWN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let digitsVal = try evaluate(args[1])
+        guard let digits = digitsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let factor = pow(10.0, digits)
+        // ROUNDDOWN rounds toward zero
+        let result = (num >= 0) ? floor(num * factor) / factor : -floor(abs(num) * factor) / factor
+        return .number(result)
+    }
+    
+    private func evaluateSQRTPI(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard num >= 0 else {
+            return .error("NUM")
+        }
+        
+        return .number(sqrt(num * .pi))
+    }
+    
+    private func evaluateSUMSQ(_ args: [FormulaExpression]) throws -> FormulaValue {
+        var numbers: [Double] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            numbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        let result = numbers.reduce(0.0) { $0 + $1 * $1 }
+        return .number(result)
+    }
+    
+    private func evaluateSUMX2MY2(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let yVal = try evaluate(args[1])
+        
+        let xNumbers = flattenToNumbers(xVal)
+        let yNumbers = flattenToNumbers(yVal)
+        
+        guard xNumbers.count == yNumbers.count else {
+            return .error("N/A")
+        }
+        
+        var result = 0.0
+        for i in 0..<xNumbers.count {
+            result += xNumbers[i] * xNumbers[i] - yNumbers[i] * yNumbers[i]
+        }
+        
+        return .number(result)
+    }
+    
+    private func evaluateSUMX2PY2(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let yVal = try evaluate(args[1])
+        
+        let xNumbers = flattenToNumbers(xVal)
+        let yNumbers = flattenToNumbers(yVal)
+        
+        guard xNumbers.count == yNumbers.count else {
+            return .error("N/A")
+        }
+        
+        var result = 0.0
+        for i in 0..<xNumbers.count {
+            result += xNumbers[i] * xNumbers[i] + yNumbers[i] * yNumbers[i]
+        }
+        
+        return .number(result)
+    }
+    
+    private func evaluateSUMXMY2(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let yVal = try evaluate(args[1])
+        
+        let xNumbers = flattenToNumbers(xVal)
+        let yNumbers = flattenToNumbers(yVal)
+        
+        guard xNumbers.count == yNumbers.count else {
+            return .error("N/A")
+        }
+        
+        var result = 0.0
+        for i in 0..<xNumbers.count {
+            let diff = xNumbers[i] - yNumbers[i]
+            result += diff * diff
+        }
+        
+        return .number(result)
+    }
+    
+    private func evaluateSERIESSUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let nVal = try evaluate(args[1])
+        guard let n = nVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let mVal = try evaluate(args[2])
+        guard let m = mVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let coeffsVal = try evaluate(args[3])
+        let coeffs = flattenToNumbers(coeffsVal)
+        
+        var result = 0.0
+        for (i, coeff) in coeffs.enumerated() {
+            let power = n + m * Double(i)
+            result += coeff * pow(x, power)
+        }
+        
+        return .number(result)
+    }
+    
+    private func evaluateMINA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var values: [Double] = []
+        
+        for arg in args {
+            let val = try evaluate(arg)
+            switch val {
+            case .number(let n):
+                values.append(n)
+            case .boolean(let b):
+                values.append(b ? 1.0 : 0.0)
+            case .string:
+                values.append(0.0)
+            case .array(let rows):
+                for row in rows {
+                    for cell in row {
+                        switch cell {
+                        case .number(let n):
+                            values.append(n)
+                        case .boolean(let b):
+                            values.append(b ? 1.0 : 0.0)
+                        case .string:
+                            values.append(0.0)
+                        case .error:
+                            continue
+                        default:
+                            continue
+                        }
+                    }
+                }
+            case .error(let e):
+                return .error(e)
+            default:
+                continue
+            }
+        }
+        
+        guard let min = values.min() else {
+            return .error("VALUE")
+        }
+        
+        return .number(min)
+    }
+    
+    private func evaluateMAXA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var values: [Double] = []
+        
+        for arg in args {
+            let val = try evaluate(arg)
+            switch val {
+            case .number(let n):
+                values.append(n)
+            case .boolean(let b):
+                values.append(b ? 1.0 : 0.0)
+            case .string:
+                values.append(0.0)
+            case .array(let rows):
+                for row in rows {
+                    for cell in row {
+                        switch cell {
+                        case .number(let n):
+                            values.append(n)
+                        case .boolean(let b):
+                            values.append(b ? 1.0 : 0.0)
+                        case .string:
+                            values.append(0.0)
+                        case .error:
+                            continue
+                        default:
+                            continue
+                        }
+                    }
+                }
+            case .error(let e):
+                return .error(e)
+            default:
+                continue
+            }
+        }
+        
+        guard let max = values.max() else {
+            return .error("VALUE")
+        }
+        
+        return .number(max)
     }
 }
 

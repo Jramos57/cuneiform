@@ -3698,4 +3698,154 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(5))
     }
+    
+    // MARK: - Batch 22: Additional Math Functions Tests
+    
+    @Test func evaluateROUNDUP() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ROUNDUP(3.14159, 2)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(3.15))
+        
+        let parser2 = FormulaParser("=ROUNDUP(-3.14159, 2)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(-3.15))  // Round away from zero
+    }
+    
+    @Test func evaluateROUNDDOWN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=ROUNDDOWN(3.14159, 2)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(3.14))
+        
+        let parser2 = FormulaParser("=ROUNDDOWN(-3.14159, 2)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(-3.14))  // Round toward zero
+    }
+    
+    @Test func evaluateSQRTPI() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SQRTPI(4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(abs(n - sqrt(4 * .pi)) < 0.0001)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateSUMSQ() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(3),
+            "A3": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SUMSQ(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(29))  // 2^2 + 3^2 + 4^2 = 4 + 9 + 16 = 29
+    }
+    
+    @Test func evaluateSUMX2MY2() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(3),
+            "B1": .number(1),
+            "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SUMX2MY2(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(-4))  // (2^2-1^2) + (3^2-4^2) = (4-1) + (9-16) = 3 - 7 = -4
+    }
+    
+    @Test func evaluateSUMX2PY2() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(3),
+            "B1": .number(1),
+            "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SUMX2PY2(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(30))  // (2^2+1^2) + (3^2+4^2) = 5 + 25 = 30
+    }
+    
+    @Test func evaluateSUMXMY2() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(2),
+            "A2": .number(3),
+            "B1": .number(1),
+            "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=SUMXMY2(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2))  // (2-1)^2 + (3-4)^2 = 1 + 1 = 2
+    }
+    
+    @Test func evaluateSERIESSUM() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // SERIESSUM(x, n, m, coefficients) = sum of coefficients[i] * x^(n + m*i)
+        // x=2, n=0, m=1, coeffs=[1,2,3] => 1*2^0 + 2*2^1 + 3*2^2 = 1 + 4 + 12 = 17
+        let parser = FormulaParser("=SERIESSUM(2, 0, 1, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(17))
+    }
+    
+    @Test func evaluateMINA() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(5),
+            "A2": .number(3),
+            "A3": .text("text")  // Should be treated as 0
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MINA(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(0))  // text counts as 0, which is min
+    }
+    
+    @Test func evaluateMAXA() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(5),
+            "A2": .number(3),
+            "A3": .text("text")  // Should be treated as 0
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=MAXA(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(5))  // max of 5, 3, 0
+    }
 }
