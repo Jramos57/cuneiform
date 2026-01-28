@@ -1,0 +1,191 @@
+@Tutorial(time: 25) {
+    @Intro(title: "Analyzing Excel Data") {
+        Learn how to read and analyze data from Excel files using Cuneiform's querying and filtering APIs.
+        
+        This tutorial demonstrates reading spreadsheet data, computing statistics, filtering rows, and finding specific values.
+        
+        @Image(source: "data-analysis-hero", alt: "Chart showing data analysis")
+    }
+    
+    @Section(title: "Opening a Workbook and Accessing Sheets") {
+        @ContentAndMedia {
+            Start by opening an Excel file and accessing its sheets.
+            
+            Cuneiform provides a simple API for opening workbooks and accessing sheets by name or index.
+            
+            @Image(source: "workbook-sheets", alt: "Workbook with multiple sheets")
+        }
+        
+        @Steps {
+            @Step {
+                Import Cuneiform and Foundation frameworks.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-01-import.swift")
+            }
+            
+            @Step {
+                Open an Excel workbook using `Workbook.open(url:)`.
+                
+                The workbook contains metadata about all sheets.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-02-open.swift")
+            }
+            
+            @Step {
+                Access a specific sheet by name using `workbook.sheet(named:)`.
+                
+                You can also access sheets by index with `workbook.sheet(at:)`.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-03-sheet.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Extracting and Computing Statistics") {
+        @ContentAndMedia {
+            Extract numerical data from columns and compute basic statistics.
+            
+            Use the `column(_:)` method to access all values in a column efficiently.
+            
+            @Image(source: "statistics-chart", alt: "Statistical charts")
+        }
+        
+        @Steps {
+            @Step {
+                Access a specific column using `sheet.column(_:)`.
+                
+                The column method returns a lazy sequence of cell references and values.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-04-column.swift")
+            }
+            
+            @Step {
+                Extract numerical values using pattern matching on `CellValue`.
+                
+                Filter out the header row and extract only number values.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-05-extract.swift")
+            }
+            
+            @Step {
+                Compute statistics using standard Swift operations.
+                
+                Calculate sum, average, minimum, and maximum values.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-06-stats.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Finding Specific Values") {
+        @ContentAndMedia {
+            Search for cells that match specific criteria.
+            
+            Use `find` for the first match or `findAll` for all matching cells.
+            
+            @Image(source: "search-filter", alt: "Magnifying glass over spreadsheet")
+        }
+        
+        @Steps {
+            @Step {
+                Use `findAll` to locate all cells matching a condition.
+                
+                This example finds all sales amounts greater than $500.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-07-findall.swift")
+            }
+            
+            @Step {
+                Access related data from other columns.
+                
+                Use the cell reference to construct references to adjacent cells.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-08-related.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Filtering Rows by Criteria") {
+        @ContentAndMedia {
+            Filter entire rows based on cell values.
+            
+            The `rows(where:)` method allows you to filter rows efficiently during iteration.
+            
+            @Image(source: "filter-rows", alt: "Spreadsheet with highlighted rows")
+        }
+        
+        @Steps {
+            @Step {
+                Use `rows(where:)` to filter rows by a condition.
+                
+                This example filters rows where region (column C) equals "West".
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-09-filter.swift")
+            }
+            
+            @Step {
+                Process the filtered rows to extract specific data.
+                
+                Iterate through filtered rows and compute totals.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-10-process.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Working with Ranges") {
+        @ContentAndMedia {
+            Access specific rectangular ranges of cells.
+            
+            Use the `range(_:)` method to get all cells within a defined area.
+            
+            @Image(source: "cell-range", alt: "Highlighted cell range in spreadsheet")
+        }
+        
+        @Steps {
+            @Step {
+                Access a range using A1 notation.
+                
+                The range method returns all cells in the specified area.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-11-range.swift")
+            }
+            
+            @Step {
+                Filter and process specific cells within the range.
+                
+                This example extracts only the header row from the range.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-12-range-filter.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Memory-Efficient Streaming") {
+        @ContentAndMedia {
+            Process large datasets efficiently using lazy iteration.
+            
+            The `rows()` method returns a lazy sequence that doesn't load all data into memory at once.
+            
+            @Image(source: "streaming-data", alt: "Data stream icon")
+        }
+        
+        @Steps {
+            @Step {
+                Use `rows()` for memory-efficient iteration.
+                
+                This approach scales to files with hundreds of thousands of rows.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-13-streaming.swift")
+            }
+            
+            @Step {
+                Complete the analysis function.
+                
+                Put all the pieces together for a comprehensive data analysis.
+                
+                @Code(name: "DataAnalysis.swift", file: "01-data-analysis-14-complete.swift")
+            }
+        }
+    }
+}

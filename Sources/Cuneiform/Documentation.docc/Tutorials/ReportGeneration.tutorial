@@ -1,0 +1,231 @@
+@Tutorial(time: 30) {
+    @Intro(title: "Generating Excel Reports") {
+        Learn how to create multi-sheet Excel reports with structured data, formulas, and cross-sheet references.
+        
+        This tutorial demonstrates creating workbooks, writing data across multiple sheets, using formulas for calculations, and organizing complex reports.
+        
+        @Image(source: "report-generation-hero", alt: "Professional report document")
+    }
+    
+    @Section(title: "Creating a Workbook with Multiple Sheets") {
+        @ContentAndMedia {
+            Start by creating a new workbook and adding multiple sheets.
+            
+            Use `WorkbookWriter` to build Excel files programmatically.
+            
+            @Image(source: "multi-sheet-workbook", alt: "Workbook with multiple sheet tabs")
+        }
+        
+        @Steps {
+            @Step {
+                Import Cuneiform and Foundation frameworks.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-01-import.swift")
+            }
+            
+            @Step {
+                Create a `WorkbookWriter` instance.
+                
+                The writer manages the workbook structure and content.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-02-writer.swift")
+            }
+            
+            @Step {
+                Add multiple sheets to the workbook.
+                
+                Each sheet has a name and unique index for reference.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-03-sheets.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Writing the Executive Summary") {
+        @ContentAndMedia {
+            Create a summary sheet with key metrics and formulas that reference other sheets.
+            
+            Use cross-sheet formulas to pull data from detail sheets.
+            
+            @Image(source: "executive-summary", alt: "Executive summary dashboard")
+        }
+        
+        @Steps {
+            @Step {
+                Modify the summary sheet using `modifySheet(at:)`.
+                
+                Write title and metadata to the sheet.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-04-summary-title.swift")
+            }
+            
+            @Step {
+                Add header labels for metrics.
+                
+                Create a two-column layout with metric names and values.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-05-summary-headers.swift")
+            }
+            
+            @Step {
+                Write formulas that reference other sheets.
+                
+                Use single quotes around sheet names with spaces in formulas.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-06-summary-formulas.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Creating a Regional Sales Sheet") {
+        @ContentAndMedia {
+            Build a detailed data sheet with regions, revenue, and calculated columns.
+            
+            Use formulas to compute derived values like averages.
+            
+            @Image(source: "regional-sales-table", alt: "Regional sales data table")
+        }
+        
+        @Steps {
+            @Step {
+                Write column headers for the regional data.
+                
+                Create a clear table structure with descriptive headers.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-07-regional-headers.swift")
+            }
+            
+            @Step {
+                Write data rows with text and numbers.
+                
+                Use `CellReference` for precise cell addressing.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-08-regional-data.swift")
+            }
+            
+            @Step {
+                Add calculated columns using formulas.
+                
+                Calculate average price by dividing revenue by units.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-09-regional-calculated.swift")
+            }
+            
+            @Step {
+                Add total rows with SUM formulas.
+                
+                Aggregate the data columns at the bottom of the table.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-10-regional-totals.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Building a Product Performance Sheet") {
+        @ContentAndMedia {
+            Create a sheet comparing quarterly performance across products.
+            
+            Calculate growth percentages to show trends.
+            
+            @Image(source: "product-performance", alt: "Product performance comparison chart")
+        }
+        
+        @Steps {
+            @Step {
+                Set up headers for product comparison.
+                
+                Include product name, category, historical data, and growth.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-11-product-headers.swift")
+            }
+            
+            @Step {
+                Write product data with multiple quarters.
+                
+                Include both Q3 and Q4 sales data for comparison.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-12-product-data.swift")
+            }
+            
+            @Step {
+                Calculate growth percentages with formulas.
+                
+                Use the formula: ((Q4 - Q3) / Q3) * 100
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-13-product-growth.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Adding a Monthly Breakdown") {
+        @ContentAndMedia {
+            Create a time-series breakdown showing monthly contributions.
+            
+            Calculate percentages to show each month's share of the quarter.
+            
+            @Image(source: "monthly-breakdown", alt: "Monthly data breakdown")
+        }
+        
+        @Steps {
+            @Step {
+                Set up the monthly breakdown structure.
+                
+                Create columns for month names, revenue, and percentage.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-14-monthly-headers.swift")
+            }
+            
+            @Step {
+                Write monthly data with percentages.
+                
+                Calculate each month's percentage of the quarter total.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-15-monthly-data.swift")
+            }
+            
+            @Step {
+                Add a total row for verification.
+                
+                Ensure all percentages sum to 100%.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-16-monthly-total.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Saving and Verifying the Report") {
+        @ContentAndMedia {
+            Save the workbook to disk and verify its contents.
+            
+            Read the file back to ensure data integrity.
+            
+            @Image(source: "save-verify", alt: "Save and checkmark icons")
+        }
+        
+        @Steps {
+            @Step {
+                Save the workbook to a file URL.
+                
+                The writer handles all XML generation and ZIP packaging.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-17-save.swift")
+            }
+            
+            @Step {
+                Verify the report by opening it.
+                
+                Read back key values to ensure correctness.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-18-verify.swift")
+            }
+            
+            @Step {
+                Complete the report generation function.
+                
+                Put all the sheets together in a cohesive report.
+                
+                @Code(name: "ReportGeneration.swift", file: "02-report-generation-19-complete.swift")
+            }
+        }
+    }
+}
