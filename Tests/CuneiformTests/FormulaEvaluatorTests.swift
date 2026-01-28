@@ -4675,4 +4675,133 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected complex number string")
         }
     }
+    
+    // MARK: - Batch 31: Financial and Aggregate Functions Tests
+    
+    @Test func evaluateMIRR() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(-1000),
+            "A2": .number(300),
+            "A3": .number(400),
+            "A4": .number(500)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // MIRR with 10% finance rate and 12% reinvestment rate
+        let parser = FormulaParser("=MIRR(A1:A4, 0.1, 0.12)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 0 && n < 1)  // Reasonable rate of return
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateEFFECT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // 10% nominal rate compounded quarterly
+        let parser = FormulaParser("=EFFECT(0.1, 4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            // Effective rate should be slightly higher than 10%
+            #expect(n > 0.1 && n < 0.11)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateNOMINAL() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // 10% effective rate compounded quarterly
+        let parser = FormulaParser("=NOMINAL(0.1, 4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            // Nominal rate should be slightly less than 10%
+            #expect(n > 0.095 && n < 0.1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateDURATION() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=DURATION(\"2020-01-01\", \"2030-01-01\", 0.05, 0.06, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))  // Stub
+    }
+    
+    @Test func evaluateCOUPDAYBS() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=COUPDAYBS(\"2020-01-01\", \"2030-01-01\", 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))  // Stub
+    }
+    
+    @Test func evaluateSUBTOTAL() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10), "A2": .number(20), "A3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Function 1 = AVERAGE
+        let parser = FormulaParser("=SUBTOTAL(1, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(20))
+    }
+    
+    @Test func evaluateSUBTOTALSum() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10), "A2": .number(20), "A3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Function 9 = SUM
+        let parser = FormulaParser("=SUBTOTAL(9, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(60))
+    }
+    
+    @Test func evaluateAGGREGATE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10), "A2": .number(20), "A3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Function 1 = AVERAGE, option 0 = ignore nothing
+        let parser = FormulaParser("=AGGREGATE(1, 0, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(20))
+    }
+    
+    @Test func evaluateAGGREGATEMedian() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10), "A2": .number(20), "A3": .number(30)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Function 12 = MEDIAN
+        let parser = FormulaParser("=AGGREGATE(12, 0, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(20))
+    }
 }

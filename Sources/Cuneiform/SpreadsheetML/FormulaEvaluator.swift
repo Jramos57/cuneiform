@@ -924,6 +924,33 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateIMSEC(args)
         case "IMCSC":
             return try evaluateIMCSC(args)
+        // Batch 31: Financial and aggregate functions
+        case "MIRR":
+            return try evaluateMIRR(args)
+        case "EFFECT":
+            return try evaluateEFFECT(args)
+        case "NOMINAL":
+            return try evaluateNOMINAL(args)
+        case "DURATION":
+            return try evaluateDURATION(args)
+        case "MDURATION":
+            return try evaluateMDURATION(args)
+        case "COUPDAYBS":
+            return try evaluateCOUPDAYBS(args)
+        case "COUPDAYS":
+            return try evaluateCOUPDAYS(args)
+        case "COUPDAYSNC":
+            return try evaluateCOUPDAYSNC(args)
+        case "COUPNCD":
+            return try evaluateCOUPNCD(args)
+        case "COUPPCD":
+            return try evaluateCOUPPCD(args)
+        case "COUPNUM":
+            return try evaluateCOUPNUM(args)
+        case "SUBTOTAL":
+            return try evaluateSUBTOTAL(args)
+        case "AGGREGATE":
+            return try evaluateAGGREGATE(args)
         default:
             return .error("NAME")
         }
@@ -10354,6 +10381,284 @@ public struct FormulaEvaluator: Sendable {
         
         let one = FormulaExpression.string("1+0i")
         return try evaluateIMDIV([one, FormulaExpression.string(sinStr)])
+    }
+    
+    // MARK: - Batch 31: Financial and Aggregate Functions
+    
+    private func evaluateMIRR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Modified Internal Rate of Return
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let valuesVal = try evaluate(args[0])
+        let financeRateVal = try evaluate(args[1])
+        let reinvestRateVal = try evaluate(args[2])
+        
+        let values = flattenToNumbers(valuesVal)
+        guard let financeRate = financeRateVal.asDouble,
+              let reinvestRate = reinvestRateVal.asDouble,
+              values.count > 0 else {
+            return .error("VALUE")
+        }
+        
+        // Calculate present value of negative cash flows and future value of positive cash flows
+        var npv = 0.0
+        var fv = 0.0
+        let n = Double(values.count)
+        
+        for (i, value) in values.enumerated() {
+            let period = Double(i)
+            if value < 0 {
+                npv += value / pow(1 + financeRate, period)
+            } else {
+                fv += value * pow(1 + reinvestRate, n - period - 1)
+            }
+        }
+        
+        guard npv != 0 else {
+            return .error("DIV/0")
+        }
+        
+        let mirr = pow(-fv / npv, 1 / (n - 1)) - 1
+        return .number(mirr)
+    }
+    
+    private func evaluateEFFECT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Effective annual interest rate
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let nominalRateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        
+        guard let nominalRate = nominalRateVal.asDouble,
+              let npery = nperVal.asDouble,
+              nominalRate > 0, npery >= 1 else {
+            return .error("NUM")
+        }
+        
+        let effect = pow(1 + nominalRate / npery, npery) - 1
+        return .number(effect)
+    }
+    
+    private func evaluateNOMINAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Nominal annual interest rate
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let effectRateVal = try evaluate(args[0])
+        let nperVal = try evaluate(args[1])
+        
+        guard let effectRate = effectRateVal.asDouble,
+              let npery = nperVal.asDouble,
+              effectRate > 0, npery >= 1 else {
+            return .error("NUM")
+        }
+        
+        let nominal = npery * (pow(effectRate + 1, 1 / npery) - 1)
+        return .number(nominal)
+    }
+    
+    private func evaluateDURATION(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Macaulay duration - requires complex bond math
+        guard args.count >= 5 && args.count <= 6 else {
+            return .error("VALUE")
+        }
+        // Stub - requires full bond duration calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateMDURATION(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Modified duration
+        guard args.count >= 5 && args.count <= 6 else {
+            return .error("VALUE")
+        }
+        // Stub - requires full bond duration calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPDAYBS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Days from beginning of coupon period to settlement
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPDAYS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Number of days in coupon period
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPDAYSNC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Days from settlement to next coupon date
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPNCD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Next coupon date after settlement
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPPCD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Previous coupon date before settlement
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateCOUPNUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Number of coupons between settlement and maturity
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        // Stub - requires coupon calculation
+        return .error("CALC")
+    }
+    
+    private func evaluateSUBTOTAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Subtotal with function number
+        guard args.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let functionNumVal = try evaluate(args[0])
+        guard let functionNum = functionNumVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Get all values from remaining arguments
+        var allNumbers: [Double] = []
+        for i in 1..<args.count {
+            let val = try evaluate(args[i])
+            allNumbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        // Apply function based on number (1-11 or 101-111 for ignore hidden)
+        let fn = Int(functionNum) % 100
+        
+        switch fn {
+        case 1, 2, 3:  // AVERAGE variants
+            guard !allNumbers.isEmpty else { return .error("DIV/0") }
+            return .number(allNumbers.reduce(0, +) / Double(allNumbers.count))
+        case 4:  // MAX
+            guard let max = allNumbers.max() else { return .error("NUM") }
+            return .number(max)
+        case 5:  // MIN
+            guard let min = allNumbers.min() else { return .number(0) }
+            return .number(min)
+        case 6:  // PRODUCT
+            return .number(allNumbers.reduce(1, *))
+        case 7, 8:  // STDEV variants
+            guard allNumbers.count > 1 else { return .error("DIV/0") }
+            let mean = allNumbers.reduce(0, +) / Double(allNumbers.count)
+            let variance = allNumbers.map { pow($0 - mean, 2) }.reduce(0, +) / Double(allNumbers.count - 1)
+            return .number(sqrt(variance))
+        case 9:  // SUM
+            return .number(allNumbers.reduce(0, +))
+        case 10, 11:  // VAR variants
+            guard allNumbers.count > 1 else { return .error("DIV/0") }
+            let mean = allNumbers.reduce(0, +) / Double(allNumbers.count)
+            let variance = allNumbers.map { pow($0 - mean, 2) }.reduce(0, +) / Double(allNumbers.count - 1)
+            return .number(variance)
+        default:
+            return .error("VALUE")
+        }
+    }
+    
+    private func evaluateAGGREGATE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Aggregate function with options
+        guard args.count >= 3 else {
+            return .error("VALUE")
+        }
+        
+        let functionNumVal = try evaluate(args[0])
+        let optionsVal = try evaluate(args[1])
+        
+        guard let functionNum = functionNumVal.asDouble,
+              let _ = optionsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // Get all values from remaining arguments
+        var allNumbers: [Double] = []
+        for i in 2..<args.count {
+            let val = try evaluate(args[i])
+            allNumbers.append(contentsOf: flattenToNumbers(val))
+        }
+        
+        // Apply function based on number (similar to SUBTOTAL)
+        let fn = Int(functionNum)
+        
+        switch fn {
+        case 1:  // AVERAGE
+            guard !allNumbers.isEmpty else { return .error("DIV/0") }
+            return .number(allNumbers.reduce(0, +) / Double(allNumbers.count))
+        case 2:  // COUNT
+            return .number(Double(allNumbers.count))
+        case 3:  // COUNTA (count non-empty)
+            return .number(Double(allNumbers.count))
+        case 4:  // MAX
+            guard let max = allNumbers.max() else { return .error("NUM") }
+            return .number(max)
+        case 5:  // MIN
+            guard let min = allNumbers.min() else { return .number(0) }
+            return .number(min)
+        case 6:  // PRODUCT
+            return .number(allNumbers.reduce(1, *))
+        case 7, 8:  // STDEV variants
+            guard allNumbers.count > 1 else { return .error("DIV/0") }
+            let mean = allNumbers.reduce(0, +) / Double(allNumbers.count)
+            let variance = allNumbers.map { pow($0 - mean, 2) }.reduce(0, +) / Double(allNumbers.count - 1)
+            return .number(sqrt(variance))
+        case 9:  // SUM
+            return .number(allNumbers.reduce(0, +))
+        case 10, 11:  // VAR variants
+            guard allNumbers.count > 1 else { return .error("DIV/0") }
+            let mean = allNumbers.reduce(0, +) / Double(allNumbers.count)
+            let variance = allNumbers.map { pow($0 - mean, 2) }.reduce(0, +) / Double(allNumbers.count - 1)
+            return .number(variance)
+        case 12:  // MEDIAN
+            guard !allNumbers.isEmpty else { return .error("NUM") }
+            let sorted = allNumbers.sorted()
+            let mid = sorted.count / 2
+            if sorted.count % 2 == 0 {
+                return .number((sorted[mid - 1] + sorted[mid]) / 2)
+            } else {
+                return .number(sorted[mid])
+            }
+        case 13, 14, 15:  // MODE, LARGE, SMALL
+            // Simplified implementations
+            return .error("CALC")
+        case 16:  // PERCENTILE.INC
+            return .error("CALC")
+        case 17:  // QUARTILE.INC
+            return .error("CALC")
+        case 18:  // PERCENTILE.EXC
+            return .error("CALC")
+        case 19:  // QUARTILE.EXC
+            return .error("CALC")
+        default:
+            return .error("VALUE")
+        }
     }
 }
 
