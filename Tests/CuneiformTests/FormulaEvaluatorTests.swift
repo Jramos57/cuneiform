@@ -1647,4 +1647,203 @@ struct FormulaEvaluatorTests {
         
         #expect(result == .number(1))
     }
+    
+    // MARK: - Dynamic Array Functions (Excel 365)
+    
+    @Test func evaluateFILTER() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .number(20),
+            "A3": .number(30),
+            "B1": .number(5),
+            "B2": .number(15),
+            "B3": .number(25)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Filter A1:A3 where B1:B3 > 10
+        let parser = FormulaParser("=FILTER(A1:A3, B1:B3>10)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 20 and 30 (where criteria > 10)
+        if case .array(let rows) = result {
+            #expect(rows.count == 2)
+            #expect(rows[0][0] == .number(20))
+            #expect(rows[1][0] == .number(30))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateSORT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(30),
+            "A2": .number(10),
+            "A3": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Sort A1:A3 ascending
+        let parser = FormulaParser("=SORT(A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 10, 20, 30
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(10))
+            #expect(rows[1][0] == .number(20))
+            #expect(rows[2][0] == .number(30))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateSORTDescending() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(30),
+            "A2": .number(10),
+            "A3": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Sort A1:A3 descending (sort_order = -1)
+        let parser = FormulaParser("=SORT(A1:A3, 1, -1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 30, 20, 10
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(30))
+            #expect(rows[1][0] == .number(20))
+            #expect(rows[2][0] == .number(10))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateUNIQUE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(10),
+            "A2": .number(20),
+            "A3": .number(10),
+            "A4": .number(30),
+            "A5": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Get unique values from A1:A5
+        let parser = FormulaParser("=UNIQUE(A1:A5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 10, 20, 30
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(10))
+            #expect(rows[1][0] == .number(20))
+            #expect(rows[2][0] == .number(30))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateSEQUENCE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Generate sequence 1 to 5
+        let parser = FormulaParser("=SEQUENCE(5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 1, 2, 3, 4, 5
+        if case .array(let rows) = result {
+            #expect(rows.count == 5)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .number(3))
+            #expect(rows[3][0] == .number(4))
+            #expect(rows[4][0] == .number(5))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateSEQUENCEWithStartAndStep() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Generate sequence starting at 10, step 5, 3 rows
+        let parser = FormulaParser("=SEQUENCE(3, 1, 10, 5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return 10, 15, 20
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(10))
+            #expect(rows[1][0] == .number(15))
+            #expect(rows[2][0] == .number(20))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateRANDARRAY() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Generate 3x2 random array
+        let parser = FormulaParser("=RANDARRAY(3, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Verify structure (3 rows, 2 columns)
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0].count == 2)
+            #expect(rows[1].count == 2)
+            #expect(rows[2].count == 2)
+            
+            // Verify all values are numbers between 0 and 1
+            for row in rows {
+                for cell in row {
+                    if case .number(let val) = cell {
+                        #expect(val >= 0.0 && val < 1.0)
+                    } else {
+                        Issue.record("Expected number in RANDARRAY")
+                    }
+                }
+            }
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateSORTBY() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Apple"),
+            "A2": .text("Banana"),
+            "A3": .text("Cherry"),
+            "B1": .number(30),
+            "B2": .number(10),
+            "B3": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Sort A1:A3 by B1:B3 values
+        let parser = FormulaParser("=SORTBY(A1:A3, B1:B3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return Banana, Cherry, Apple (sorted by 10, 20, 30)
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .string("Banana"))
+            #expect(rows[1][0] == .string("Cherry"))
+            #expect(rows[2][0] == .string("Apple"))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
 }

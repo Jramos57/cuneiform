@@ -384,6 +384,19 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateMINIFS(args)
         case "AVERAGEIFS":
             return try evaluateAVERAGEIFS(args)
+        // Dynamic array functions (Excel 365)
+        case "FILTER":
+            return try evaluateFILTER(args)
+        case "SORT":
+            return try evaluateSORT(args)
+        case "SORTBY":
+            return try evaluateSORTBY(args)
+        case "UNIQUE":
+            return try evaluateUNIQUE(args)
+        case "SEQUENCE":
+            return try evaluateSEQUENCE(args)
+        case "RANDARRAY":
+            return try evaluateRANDARRAY(args)
         // Statistical functions
         case "STDEV", "STDEV.S":
             return try evaluateSTDEV(args, sample: true)
@@ -4153,6 +4166,223 @@ public struct FormulaEvaluator: Sendable {
         default:
             return .error("VALUE")
         }
+    }
+    
+    // MARK: - Dynamic Array Functions (Excel 365)
+    
+    /// FILTER - Filters array based on criteria
+    private func evaluateFILTER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "FILTER", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let includeVal = try evaluate(args[1])
+        
+        guard case .array(let rows) = arrayVal,
+              case .array(let includeRows) = includeVal else {
+            return .error("VALUE")
+        }
+        
+        var filtered: [[FormulaValue]] = []
+        
+        for (i, row) in rows.enumerated() {
+            if i < includeRows.count {
+                let includeRow = includeRows[i]
+                if let firstInclude = includeRow.first,
+                   let num = firstInclude.asDouble,
+                   num != 0 {
+                    filtered.append(row)
+                }
+            }
+        }
+        
+        if filtered.isEmpty {
+            if args.count > 2 {
+                return try evaluate(args[2])
+            }
+            return .error("CALC")
+        }
+        
+        return .array(filtered)
+    }
+    
+    /// SORT - Sorts array
+    private func evaluateSORT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 4 else {
+            throw FormulaError.invalidArgumentCount(function: "SORT", expected: 1, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let sortIndexVal = args.count > 1 ? try evaluate(args[1]) : .number(1)
+        let sortOrderVal = args.count > 2 ? try evaluate(args[2]) : .number(1)
+        
+        guard case .array(var rows) = arrayVal else {
+            return .error("VALUE")
+        }
+        
+        let sortIndex = (sortIndexVal.asDouble.map { Int($0) } ?? 1) - 1
+        let ascending = (sortOrderVal.asDouble ?? 1) == 1
+        
+        rows.sort { row1, row2 in
+            guard sortIndex >= 0 && sortIndex < row1.count && sortIndex < row2.count else {
+                return false
+            }
+            
+            let val1 = row1[sortIndex]
+            let val2 = row2[sortIndex]
+            
+            // Compare values
+            switch (val1, val2) {
+            case (.number(let n1), .number(let n2)):
+                return ascending ? n1 < n2 : n1 > n2
+            case (.string(let s1), .string(let s2)):
+                return ascending ? s1 < s2 : s1 > s2
+            default:
+                return false
+            }
+        }
+        
+        return .array(rows)
+    }
+    
+    /// SORTBY - Sorts array by another array
+    private func evaluateSORTBY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "SORTBY", expected: 2, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let byArrayVal = try evaluate(args[1])
+        let sortOrderVal = args.count > 2 ? try evaluate(args[2]) : .number(1)
+        
+        guard case .array(let rows) = arrayVal,
+              case .array(let byRows) = byArrayVal else {
+            return .error("VALUE")
+        }
+        
+        let ascending = (sortOrderVal.asDouble ?? 1) == 1
+        
+        // Create indexed array with sort keys
+        var indexed: [(row: [FormulaValue], sortKey: FormulaValue)] = []
+        for (i, row) in rows.enumerated() {
+            if i < byRows.count, let sortKey = byRows[i].first {
+                indexed.append((row, sortKey))
+            }
+        }
+        
+        // Sort by sort keys
+        indexed.sort { item1, item2 in
+            switch (item1.sortKey, item2.sortKey) {
+            case (.number(let n1), .number(let n2)):
+                return ascending ? n1 < n2 : n1 > n2
+            case (.string(let s1), .string(let s2)):
+                return ascending ? s1 < s2 : s1 > s2
+            default:
+                return false
+            }
+        }
+        
+        return .array(indexed.map { $0.row })
+    }
+    
+    /// UNIQUE - Returns unique values from array
+    private func evaluateUNIQUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 3 else {
+            throw FormulaError.invalidArgumentCount(function: "UNIQUE", expected: 1, got: args.count)
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        guard case .array(let rows) = arrayVal else {
+            return .error("VALUE")
+        }
+        
+        var unique: [[FormulaValue]] = []
+        var seen: Set<String> = []
+        
+        for row in rows {
+            // Create a key from the row
+            let key = row.map { $0.asString }.joined(separator: "|")
+            
+            if !seen.contains(key) {
+                seen.insert(key)
+                unique.append(row)
+            }
+        }
+        
+        return .array(unique)
+    }
+    
+    /// SEQUENCE - Generates sequence of numbers
+    private func evaluateSEQUENCE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 4 else {
+            throw FormulaError.invalidArgumentCount(function: "SEQUENCE", expected: 1, got: args.count)
+        }
+        
+        let rowsVal = try evaluate(args[0])
+        let colsVal = args.count > 1 ? try evaluate(args[1]) : .number(1)
+        let startVal = args.count > 2 ? try evaluate(args[2]) : .number(1)
+        let stepVal = args.count > 3 ? try evaluate(args[3]) : .number(1)
+        
+        guard let numRows = rowsVal.asDouble,
+              let numCols = colsVal.asDouble,
+              let start = startVal.asDouble,
+              let step = stepVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let rows = Int(numRows)
+        let cols = Int(numCols)
+        
+        var result: [[FormulaValue]] = []
+        var current = start
+        
+        for _ in 0..<rows {
+            var row: [FormulaValue] = []
+            for _ in 0..<cols {
+                row.append(.number(current))
+                current += step
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
+    }
+    
+    /// RANDARRAY - Generates array of random numbers
+    private func evaluateRANDARRAY(_ args: [FormulaExpression]) throws -> FormulaValue {
+        let rowsVal = args.count > 0 ? try evaluate(args[0]) : .number(1)
+        let colsVal = args.count > 1 ? try evaluate(args[1]) : .number(1)
+        let minVal = args.count > 2 ? try evaluate(args[2]) : .number(0)
+        let maxVal = args.count > 3 ? try evaluate(args[3]) : .number(1)
+        let wholeNumberVal = args.count > 4 ? try evaluate(args[4]) : .number(0)
+        
+        guard let numRows = rowsVal.asDouble,
+              let numCols = colsVal.asDouble,
+              let min = minVal.asDouble,
+              let max = maxVal.asDouble,
+              let wholeNumber = wholeNumberVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let rows = Int(numRows)
+        let cols = Int(numCols)
+        let isInteger = wholeNumber != 0
+        
+        var result: [[FormulaValue]] = []
+        
+        for _ in 0..<rows {
+            var row: [FormulaValue] = []
+            for _ in 0..<cols {
+                let random = Double.random(in: min...max)
+                let value = isInteger ? Double(Int(random)) : random
+                row.append(.number(value))
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
     }
 }
 
