@@ -91,6 +91,28 @@ public struct RawCell: Sendable {
 public struct RawRow: Sendable {
     public let index: Int  // 1-based row number
     public let cells: [RawCell]
+    /// Row height in points (if customHeight is true)
+    public let height: Double?
+    /// Whether the row has a custom height set
+    public let customHeight: Bool
+    /// Whether the row is hidden
+    public let hidden: Bool
+}
+
+/// Column formatting and dimensions
+public struct RawColumn: Sendable {
+    /// First column this definition applies to (1-based)
+    public let min: Int
+    /// Last column this definition applies to (1-based, inclusive)
+    public let max: Int
+    /// Column width in Excel's unit (character width)
+    public let width: Double?
+    /// Whether the column has a custom width set
+    public let customWidth: Bool
+    /// Whether the column is hidden
+    public let hidden: Bool
+    /// Style index for the column (optional)
+    public let styleIndex: Int?
 }
 
 /// Parsed worksheet data
@@ -100,6 +122,9 @@ public struct WorksheetData: Sendable {
 
     /// All rows with data
     public let rows: [RawRow]
+
+    /// Column formatting and dimensions
+    public let columns: [RawColumn]
 
     /// Merged cell ranges
     public let mergedCells: [String]  // "A1:C3" format
@@ -360,6 +385,7 @@ public enum WorksheetParser {
         var result = WorksheetData(
             dimension: delegate.dimension,
             rows: delegate.rows,
+            columns: delegate.columns,
             mergedCells: delegate.mergedCells,
             dataValidations: delegate.dataValidations,
             hyperlinks: delegate.hyperlinks,
@@ -391,6 +417,7 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
 
     private(set) var dimension: String?
     private(set) var rows: [RawRow] = []
+    private(set) var columns: [RawColumn] = []
     private(set) var mergedCells: [String] = []
     private(set) var dataValidations: [WorksheetData.DataValidation] = []
     private(set) var hyperlinks: [WorksheetData.Hyperlink] = []
@@ -412,6 +439,9 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
     // Row accumulation
     private var currentRowIndex: Int = 0
     private var currentCells: [RawCell] = []
+    private var currentRowHeight: Double?
+    private var currentRowCustomHeight: Bool = false
+    private var currentRowHidden: Bool = false
 
     // Cell accumulation
     private var currentCellRef: CellReference?
@@ -468,10 +498,47 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
                 dimension = ref
             }
 
+        case "col":
+            // Parse column definition
+            guard let minStr = attributeDict["min"], let min = Int(minStr),
+                  let maxStr = attributeDict["max"], let max = Int(maxStr) else {
+                return
+            }
+            let width: Double?
+            if let widthStr = attributeDict["width"] {
+                width = Double(widthStr)
+            } else {
+                width = nil
+            }
+            let customWidth = attributeDict["customWidth"] == "1"
+            let hidden = attributeDict["hidden"] == "1"
+            let styleIndex: Int?
+            if let styleStr = attributeDict["style"] {
+                styleIndex = Int(styleStr)
+            } else {
+                styleIndex = nil
+            }
+            columns.append(RawColumn(
+                min: min,
+                max: max,
+                width: width,
+                customWidth: customWidth,
+                hidden: hidden,
+                styleIndex: styleIndex
+            ))
+
         case "row":
             let rStr = attributeDict["r"] ?? "0"
             currentRowIndex = Int(rStr) ?? 0
             currentCells.removeAll(keepingCapacity: true)
+            // Parse row height attributes
+            if let htStr = attributeDict["ht"], let ht = Double(htStr) {
+                currentRowHeight = ht
+            } else {
+                currentRowHeight = nil
+            }
+            currentRowCustomHeight = attributeDict["customHeight"] == "1"
+            currentRowHidden = attributeDict["hidden"] == "1"
 
         case "c":
             guard let r = attributeDict["r"], let ref = CellReference(r) else {
@@ -797,8 +864,18 @@ final class _WorksheetParser: NSObject, XMLParserDelegate, @unchecked Sendable {
             formulaBuffer.removeAll(keepingCapacity: true)
 
         case "row":
-            rows.append(RawRow(index: currentRowIndex, cells: currentCells))
+            rows.append(RawRow(
+                index: currentRowIndex,
+                cells: currentCells,
+                height: currentRowHeight,
+                customHeight: currentRowCustomHeight,
+                hidden: currentRowHidden
+            ))
             currentCells.removeAll(keepingCapacity: true)
+            // Reset row state
+            currentRowHeight = nil
+            currentRowCustomHeight = false
+            currentRowHidden = false
 
         case "formula1":
             inFormula1 = false

@@ -10,10 +10,8 @@ struct DependencyGraphTests {
     @Test func addSingleDependency() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         graph.addFormula(at: a1, dependsOn: [b1])
         
@@ -25,13 +23,10 @@ struct DependencyGraphTests {
     @Test func addMultipleDependencies() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1"),
-              let d1 = CellReference("D1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
+        let d1 = CellReference("D1")
         
         graph.addFormula(at: a1, dependsOn: [b1, c1, d1])
         
@@ -45,12 +40,9 @@ struct DependencyGraphTests {
     @Test func trackDependents() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
         
         // A1 and C1 both depend on B1
         graph.addFormula(at: a1, dependsOn: [b1])
@@ -65,10 +57,8 @@ struct DependencyGraphTests {
     @Test func removeFormula() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         graph.addFormula(at: a1, dependsOn: [b1])
         #expect(graph.directDependencies(of: a1).count == 1)
@@ -83,10 +73,8 @@ struct DependencyGraphTests {
     @Test func simpleRecalculationOrder() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         // A1 = B1 + 1
         graph.addFormula(at: a1, dependsOn: [b1])
@@ -98,12 +86,9 @@ struct DependencyGraphTests {
     @Test func chainedRecalculationOrder() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
         
         // A1 = B1 + 1
         // B1 = C1 + 1
@@ -122,13 +107,10 @@ struct DependencyGraphTests {
     @Test func diamondRecalculationOrder() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1"),
-              let d1 = CellReference("D1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
+        let d1 = CellReference("D1")
         
         // Diamond pattern:
         //     D1
@@ -157,10 +139,8 @@ struct DependencyGraphTests {
     @Test func detectSimpleCircularReference() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         // A1 = B1 + 1
         // B1 = A1 + 1  (circular!)
@@ -173,12 +153,9 @@ struct DependencyGraphTests {
     @Test func detectIndirectCircularReference() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
         
         // A1 = B1 + 1
         // B1 = C1 + 1
@@ -193,12 +170,9 @@ struct DependencyGraphTests {
     @Test func noCircularReferenceInAcyclicGraph() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
         
         // A1 = B1 + C1 (no cycle)
         graph.addFormula(at: a1, dependsOn: [b1, c1])
@@ -217,10 +191,8 @@ struct DependencyGraphTests {
             cells[ref.description]
         })
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         calculator.registerFormula(at: a1, references: [b1])
         
@@ -238,10 +210,8 @@ struct DependencyGraphTests {
             cells[ref.description]
         })
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         let expr = FormulaExpression.binaryOp(.add, .cellRef(a1), .cellRef(b1))
         let result = try calculator.evaluate(expr)
@@ -249,12 +219,9 @@ struct DependencyGraphTests {
     }
     
     @Test func extractReferencesFromExpression() throws {
-        guard let a1 = CellReference("A1"),
-              let b1 = CellReference("B1"),
-              let c1 = CellReference("C1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
+        let c1 = CellReference("C1")
         
         // SUM(A1:B1) + C1
         let sumExpr = FormulaExpression.functionCall("SUM", [.range(a1, b1)])
@@ -272,14 +239,11 @@ struct DependencyGraphTests {
     @Test func complexDependencyChain() throws {
         var graph = DependencyGraph()
         
-        guard let a1 = CellReference("A1"),
-              let a2 = CellReference("A2"),
-              let a3 = CellReference("A3"),
-              let a4 = CellReference("A4"),
-              let a5 = CellReference("A5") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let a2 = CellReference("A2")
+        let a3 = CellReference("A3")
+        let a4 = CellReference("A4")
+        let a5 = CellReference("A5")
         
         // A5 = SUM(A1:A4)
         // A4 = A3 * 2

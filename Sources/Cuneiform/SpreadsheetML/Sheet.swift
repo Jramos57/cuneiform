@@ -123,6 +123,11 @@ public struct Sheet: Sendable {
         guard let cellRef = CellReference(ref) else { return nil }
         return cellStyle(at: cellRef)
     }
+    
+    /// Access raw worksheet data (for advanced use cases)
+    public func getRawData() -> WorksheetData {
+        return rawData
+    }
 
     /// Get all cells in a row
     public func row(_ index: Int) -> [CellValue] {

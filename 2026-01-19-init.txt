@@ -1,0 +1,721 @@
+
+╭─── Claude Code v2.0.76 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│               Welcome back jonathan!               │ started                 │
+│                                                    │ Run /init to create a … │
+│                     * ▐▛███▜▌ *                    │ ─────────────────────── │
+│                    * ▝▜█████▛▘ *                   │ Recent activity         │
+│                     *  ▘▘ ▝▝  *                    │ No recent activity      │
+│                                                    │                         │
+│    Opus 4.5 · Claude Pro · jonathan@tizio.org's    │                         │
+│    Organization                                    │                         │
+│             ~/Desktop/garden/cuneiform             │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+> init 
+
+⏺ I see you've typed "init". How can I help you today? Are you looking to:
+
+  1. Initialize a new project or component in this codebase?
+  2. Get oriented with this existing codebase?
+  3. Something else?
+
+  Let me know what you'd like to accomplish.
+
+> 2 
+
+⏺ Explore(Explore codebase structure)
+  ⎿  Done (32 tool uses · 40.5k tokens · 1m 57s)                           
+
+⏺ Cuneiform - Swift Excel Library
+
+  This is a pure Swift library for reading and writing .xlsx (Excel) files, implementing the Office Open XML standard.
+
+  Tech Stack
+
+  - Language: Swift 6.0+
+  - Platforms: macOS 13+, iOS 16+, tvOS 16+, watchOS 9+, visionOS 1+
+  - Build: Swift Package Manager
+  - Tests: 355 tests using swift-testing
+
+  Directory Structure
+
+  Sources/Cuneiform/
+  ├── Core/           # OPC packaging layer (errors, content types, relationships)
+  ├── Package/        # ZIP handling, OPC container operations
+  └── SpreadsheetML/  # High-level spreadsheet API (22 files)
+      ├── Workbook.swift, Sheet.swift, CellValue.swift
+      ├── Parsers (SharedStrings, Worksheet, Styles, Charts, Tables...)
+      ├── Writers (WorkbookWriter, Builders...)
+      └── Formula engine (Parser, Evaluator, DependencyGraph)
+
+  Tests/CuneiformTests/   # 44 test files
+  Documentation/          # Domain model, Excel quirks, performance guides
+  Examples/               # DataAnalysis, ReportGeneration
+
+  Key Capabilities
+
+  - Read: Open .xlsx files, extract cells, formulas, styles, charts, comments
+  - Write: Create workbooks from scratch, modify existing files
+  - Formula Engine: Parse and evaluate formulas with 20+ built-in functions (SUM, IF, VLOOKUP, etc.)
+  - Advanced: Tables, pivot tables, conditional formatting, data validation, hyperlinks, protection
+
+  Architecture
+
+  1. Layered: Core (OPC) → Package (ZIP) → SpreadsheetML (API)
+  2. Lazy Loading: Sheets loaded on-demand
+  3. Thread-safe: Sendable types throughout
+
+  The project is mature with completed development phases through Phase 5 (Formula Engine). Want me to dive deeper into any specific area?
+
+> how close to the spec is it? 
+
+⏺ Explore(Assess OOXML spec compliance)
+  ⎿  Done (27 tool uses · 71.0k tokens · 1m 14s)                           
+
+⏺ Spec Compliance Summary
+
+  Overall: ~82-85% of ISO/IEC 29500-1
+
+  What's Fully Implemented ✓
+
+  | Area                                              | Coverage |
+  |---------------------------------------------------|----------|
+  | Core SpreadsheetML (cells, rows, worksheets)      | ~95%     |
+  | Styles (fonts, fills, borders, number formats)    | ~95%     |
+  | OPC Package (ZIP, relationships, content types)   | 100%     |
+  | Tables, Data Validation, Named Ranges             | ~95%     |
+  | Protection (sheet/workbook), Comments, Hyperlinks | ~95%     |
+  | Page Setup, Rich Text                             | ~95%     |
+
+  Partial / Read-Only
+
+  - Charts - read metadata only, no write (~30%)
+  - Pivot Tables - read metadata only, no write (~30%)
+  - Conditional Formatting - core types work, missing expression-based rules, top-10 filters
+  - AutoFilter - basic filtering, no custom criteria or date grouping
+
+  Not Implemented ✗
+
+  - Excel 2010+ features: Sparklines, Slicers, Timelines
+  - DrawingML: Shapes, images, text boxes
+  - VBA/Macros
+  - Strict ISO namespace (only Transitional)
+  - calcChain.xml (intentionally omitted - Excel rebuilds it)
+
+  Known Quirks Handled
+
+  The library explicitly handles Excel's deviations from the spec:
+  - 1900 leap year bug in date system
+  - Relationship ID format requirements
+  - Content type ordering for old Excel versions
+  - Sparse storage conventions
+  - Formula prefix handling (no leading = in XML)
+
+  Bottom Line
+
+  Good for data extraction, report generation, and server-side processing. Not suited for preserving complex charts, graphics, macros, or Excel 2010+ visualizations.
+
+> can we work on continue getting 100% coverage in all areas? 
+
+⏺ That's an ambitious goal! The OOXML spec is massive - full 100% coverage would be a multi-year effort. Let me check what's already planned and help prioritize.
+
+⏺ Read(TASKS.md)
+  ⎿  Read 1233 lines
+
+⏺ Read(VERIFICATION_CHECKLIST.md)
+  ⎿  Read 640 lines
+
+⏺ This is a substantial undertaking. The OOXML spec has hundreds of elements. Here's where things stand:
+
+  Current Status: ~85% Core SpreadsheetML
+
+  Fully Implemented ✓
+  - Core worksheets, cells, formulas, styles
+  - Tables, conditional formatting, autofilter
+  - Rich text, shared strings optimization
+  - Page setup, protection (sheet/workbook)
+  - Formula engine (20 functions)
+  - Charts & pivot tables (read-only)
+
+  Major Gaps for 100%
+
+  | Feature                   | Effort     | Impact                 |
+  |---------------------------|------------|------------------------|
+  | Charts (write)            | Large      | High - commonly needed |
+  | Pivot Tables (write)      | Large      | High - commonly needed |
+  | DrawingML (shapes/images) | Very Large | Medium                 |
+  | More formula functions    | Medium     | High - only 20 of 400+ |
+  | Sparklines/Slicers        | Medium     | Low - Excel 2010+      |
+  | VBA/Macros                | Very Large | Low - niche use        |
+  | Strict ISO namespace      | Small      | Low - rarely used      |
+
+  Suggested Approach
+
+  Rather than "100% everything," I'd suggest prioritizing by impact:
+
+  1. Expand formula functions - Add the most-used functions (TODAY, NOW, SUMIF, COUNTIF, LEFT, RIGHT, MID, TRIM, TEXT, DATE, etc.)
+  2. Chart generation - Write-side for common chart types
+  3. Image embedding - DrawingML for images (common use case)
+  4. Conditional formatting edge cases - Complete the remaining operators
+
+  Which area would you like to focus on first? Or would you prefer I create a comprehensive roadmap broken into phases?
+
+> 1-4 
+
+⏺ I'll plan out the implementation for all four areas. Let me explore the codebase to understand the current architecture and design a comprehensive approach.
+                                                                   
+⏺ Entered plan mode
+  Claude is now exploring and designing an implementation approach.
+
+⏺ 3 Explore agents finished (ctrl+o to expand)
+   ├─ Explore formula engine architecture · 14 tool uses · 47.6k tokens
+   │  ⎿  Done
+   ├─ Explore chart parser architecture · 29 tool uses · 62.3k tokens
+   │  ⎿  Done
+   └─ Explore conditional formatting gaps · 22 tool uses · 53.7k tokens
+      ⎿  Done
+
+⏺ Good exploration results. Let me also check for any existing DrawingML patterns and then create the plan.
+
+⏺ Search(pattern: "DrawingML|drawing|image|picture", path: "Sources")
+  ⎿  Found 4 files (ctrl+o to expand)
+
+⏺ Search(pattern: "**/Documentation/**/*.md", path:
+        "~/Desktop/garden/cuneiform")
+  ⎿  Found 18 files (ctrl+o to expand)
+
+⏺ Read(Sources/Cuneiform/Core/ContentType.swift)
+  ⎿  Read 51 lines
+
+⏺ Read(Sources/Cuneiform/Core/Relationship.swift)
+  ⎿  Read 152 lines
+
+⏺ Read(Sources/Cuneiform/SpreadsheetML/VMLCommentsBuilder.swift)
+  ⎿  Read 81 lines
+
+⏺ Read(Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift)
+  ⎿  Read 654 lines
+
+⏺ Now I have a comprehensive understanding. Let me create the implementation plan.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ I've created a comprehensive plan covering all 4 areas. Before we proceed, I have a few questions to refine the implementation:
+                                                                           
+⏺ User answered Claude's questions:
+  ⎿  · Which phase would you like to start with first? → Formula Functions
+     · For chart generation, which chart types are highest priority? → Bar &
+      Column, Line & Area, Pie & Doughnut, All basic types
+     · For formula functions, should I prioritize any specific category? → 
+     Balanced mix
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ The plan is ready. Here's the summary:
+
+  Plan Summary
+
+  Starting with Formula Functions (balanced mix):
+
+  Step 1 - Tier 1 (~15 functions):
+  - Date: TODAY, NOW, DATE, YEAR, MONTH, DAY
+  - String: LEFT, RIGHT, MID, TRIM
+  - Aggregates: SUMIF, COUNTIF, IFERROR
+  - Math: INT, MOD, SQRT
+
+  Step 2 - Tier 2 (~10 functions):
+  - SUMIFS, COUNTIFS, AVERAGEIF
+  - FIND, SEARCH, SUBSTITUTE
+  - ISBLANK, ISNUMBER, ISTEXT
+  - CONCATENATE, TEXT
+
+  Then:
+  - Step 3: Complete conditional formatting tests
+  - Step 4: Chart generation (all basic types)
+  - Step 5: Image embedding
+
+  Files to modify:
+  - Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift
+  - Tests/CuneiformTests/FormulaFunctionsExtendedTests.swift
+                                                                           
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/giggly-singing-kazoo.md · /plan to edit
+     Cuneiform OOXML Coverage Expansion Plan
+
+     Overview
+
+     Expand Cuneiform's OOXML coverage in 4 areas:
+     1. Formula functions (20 → 50+ functions)
+     2. Chart generation (write-side)
+     3. Image embedding (DrawingML)
+     4. Conditional formatting edge cases
+
+     ---
+     Phase 1: Formula Functions Expansion
+
+     Goal: Add ~30 commonly-used Excel functions
+
+     Current State: 20 functions in FormulaEvaluator.swift (582 lines)
+     - Math: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, MEDIAN, ROUND, ABS
+     - Logical: IF, AND, OR, NOT
+     - Lookup: VLOOKUP, INDEX, MATCH
+     - String: LEN, UPPER, LOWER, CONCAT
+
+     Functions to Add (Priority Order)
+
+     Tier 1 - Most Common (15 functions):
+     | Function       | Category | Complexity |
+     |----------------|----------|------------|
+     | TODAY          | Date     | Simple     |
+     | NOW            | Date     | Simple     |
+     | DATE           | Date     | Simple     |
+     | YEAR/MONTH/DAY | Date     | Simple     |
+     | LEFT/RIGHT/MID | String   | Simple     |
+     | TRIM           | String   | Simple     |
+     | TEXT           | String   | Medium     |
+     | SUMIF          | Math     | Medium     |
+     | COUNTIF        | Math     | Medium     |
+     | IFERROR        | Logical  | Simple     |
+
+     Tier 2 - Commonly Used (10 functions):
+     | Function                | Category | Complexity |
+     |-------------------------|----------|------------|
+     | SUMIFS                  | Math     | Medium     |
+     | COUNTIFS                | Math     | Medium     |
+     | AVERAGEIF               | Math     | Medium     |
+     | FIND/SEARCH             | String   | Simple     |
+     | SUBSTITUTE              | String   | Medium     |
+     | CONCATENATE             | String   | Simple     |
+     | INT/MOD                 | Math     | Simple     |
+     | SQRT/POWER              | Math     | Simple     |
+     | ISBLANK/ISNUMBER/ISTEXT | Info     | Simple     |
+
+     Tier 3 - Advanced (5+ functions):
+     | Function   | Category  | Complexity |
+     |------------|-----------|------------|
+     | HLOOKUP    | Lookup    | Medium     |
+     | CHOOSE     | Lookup    | Simple     |
+     | OFFSET     | Reference | Complex    |
+     | INDIRECT   | Reference | Complex    |
+     | SUMPRODUCT | Math      | Medium     |
+
+     Implementation Pattern
+
+     Each function follows this structure:
+     private func evaluateFUNCNAME(_ args: [FormulaExpression]) throws -> 
+     FormulaValue {
+         // 1. Validate argument count
+         guard args.count == N else {
+             throw FormulaError.invalidArgumentCount(function: "FUNCNAME", 
+     expected: N, got: args.count)
+         }
+
+         // 2. Evaluate arguments
+         let val = try evaluate(args[0])
+
+         // 3. Type conversion/validation
+         guard let num = val.asDouble else {
+             return .error("VALUE")
+         }
+
+         // 4. Compute and return result
+         return .number(result)
+     }
+
+     Files to Modify
+
+     - Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift
+       - Add case to evaluateFunction() switch
+       - Add private evaluate<FUNC>() method
+     - Tests/CuneiformTests/FormulaFunctionsExtendedTests.swift
+       - Add tests for each new function
+
+     Estimated Effort
+
+     - Tier 1: ~200 lines of implementation + ~150 lines of tests
+     - Tier 2: ~150 lines of implementation + ~100 lines of tests
+     - Tier 3: ~150 lines of implementation + ~100 lines of tests
+
+     ---
+     Phase 2: Chart Generation (Write-Side)
+
+     Goal: Create charts from data and embed them in worksheets
+
+     Current State: Read-only (ChartParser extracts metadata only)
+
+     Architecture Overview
+
+     SheetWriter.addChart()
+         ↓
+     ChartBuilder.build() → /xl/charts/chartN.xml
+         ↓
+     DrawingBuilder.build() → /xl/drawings/drawingN.xml
+         ↓
+     WorkbookWriter wires relationships + content types
+
+     Package Structure for Charts
+
+     workbook.xlsx
+     ├── [Content_Types].xml (add chart + drawing overrides)
+     ├── xl/
+     │   ├── charts/
+     │   │   └── chart1.xml
+     │   ├── drawings/
+     │   │   ├── drawing1.xml
+     │   │   └── _rels/
+     │   │       └── drawing1.xml.rels (chart relationship)
+     │   └── worksheets/
+     │       └── _rels/
+     │           └── sheet1.xml.rels (drawing relationship)
+
+     New Types
+
+     /// Chart configuration for write-side
+     public struct ChartConfig: Sendable {
+         public let type: ChartType
+         public let title: String?
+         public let dataRange: String          // e.g., "Sheet1!$A$1:$B$10"
+         public let categoryRange: String?     // X-axis labels
+         public let position: ChartPosition
+     }
+
+     public struct ChartPosition: Sendable {
+         public let anchorCell: CellReference  // Top-left anchor
+         public let width: Int                 // EMUs or column count
+         public let height: Int                // EMUs or row count
+     }
+
+     New Files to Create
+
+     1. ChartBuilder.swift (~300 lines)
+       - Build <c:chartSpace> XML
+       - Support: column, bar, line, pie, area charts
+       - Handle series data references
+     2. DrawingBuilder.swift (~200 lines)
+       - Build <xdr:wsDr> (worksheet drawing)
+       - Handle anchor positioning
+       - Embed chart references
+
+     Files to Modify
+
+     - Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift
+       - Add SheetWriter.addChart() API
+       - Wire chart/drawing in buildData()
+       - Generate relationships and content types
+
+     XML Templates
+
+     chart1.xml (simplified):
+     <?xml version="1.0"?>
+     <c:chartSpace xmlns:c="..." xmlns:a="...">
+       <c:chart>
+         <c:title><c:tx><c:rich>...</c:rich></c:tx></c:title>
+         <c:plotArea>
+           <c:barChart>
+             <c:ser>
+               <c:idx val="0"/>
+               
+     <c:cat><c:strRef><c:f>Sheet1!$A$2:$A$5</c:f></c:strRef></c:cat>
+               
+     <c:val><c:numRef><c:f>Sheet1!$B$2:$B$5</c:f></c:numRef></c:val>
+             </c:ser>
+           </c:barChart>
+         </c:plotArea>
+       </c:chart>
+     </c:chartSpace>
+
+     drawing1.xml (simplified):
+     <?xml version="1.0"?>
+     <xdr:wsDr xmlns:xdr="..." xmlns:a="..." xmlns:c="..." xmlns:r="...">
+       <xdr:twoCellAnchor>
+         <xdr:from><xdr:col>2</xdr:col><xdr:row>2</xdr:row>...</xdr:from>
+         <xdr:to><xdr:col>10</xdr:col><xdr:row>20</xdr:row>...</xdr:to>
+         <xdr:graphicFrame>
+           <a:graphic>
+             <a:graphicData uri="http://.../chart">
+               <c:chart r:id="rId1"/>
+             </a:graphicData>
+           </a:graphic>
+         </xdr:graphicFrame>
+       </xdr:twoCellAnchor>
+     </xdr:wsDr>
+
+     Estimated Effort
+
+     - ChartBuilder: ~300 lines
+     - DrawingBuilder: ~200 lines
+     - WorkbookWriter integration: ~150 lines
+     - Tests: ~200 lines
+
+     ---
+     Phase 3: Image Embedding (DrawingML)
+
+     Goal: Embed images (PNG, JPEG) in worksheets
+
+     Architecture
+
+     SheetWriter.addImage()
+         ↓
+     ImageData stored in writer
+         ↓
+     DrawingBuilder adds <xdr:pic> element
+         ↓
+     WorkbookWriter writes:
+       - /xl/media/imageN.png (raw bytes)
+       - /xl/drawings/drawingN.xml (drawing with pic)
+       - Relationships and content types
+
+     New Types
+
+     public struct ImageConfig: Sendable {
+         public let data: Data                 // Raw image bytes
+         public let format: ImageFormat        // .png, .jpeg, .gif
+         public let position: ImagePosition
+     }
+
+     public enum ImageFormat: String, Sendable {
+         case png = "png"
+         case jpeg = "jpeg"
+         case gif = "gif"
+     }
+
+     public struct ImagePosition: Sendable {
+         public let anchorCell: CellReference
+         public let width: Int                 // EMUs (914400 = 1 inch)
+         public let height: Int
+     }
+
+     Package Structure
+
+     workbook.xlsx
+     ├── [Content_Types].xml
+     │   └── <Default Extension="png" ContentType="image/png"/>
+     ├── xl/
+     │   ├── media/
+     │   │   ├── image1.png
+     │   │   └── image2.jpeg
+     │   ├── drawings/
+     │   │   ├── drawing1.xml
+     │   │   └── _rels/
+     │   │       └── drawing1.xml.rels (image relationships)
+
+     DrawingML for Images
+
+     <xdr:twoCellAnchor>
+       <xdr:from>...</xdr:from>
+       <xdr:to>...</xdr:to>
+       <xdr:pic>
+         <xdr:nvPicPr>
+           <xdr:cNvPr id="2" name="Picture 1"/>
+           <xdr:cNvPicPr/>
+         </xdr:nvPicPr>
+         <xdr:blipFill>
+           <a:blip r:embed="rId1"/>
+           <a:stretch><a:fillRect/></a:stretch>
+         </xdr:blipFill>
+         <xdr:spPr>
+           <a:xfrm>
+             <a:off x="0" y="0"/>
+             <a:ext cx="1000000" cy="500000"/>
+           </a:xfrm>
+           <a:prstGeom prst="rect"/>
+         </xdr:spPr>
+       </xdr:pic>
+     </xdr:twoCellAnchor>
+
+     Files to Create/Modify
+
+     1. Extend DrawingBuilder.swift
+       - Add addImage() method
+       - Build <xdr:pic> elements
+     2. Modify WorkbookWriter.swift
+       - Add SheetWriter.addImage() API
+       - Write image files to /xl/media/
+       - Add image content type defaults
+       - Wire drawing relationships
+     3. Add ContentType extensions
+       - .png, .jpeg, .gif content types
+
+     Estimated Effort
+
+     - DrawingBuilder extension: ~150 lines
+     - WorkbookWriter integration: ~100 lines
+     - Tests: ~100 lines
+
+     ---
+     Phase 4: Conditional Formatting Edge Cases
+
+     Goal: Complete test coverage and fix any gaps
+
+     Current State: Core functionality works, ~45% test coverage
+
+     Missing Tests to Add
+
+     | Test                           | Type       | Description            
+                      |
+     |--------------------------------|------------|------------------------
+     -----------------|
+     | parseCellIsWithBetween         | Parser     | between operator with 
+     formula1/formula2 |
+     | parseColorScale2Point          | Parser     | 2-point min/max color 
+     scale             |
+     | parseMultipleRulesOnRange      | Parser     | 2+ rules on same sqref 
+                      |
+     | parseExpressionRule            | Parser     | expression type with 
+     formula            |
+     | parseTextOperators             | Parser     | containsText, 
+     beginsWith, endsWith      |
+     | writeDataBarRoundTrip          | Round-trip | dataBar write→read 
+     cycle                |
+     | writeColorScale2PointRoundTrip | Round-trip | 2-point scale 
+     round-trip                |
+     | writeMultipleRulesRoundTrip    | Round-trip | Multiple rules per 
+     sheet                |
+     | priorityNumberUniqueness       | Stress     | Verify unique 
+     priorities                |
+
+     Files to Modify
+
+     - Tests/CuneiformTests/ConditionalFormattingTests.swift
+       - Add ~11 new test cases
+
+     Potential Bug Fixes
+
+     1. Parser: Verify between operator correctly captures both formulas
+     2. Writer: Ensure priority numbers are unique across all formats
+     3. Round-trip: Verify all cfvo types survive write→read cycle
+
+     Estimated Effort
+
+     - New tests: ~200 lines
+     - Bug fixes (if any): ~50 lines
+
+     ---
+     Implementation Order
+
+     User Preferences:
+     - Start with: Formula Functions
+     - Chart types: All basic types (bar, column, line, pie, area)
+     - Formula focus: Balanced mix from each category
+
+     Step 1: Formula Functions (Tier 1) - START HERE
+
+     1. Date functions: TODAY, NOW, DATE, YEAR, MONTH, DAY
+     2. String functions: LEFT, RIGHT, MID, TRIM
+     3. Conditional aggregates: SUMIF, COUNTIF, IFERROR
+     4. Math: INT, MOD, SQRT
+     5. Tests for all new functions (~15 functions)
+
+     Step 2: Formula Functions (Tier 2)
+
+     1. SUMIFS, COUNTIFS, AVERAGEIF
+     2. FIND, SEARCH, SUBSTITUTE
+     3. ISBLANK, ISNUMBER, ISTEXT
+     4. CONCATENATE, TEXT
+     5. Tests for all (~10 functions)
+
+     Step 3: Conditional Formatting Completion
+
+     1. Add all missing parser tests
+     2. Add all missing round-trip tests
+     3. Fix any bugs discovered
+
+     Step 4: Chart Generation
+
+     1. Create ChartBuilder (bar, column, line, pie, area)
+     2. Create DrawingBuilder for chart anchoring
+     3. Integrate into WorkbookWriter
+     4. Round-trip tests
+
+     Step 5: Image Embedding
+
+     1. Extend DrawingBuilder for images
+     2. Add media file handling to WorkbookWriter
+     3. Tests for image embedding
+     4. Documentation updates
+
+     ---
+     Files Summary
+
+     New Files
+
+     - Sources/Cuneiform/SpreadsheetML/ChartBuilder.swift
+     - Sources/Cuneiform/SpreadsheetML/DrawingBuilder.swift
+
+     Modified Files
+
+     - Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift (add ~30 
+     functions)
+     - Sources/Cuneiform/SpreadsheetML/WorkbookWriter.swift (chart/image 
+     APIs)
+     - Sources/Cuneiform/Core/ContentType.swift (image types)
+     - Tests/CuneiformTests/FormulaFunctionsExtendedTests.swift
+     - Tests/CuneiformTests/ConditionalFormattingTests.swift
+     - New test files for charts and images
+
+     Estimated Total
+
+     - ~1500 lines of new implementation
+     - ~800 lines of new tests
+
+
+
+⏺ Let me set up tracking and start implementing the formula functions.
+
+⏺ Read(Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift)
+  ⎿  Read 654 lines
+
+⏺ Now I'll add the Tier 1 formula functions. Let me add them systematically:
+
+⏺ Update(Sources/Cuneiform/SpreadsheetML/FormulaEvaluator.swift)
+  ⎿  Added 36 lines                                                      
+      213              return try evaluateABS(args)
+      214          case "MEDIAN":
+      215              return try evaluateMEDIAN(args)
+      216 +        // Date functions                                     
+      217 +        case "TODAY":                                         
+      218 +            return evaluateTODAY(args)                        
+      219 +        case "NOW":                                           
+      220 +            return evaluateNOW(args)                          
+      221 +        case "DATE":                                          
+      222 +            return try evaluateDATE(args)                     
+      223 +        case "YEAR":                                          
+      224 +            return try evaluateYEAR(args)                     
+      225 +        case "MONTH":                                         
+      226 +            return try evaluateMONTH(args)                    
+      227 +        case "DAY":                                           
+      228 +            return try evaluateDAY(args)                      
+      229 +        // String functions                                   
+      230 +        case "LEFT":                                          
+      231 +            return try evaluateLEFT(args)                     
+      232 +        case "RIGHT":                                         
+      233 +            return try evaluateRIGHT(args)                    
+      234 +        case "MID":                                           
+      235 +            return try evaluateMID(args)                      
+      236 +        case "TRIM":                                          
+      237 +            return try evaluateTRIM(args)                     
+      238 +        // Conditional aggregates                             
+      239 +        case "SUMIF":                                         
+      240 +            return try evaluateSUMIF(args)                    
+      241 +        case "COUNTIF":                                       
+      242 +            return try evaluateCOUNTIF(args)                  
+      243 +        case "IFERROR":                                       
+      244 +            return try evaluateIFERROR(args)                  
+      245 +        // Additional math                                    
+      246 +        case "INT":                                           
+      247 +            return try evaluateINT(args)                      
+      248 +        case "MOD":                                           
+      249 +            return try evaluateMOD(args)                      
+      250 +        case "SQRT":                                          
+      251 +            return try evaluateSQRT(args)                     
+      252          default:
+      253              return .error("NAME")
+      254          }
+  ⎿  You've hit your limit · resets 8pm (America/Puerto_Rico)
+     /upgrade or /extra-usage to finish what you're working on.
+
+
+

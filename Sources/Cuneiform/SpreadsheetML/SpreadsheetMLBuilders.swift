@@ -259,6 +259,39 @@ public struct WorksheetBuilder {
     private var cells: [CellEntry] = []
     private var sharedStringsBuilder: SharedStringsBuilder?
     private var mergedRanges: [String] = []
+    
+    /// Row dimensions (height in points)
+    public struct RowDimension {
+        public let row: Int  // 1-based row number
+        public let height: Double  // Height in points
+        public let hidden: Bool
+        
+        public init(row: Int, height: Double, hidden: Bool = false) {
+            self.row = row
+            self.height = height
+            self.hidden = hidden
+        }
+    }
+    
+    /// Column dimensions (width in character units)
+    public struct ColumnDimension {
+        public let min: Int  // First column (1-based)
+        public let max: Int  // Last column (1-based)
+        public let width: Double  // Width in Excel units
+        public let hidden: Bool
+        public let styleIndex: Int?
+        
+        public init(min: Int, max: Int, width: Double, hidden: Bool = false, styleIndex: Int? = nil) {
+            self.min = min
+            self.max = max
+            self.width = width
+            self.hidden = hidden
+            self.styleIndex = styleIndex
+        }
+    }
+    
+    private var rowDimensions: [Int: RowDimension] = [:]  // Keyed by row number
+    private var columnDimensions: [ColumnDimension] = []
 
     /// Data validation rule
     public struct DataValidation {
@@ -326,6 +359,21 @@ public struct WorksheetBuilder {
         mergedRanges.append(range)
     }
 
+    /// Set row height
+    public mutating func setRowHeight(row: Int, height: Double, hidden: Bool = false) {
+        rowDimensions[row] = RowDimension(row: row, height: height, hidden: hidden)
+    }
+    
+    /// Set column width for a single column or range
+    public mutating func setColumnWidth(min: Int, max: Int, width: Double, hidden: Bool = false, styleIndex: Int? = nil) {
+        columnDimensions.append(ColumnDimension(min: min, max: max, width: width, hidden: hidden, styleIndex: styleIndex))
+    }
+    
+    /// Set width for a single column
+    public mutating func setColumnWidth(column: Int, width: Double, hidden: Bool = false, styleIndex: Int? = nil) {
+        setColumnWidth(min: column, max: column, width: width, hidden: hidden, styleIndex: styleIndex)
+    }
+
     /// Add a data validation rule
     public mutating func addDataValidation(_ dv: DataValidation) {
         dataValidations.append(dv)
@@ -374,13 +422,37 @@ public struct WorksheetBuilder {
         var xml = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-        <sheetData>
         """
         
+        // Column dimensions (must come before sheetData)
+        if !columnDimensions.isEmpty {
+            xml += "\n<cols>"
+            for col in columnDimensions {
+                let hiddenAttr = col.hidden ? " hidden=\"1\"" : ""
+                let styleAttr = col.styleIndex.map { " style=\"\($0)\"" } ?? ""
+                xml += """
+                
+                <col min="\(col.min)" max="\(col.max)" width="\(col.width)" customWidth="1"\(hiddenAttr)\(styleAttr)/>
+                """
+            }
+            xml += "\n</cols>"
+        }
+        
+        xml += "\n<sheetData>"
+        
         for row in rowMap.keys.sorted() {
+            // Check if this row has custom height
+            let heightAttrs: String
+            if let dim = rowDimensions[row] {
+                let hiddenAttr = dim.hidden ? " hidden=\"1\"" : ""
+                heightAttrs = " ht=\"\(dim.height)\" customHeight=\"1\"\(hiddenAttr)"
+            } else {
+                heightAttrs = ""
+            }
+            
             xml += """
             
-            <row r="\(row)">
+            <row r="\(row)"\(heightAttrs)>
             """
             
             let rowCells = rowMap[row]!.sorted { $0.reference.columnIndex < $1.reference.columnIndex }

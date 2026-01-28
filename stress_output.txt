@@ -1,0 +1,12 @@
+[0/1] Planning build
+Building for debugging...
+[0/3] Write swift-version--1AB21518FC5DEDBE.txt
+[2/4] Emitting module Cuneiform
+Build complete! (2.37s)
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite "Large Workbook Stress Suite" started.
+◇ Test "Build large workbook and measure performance" started.
+✔ Test "Build large workbook and measure performance" passed after 18.105 seconds.
+✔ Suite "Large Workbook Stress Suite" passed after 18.106 seconds.
+✔ Test run with 1 test passed after 18.106 seconds.

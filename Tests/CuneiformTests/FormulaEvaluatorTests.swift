@@ -66,10 +66,7 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let ref = CellReference("A1") else {
-            #expect(Bool(false), "Failed to create cell reference")
-            return
-        }
+        let ref = CellReference("A1")
         
         let expr = FormulaExpression.cellRef(ref)
         let result = try evaluator.evaluate(expr)
@@ -79,10 +76,7 @@ struct FormulaEvaluatorTests {
     @Test func evaluateMissingCellReference() throws {
         let evaluator = makeTestEvaluator(cells: [:])
         
-        guard let ref = CellReference("Z99") else {
-            #expect(Bool(false), "Failed to create cell reference")
-            return
-        }
+        let ref = CellReference("Z99")
         
         let expr = FormulaExpression.cellRef(ref)
         let result = try evaluator.evaluate(expr)
@@ -96,10 +90,8 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let a1 = CellReference("A1"), let b1 = CellReference("B1") else {
-            #expect(Bool(false), "Failed to create cell references")
-            return
-        }
+        let a1 = CellReference("A1")
+        let b1 = CellReference("B1")
         
         let expr = FormulaExpression.binaryOp(.add, .cellRef(a1), .cellRef(b1))
         let result = try evaluator.evaluate(expr)
@@ -123,10 +115,8 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A3") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A3")
         
         let expr = FormulaExpression.functionCall("SUM", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
@@ -136,10 +126,8 @@ struct FormulaEvaluatorTests {
     @Test func evaluateSumEmptyRange() throws {
         let evaluator = makeTestEvaluator(cells: [:])
         
-        guard let start = CellReference("A1"), let end = CellReference("A3") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A3")
         
         let expr = FormulaExpression.functionCall("SUM", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
@@ -164,10 +152,8 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("B1"), let end = CellReference("B4") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("B1")
+        let end = CellReference("B4")
         
         let expr = FormulaExpression.functionCall("AVERAGE", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
@@ -177,10 +163,8 @@ struct FormulaEvaluatorTests {
     @Test func evaluateAverageEmptyRange() throws {
         let evaluator = makeTestEvaluator(cells: [:])
         
-        guard let start = CellReference("A1"), let end = CellReference("A1") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A1")
         
         let expr = FormulaExpression.functionCall("AVERAGE", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
@@ -211,10 +195,7 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let a1 = CellReference("A1") else {
-            #expect(Bool(false), "Failed to create cell reference")
-            return
-        }
+        let a1 = CellReference("A1")
         
         let condition = FormulaExpression.binaryOp(.greaterThan, .cellRef(a1), .number(10))
         let expr = FormulaExpression.functionCall("IF", [condition, .string("High"), .string("Low")])
@@ -234,22 +215,20 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateVlookupExactMatch() throws {
         let cells: [String: CellValue] = [
-            "A1": .number(1), "B1": .string("Apple"),
-            "A2": .number(2), "B2": .string("Banana"),
-            "A3": .number(3), "B3": .string("Cherry")
+            "A1": .number(1), "B1": .text("Apple"),
+            "A2": .number(2), "B2": .text("Banana"),
+            "A3": .number(3), "B3": .text("Cherry")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("B3") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("B3")
         
         let expr = FormulaExpression.functionCall("VLOOKUP", [
             .number(2),
             .range(start, end),
             .number(2),
-            .boolean(false)
+            .number(0) // false = exact match (0 is falsy)
         ])
         let result = try evaluator.evaluate(expr)
         #expect(result == .string("Banana"))
@@ -257,21 +236,19 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateVlookupNotFound() throws {
         let cells: [String: CellValue] = [
-            "A1": .number(1), "B1": .string("Apple"),
-            "A2": .number(2), "B2": .string("Banana")
+            "A1": .number(1), "B1": .text("Apple"),
+            "A2": .number(2), "B2": .text("Banana")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("B2") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("B2")
         
         let expr = FormulaExpression.functionCall("VLOOKUP", [
             .number(5),
             .range(start, end),
             .number(2),
-            .boolean(false)
+            .number(0) // false = exact match
         ])
         let result = try evaluator.evaluate(expr)
         #expect(result == .error("N/A"))
@@ -281,15 +258,13 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateIndexWithRowAndColumn() throws {
         let cells: [String: CellValue] = [
-            "A1": .string("A"), "B1": .string("B"),
-            "A2": .string("C"), "B2": .string("D")
+            "A1": .text("A"), "B1": .text("B"),
+            "A2": .text("C"), "B2": .text("D")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("B2") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("B2")
         
         let expr = FormulaExpression.functionCall("INDEX", [
             .range(start, end),
@@ -302,14 +277,12 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateIndexOutOfBounds() throws {
         let cells: [String: CellValue] = [
-            "A1": .string("A")
+            "A1": .text("A")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A1") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A1")
         
         let expr = FormulaExpression.functionCall("INDEX", [
             .range(start, end),
@@ -324,16 +297,14 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateMatchExact() throws {
         let cells: [String: CellValue] = [
-            "A1": .string("Apple"),
-            "A2": .string("Banana"),
-            "A3": .string("Cherry")
+            "A1": .text("Apple"),
+            "A2": .text("Banana"),
+            "A3": .text("Cherry")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A3") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A3")
         
         let expr = FormulaExpression.functionCall("MATCH", [
             .string("Banana"),
@@ -346,15 +317,13 @@ struct FormulaEvaluatorTests {
     
     @Test func evaluateMatchNotFound() throws {
         let cells: [String: CellValue] = [
-            "A1": .string("Apple"),
-            "A2": .string("Banana")
+            "A1": .text("Apple"),
+            "A2": .text("Banana")
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A2") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A2")
         
         let expr = FormulaExpression.functionCall("MATCH", [
             .string("Orange"),
@@ -392,10 +361,8 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A4") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A4")
         
         let expr = FormulaExpression.functionCall("COUNT", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
@@ -411,10 +378,8 @@ struct FormulaEvaluatorTests {
         ]
         let evaluator = makeTestEvaluator(cells: cells)
         
-        guard let start = CellReference("A1"), let end = CellReference("A4") else {
-            #expect(Bool(false), "Failed to create range")
-            return
-        }
+        let start = CellReference("A1")
+        let end = CellReference("A4")
         
         let expr = FormulaExpression.functionCall("COUNTA", [.range(start, end)])
         let result = try evaluator.evaluate(expr)
