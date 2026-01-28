@@ -397,6 +397,20 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateSEQUENCE(args)
         case "RANDARRAY":
             return try evaluateRANDARRAY(args)
+        case "TAKE":
+            return try evaluateTAKE(args)
+        case "DROP":
+            return try evaluateDROP(args)
+        case "EXPAND":
+            return try evaluateEXPAND(args)
+        case "VSTACK":
+            return try evaluateVSTACK(args)
+        case "HSTACK":
+            return try evaluateHSTACK(args)
+        case "TOCOL":
+            return try evaluateTOCOL(args)
+        case "TOROW":
+            return try evaluateTOROW(args)
         // Statistical functions
         case "STDEV", "STDEV.S":
             return try evaluateSTDEV(args, sample: true)
@@ -4383,6 +4397,372 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .array(result)
+    }
+    
+    // MARK: - More Dynamic Array Functions (Excel 365)
+    
+    /// TAKE - Returns a specified number of contiguous rows or columns from the start or end of an array
+    /// Syntax: TAKE(array, rows, [columns])
+    private func evaluateTAKE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let rowsVal = try evaluate(args[1])
+        let colsVal = args.count > 2 ? try evaluate(args[2]) : nil
+        
+        guard let rowCount = rowsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var array: [[FormulaValue]]
+        if case .array(let arr) = arrayVal {
+            array = arr
+        } else {
+            // Single value treated as 1x1 array
+            array = [[arrayVal]]
+        }
+        
+        guard !array.isEmpty else {
+            return .array([])
+        }
+        
+        let rowsToTake = Int(rowCount)
+        let actualRows = array.count
+        
+        // Negative means take from end
+        let startRow: Int
+        let endRow: Int
+        if rowsToTake < 0 {
+            startRow = max(0, actualRows + rowsToTake)
+            endRow = actualRows
+        } else {
+            startRow = 0
+            endRow = min(rowsToTake, actualRows)
+        }
+        
+        var result = Array(array[startRow..<endRow])
+        
+        // Handle column selection if provided
+        if let colsVal = colsVal, let colCount = colsVal.asDouble {
+            let colsToTake = Int(colCount)
+            result = result.map { row in
+                let actualCols = row.count
+                if colsToTake < 0 {
+                    let startCol = max(0, actualCols + colsToTake)
+                    return Array(row[startCol..<actualCols])
+                } else {
+                    let endCol = min(colsToTake, actualCols)
+                    return Array(row[0..<endCol])
+                }
+            }
+        }
+        
+        return .array(result)
+    }
+    
+    /// DROP - Excludes a specified number of rows or columns from the start or end of an array
+    /// Syntax: DROP(array, rows, [columns])
+    private func evaluateDROP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let rowsVal = try evaluate(args[1])
+        let colsVal = args.count > 2 ? try evaluate(args[2]) : nil
+        
+        guard let rowCount = rowsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var array: [[FormulaValue]]
+        if case .array(let arr) = arrayVal {
+            array = arr
+        } else {
+            array = [[arrayVal]]
+        }
+        
+        guard !array.isEmpty else {
+            return .array([])
+        }
+        
+        let rowsToDrop = Int(rowCount)
+        let actualRows = array.count
+        
+        // Negative means drop from end
+        let startRow: Int
+        let endRow: Int
+        if rowsToDrop < 0 {
+            startRow = 0
+            endRow = max(0, actualRows + rowsToDrop)
+        } else {
+            startRow = min(rowsToDrop, actualRows)
+            endRow = actualRows
+        }
+        
+        var result = Array(array[startRow..<endRow])
+        
+        // Handle column drop if provided
+        if let colsVal = colsVal, let colCount = colsVal.asDouble {
+            let colsToDrop = Int(colCount)
+            result = result.map { row in
+                let actualCols = row.count
+                if colsToDrop < 0 {
+                    let endCol = max(0, actualCols + colsToDrop)
+                    return Array(row[0..<endCol])
+                } else {
+                    let startCol = min(colsToDrop, actualCols)
+                    return Array(row[startCol..<actualCols])
+                }
+            }
+        }
+        
+        return .array(result)
+    }
+    
+    /// EXPAND - Expands or pads an array to specified row and column dimensions
+    /// Syntax: EXPAND(array, rows, [columns], [pad_with])
+    private func evaluateEXPAND(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let rowsVal = try evaluate(args[1])
+        let colsVal = args.count > 2 ? try evaluate(args[2]) : nil
+        let padVal = args.count > 3 ? try evaluate(args[3]) : .error("N/A")
+        
+        guard let targetRows = rowsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var array: [[FormulaValue]]
+        if case .array(let arr) = arrayVal {
+            array = arr
+        } else {
+            array = [[arrayVal]]
+        }
+        
+        let rows = Int(targetRows)
+        let cols: Int
+        if let colsVal = colsVal, let c = colsVal.asDouble {
+            cols = Int(c)
+        } else {
+            cols = array.first?.count ?? 1
+        }
+        
+        var result: [[FormulaValue]] = []
+        
+        for r in 0..<rows {
+            var row: [FormulaValue] = []
+            for c in 0..<cols {
+                if r < array.count && c < array[r].count {
+                    row.append(array[r][c])
+                } else {
+                    row.append(padVal)
+                }
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
+    }
+    
+    /// VSTACK - Appends arrays vertically and in sequence to return a larger array
+    /// Syntax: VSTACK(array1, [array2], ...)
+    private func evaluateVSTACK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var result: [[FormulaValue]] = []
+        var maxCols = 0
+        
+        // First pass: determine max columns
+        for arg in args {
+            let val = try evaluate(arg)
+            if case .array(let arr) = val {
+                for row in arr {
+                    maxCols = max(maxCols, row.count)
+                }
+            } else {
+                maxCols = max(maxCols, 1)
+            }
+        }
+        
+        // Second pass: build result
+        for arg in args {
+            let val = try evaluate(arg)
+            if case .array(let arr) = val {
+                for row in arr {
+                    var newRow = row
+                    // Pad with #N/A if needed
+                    while newRow.count < maxCols {
+                        newRow.append(.error("N/A"))
+                    }
+                    result.append(newRow)
+                }
+            } else {
+                // Single value becomes a row
+                var newRow = [val]
+                while newRow.count < maxCols {
+                    newRow.append(.error("N/A"))
+                }
+                result.append(newRow)
+            }
+        }
+        
+        return .array(result)
+    }
+    
+    /// HSTACK - Appends arrays horizontally and in sequence to return a larger array
+    /// Syntax: HSTACK(array1, [array2], ...)
+    private func evaluateHSTACK(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var arrays: [[[FormulaValue]]] = []
+        var maxRows = 0
+        
+        // Convert all arguments to arrays and find max rows
+        for arg in args {
+            let val = try evaluate(arg)
+            if case .array(let arr) = val {
+                arrays.append(arr)
+                maxRows = max(maxRows, arr.count)
+            } else {
+                // Single value becomes 1x1 array
+                arrays.append([[val]])
+                maxRows = max(maxRows, 1)
+            }
+        }
+        
+        var result: [[FormulaValue]] = []
+        
+        for r in 0..<maxRows {
+            var row: [FormulaValue] = []
+            for arr in arrays {
+                if r < arr.count {
+                    row.append(contentsOf: arr[r])
+                } else {
+                    // Pad with #N/A for missing rows
+                    let cols = arr.first?.count ?? 1
+                    for _ in 0..<cols {
+                        row.append(.error("N/A"))
+                    }
+                }
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
+    }
+    
+    /// TOCOL - Returns the array as one column
+    /// Syntax: TOCOL(array, [ignore], [scan_by_column])
+    private func evaluateTOCOL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let ignoreVal = args.count > 1 ? try evaluate(args[1]) : .number(0)
+        // scan_by_column parameter (args[2]) controls order - default is by row
+        
+        guard let ignore = ignoreVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let ignoreMode = Int(ignore)
+        
+        var array: [[FormulaValue]]
+        if case .array(let arr) = arrayVal {
+            array = arr
+        } else {
+            array = [[arrayVal]]
+        }
+        
+        var result: [[FormulaValue]] = []
+        
+        for row in array {
+            for cell in row {
+                // ignoreMode: 0=keep all, 1=ignore blanks, 2=ignore errors, 3=ignore blanks+errors
+                var shouldInclude = true
+                
+                if ignoreMode == 1 || ignoreMode == 3 {
+                    // Ignore blanks (treat as missing cells or empty strings)
+                    if case .string(let s) = cell, s.isEmpty {
+                        shouldInclude = false
+                    }
+                }
+                
+                if ignoreMode == 2 || ignoreMode == 3 {
+                    // Ignore errors
+                    if case .error = cell {
+                        shouldInclude = false
+                    }
+                }
+                
+                if shouldInclude {
+                    result.append([cell])
+                }
+            }
+        }
+        
+        return .array(result)
+    }
+    
+    /// TOROW - Returns the array as one row
+    /// Syntax: TOROW(array, [ignore], [scan_by_column])
+    private func evaluateTOROW(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let ignoreVal = args.count > 1 ? try evaluate(args[1]) : .number(0)
+        
+        guard let ignore = ignoreVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let ignoreMode = Int(ignore)
+        
+        var array: [[FormulaValue]]
+        if case .array(let arr) = arrayVal {
+            array = arr
+        } else {
+            array = [[arrayVal]]
+        }
+        
+        var row: [FormulaValue] = []
+        
+        for r in array {
+            for cell in r {
+                var shouldInclude = true
+                
+                if ignoreMode == 1 || ignoreMode == 3 {
+                    if case .string(let s) = cell, s.isEmpty {
+                        shouldInclude = false
+                    }
+                }
+                
+                if ignoreMode == 2 || ignoreMode == 3 {
+                    if case .error = cell {
+                        shouldInclude = false
+                    }
+                }
+                
+                if shouldInclude {
+                    row.append(cell)
+                }
+            }
+        }
+        
+        return .array([row])
     }
 }
 

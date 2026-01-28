@@ -1846,4 +1846,249 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected array result")
         }
     }
+    
+    // MARK: - More Dynamic Array Functions (Excel 365)
+    
+    @Test func evaluateTAKE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Take first 3 rows
+        let parser = FormulaParser("=TAKE(A1:A5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .number(3))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateTAKEFromEnd() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Take last 2 rows (negative)
+        let parser = FormulaParser("=TAKE(A1:A5, -2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 2)
+            #expect(rows[0][0] == .number(4))
+            #expect(rows[1][0] == .number(5))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateDROP() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Drop first 2 rows
+        let parser = FormulaParser("=DROP(A1:A5, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(3))
+            #expect(rows[1][0] == .number(4))
+            #expect(rows[2][0] == .number(5))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateDROPFromEnd() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "A4": .number(4),
+            "A5": .number(5)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Drop last 2 rows (negative)
+        let parser = FormulaParser("=DROP(A1:A5, -2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 3)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .number(3))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateEXPAND() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Expand to 4 rows, 3 columns (pad with #N/A)
+        let parser = FormulaParser("=EXPAND(A1:A2, 4, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 4)
+            #expect(rows[0].count == 3)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .error("N/A"))
+            #expect(rows[3][2] == .error("N/A"))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateEXPANDWithCustomPad() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Expand to 2x2 with 0 as pad value
+        let parser = FormulaParser("=EXPAND(A1, 2, 2, 0)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 2)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[0][1] == .number(0))
+            #expect(rows[1][0] == .number(0))
+            #expect(rows[1][1] == .number(0))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateVSTACK() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "B1": .number(10),
+            "B2": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Stack A1:A2 on top of B1:B2
+        let parser = FormulaParser("=VSTACK(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 4)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .number(10))
+            #expect(rows[3][0] == .number(20))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateHSTACK() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "B1": .number(10),
+            "B2": .number(20)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Stack A1:A2 next to B1:B2 horizontally
+        let parser = FormulaParser("=HSTACK(A1:A2, B1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 2)
+            #expect(rows[0].count == 2)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[0][1] == .number(10))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[1][1] == .number(20))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateTOCOL() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2),
+            "A2": .number(3), "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Convert 2x2 array to single column
+        let parser = FormulaParser("=TOCOL(A1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 4)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[1][0] == .number(2))
+            #expect(rows[2][0] == .number(3))
+            #expect(rows[3][0] == .number(4))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
+    
+    @Test func evaluateTOROW() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2),
+            "A2": .number(3), "B2": .number(4)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Convert 2x2 array to single row
+        let parser = FormulaParser("=TOROW(A1:B2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .array(let rows) = result {
+            #expect(rows.count == 1)
+            #expect(rows[0].count == 4)
+            #expect(rows[0][0] == .number(1))
+            #expect(rows[0][1] == .number(2))
+            #expect(rows[0][2] == .number(3))
+            #expect(rows[0][3] == .number(4))
+        } else {
+            Issue.record("Expected array result")
+        }
+    }
 }
