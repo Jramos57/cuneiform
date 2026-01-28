@@ -4229,4 +4229,96 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number result")
         }
     }
+    
+    // MARK: - Batch 27: Web and Regression Functions Tests
+    
+    @Test func evaluateENCODEURL() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=ENCODEURL(\"hello world\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("hello%20world"))
+    }
+    
+    @Test func evaluateRSQ() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(2),
+            "B2": .number(4),
+            "B3": .number(6)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Perfect linear relationship: y = 2x
+        let parser = FormulaParser("=RSQ(B1:B3, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1.0))  // R² = 1 for perfect fit
+    }
+    
+    @Test func evaluateSLOPE() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(2),
+            "B2": .number(4),
+            "B3": .number(6)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // y = 2x
+        let parser = FormulaParser("=SLOPE(B1:B3, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(2.0))
+    }
+    
+    @Test func evaluateINTERCEPT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3),
+            "B1": .number(3),
+            "B2": .number(5),
+            "B3": .number(7)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // y = 2x + 1, intercept = 1
+        let parser = FormulaParser("=INTERCEPT(B1:B3, A1:A3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(1.0))
+    }
+    
+    @Test func evaluateCOVAR() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3),
+            "A2": .number(2),
+            "A3": .number(4),
+            "A4": .number(5),
+            "A5": .number(6),
+            "B1": .number(9),
+            "B2": .number(7),
+            "B3": .number(12),
+            "B4": .number(15),
+            "B5": .number(17)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=COVAR(A1:A5, B1:B5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 0)  // Positive covariance
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }

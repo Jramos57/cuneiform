@@ -828,6 +828,21 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateHYPGEOMDIST(args)
         case "NEGBINOMDIST", "NEGBINOM.DIST":
             return try evaluateNEGBINOMDIST(args)
+        // Batch 27: Cube stubs, Web, and statistical functions
+        case "CUBEVALUE", "CUBEMEMBER", "CUBESET", "CUBERANKEDMEMBER", "CUBEKPIMEMBER", "CUBESETCOUNT", "CUBEMEMBERPROPERTY":
+            return .error("N/A")  // Requires OLAP cube connection
+        case "WEBSERVICE", "FILTERXML":
+            return .error("N/A")  // Requires external capabilities
+        case "ENCODEURL":
+            return try evaluateENCODEURL(args)
+        case "RSQ":
+            return try evaluateRSQ(args)
+        case "SLOPE":
+            return try evaluateSLOPE(args)
+        case "INTERCEPT":
+            return try evaluateINTERCEPT(args)
+        case "COVARIANCE.P", "COVAR":
+            return try evaluateCOVAR(args)
         default:
             return .error("NAME")
         }
@@ -9279,6 +9294,180 @@ public struct FormulaEvaluator: Sendable {
                          Double(successes) * log(p) + Double(failures) * log(1 - p)
             return .number(exp(logProb))
         }
+    }
+    
+    // MARK: - Batch 27: Web and Statistical Regression Functions
+    
+    private func evaluateENCODEURL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard case .string(let text) = val else {
+            return .error("VALUE")
+        }
+        
+        // Simple URL encoding
+        var result = ""
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        
+        for char in text {
+            if let scalar = char.unicodeScalars.first, allowed.contains(scalar) {
+                result.append(char)
+            } else {
+                for byte in String(char).utf8 {
+                    result.append(String(format: "%%%02X", byte))
+                }
+            }
+        }
+        
+        return .string(result)
+    }
+    
+    private func evaluateRSQ(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let yVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        
+        let yNumbers = flattenToNumbers(yVal)
+        let xNumbers = flattenToNumbers(xVal)
+        
+        guard xNumbers.count == yNumbers.count && !xNumbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(xNumbers.count)
+        let xMean = xNumbers.reduce(0, +) / n
+        let yMean = yNumbers.reduce(0, +) / n
+        
+        var ssXX = 0.0
+        var ssYY = 0.0
+        var ssXY = 0.0
+        
+        for i in 0..<xNumbers.count {
+            let xDev = xNumbers[i] - xMean
+            let yDev = yNumbers[i] - yMean
+            ssXX += xDev * xDev
+            ssYY += yDev * yDev
+            ssXY += xDev * yDev
+        }
+        
+        guard ssXX > 0 && ssYY > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let r = ssXY / sqrt(ssXX * ssYY)
+        let rSquared = r * r
+        
+        return .number(rSquared)
+    }
+    
+    private func evaluateSLOPE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let yVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        
+        let yNumbers = flattenToNumbers(yVal)
+        let xNumbers = flattenToNumbers(xVal)
+        
+        guard xNumbers.count == yNumbers.count && !xNumbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(xNumbers.count)
+        let xMean = xNumbers.reduce(0, +) / n
+        let yMean = yNumbers.reduce(0, +) / n
+        
+        var ssXY = 0.0
+        var ssXX = 0.0
+        
+        for i in 0..<xNumbers.count {
+            let xDev = xNumbers[i] - xMean
+            let yDev = yNumbers[i] - yMean
+            ssXY += xDev * yDev
+            ssXX += xDev * xDev
+        }
+        
+        guard ssXX > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let slope = ssXY / ssXX
+        return .number(slope)
+    }
+    
+    private func evaluateINTERCEPT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let yVal = try evaluate(args[0])
+        let xVal = try evaluate(args[1])
+        
+        let yNumbers = flattenToNumbers(yVal)
+        let xNumbers = flattenToNumbers(xVal)
+        
+        guard xNumbers.count == yNumbers.count && !xNumbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(xNumbers.count)
+        let xMean = xNumbers.reduce(0, +) / n
+        let yMean = yNumbers.reduce(0, +) / n
+        
+        var ssXY = 0.0
+        var ssXX = 0.0
+        
+        for i in 0..<xNumbers.count {
+            let xDev = xNumbers[i] - xMean
+            let yDev = yNumbers[i] - yMean
+            ssXY += xDev * yDev
+            ssXX += xDev * xDev
+        }
+        
+        guard ssXX > 0 else {
+            return .error("DIV/0")
+        }
+        
+        let slope = ssXY / ssXX
+        let intercept = yMean - slope * xMean
+        
+        return .number(intercept)
+    }
+    
+    private func evaluateCOVAR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        let yVal = try evaluate(args[1])
+        
+        let xNumbers = flattenToNumbers(xVal)
+        let yNumbers = flattenToNumbers(yVal)
+        
+        guard xNumbers.count == yNumbers.count && !xNumbers.isEmpty else {
+            return .error("N/A")
+        }
+        
+        let n = Double(xNumbers.count)
+        let xMean = xNumbers.reduce(0, +) / n
+        let yMean = yNumbers.reduce(0, +) / n
+        
+        var covar = 0.0
+        for i in 0..<xNumbers.count {
+            covar += (xNumbers[i] - xMean) * (yNumbers[i] - yMean)
+        }
+        
+        covar /= n
+        return .number(covar)
     }
 }
 
