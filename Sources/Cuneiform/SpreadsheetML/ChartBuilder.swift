@@ -651,6 +651,9 @@ public enum ImageFormat: String, Sendable {
     case gif
     case bmp
     case tiff
+    case svg
+    case emf
+    case wmf
     
     /// MIME type for content types
     public var mimeType: String {
@@ -660,6 +663,9 @@ public enum ImageFormat: String, Sendable {
         case .gif: return "image/gif"
         case .bmp: return "image/bmp"
         case .tiff: return "image/tiff"
+        case .svg: return "image/svg+xml"
+        case .emf: return "image/x-emf"
+        case .wmf: return "image/x-wmf"
         }
     }
     
@@ -671,6 +677,9 @@ public enum ImageFormat: String, Sendable {
         case .gif: return "gif"
         case .bmp: return "bmp"
         case .tiff: return "tiff"
+        case .svg: return "svg"
+        case .emf: return "emf"
+        case .wmf: return "wmf"
         }
     }
     
@@ -703,6 +712,36 @@ public enum ImageFormat: String, Sendable {
         if bytes.prefix(4) == [0x49, 0x49, 0x2A, 0x00] ||
            bytes.prefix(4) == [0x4D, 0x4D, 0x00, 0x2A] {
             return .tiff
+        }
+        
+        // SVG: Check for XML declaration or <svg tag (text-based)
+        if let str = String(data: data.prefix(100), encoding: .utf8) {
+            let normalized = str.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if normalized.contains("<svg") || normalized.hasPrefix("<?xml") && normalized.contains("svg") {
+                return .svg
+            }
+        }
+        
+        // EMF (Enhanced Metafile): 01 00 00 00 (little-endian record type)
+        // Note: EMF detection is complex; this is a simplified check
+        if bytes.count >= 44 && bytes[0] == 0x01 && bytes[1] == 0x00 && 
+           bytes[2] == 0x00 && bytes[3] == 0x00 {
+            // Additional check: EMF signature at offset 40
+            if data.count >= 44 {
+                let signature = [UInt8](data[40..<44])
+                if signature == [0x20, 0x45, 0x4D, 0x46] { // " EMF"
+                    return .emf
+                }
+            }
+        }
+        
+        // WMF (Windows Metafile): D7 CD C6 9A (placeable metafile header)
+        // or 01 00 09 00 (standard metafile header)
+        if bytes.prefix(4) == [0xD7, 0xCD, 0xC6, 0x9A] {
+            return .wmf
+        }
+        if bytes.prefix(4) == [0x01, 0x00, 0x09, 0x00] {
+            return .wmf
         }
         
         return nil
