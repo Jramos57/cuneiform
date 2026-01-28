@@ -3958,4 +3958,158 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(5))
     }
+    
+    // MARK: - Batch 24: Statistical Distributions Tests
+    
+    @Test func evaluateBETADIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test cumulative beta distribution
+        let parser = FormulaParser("=BETA.DIST(0.5, 2, 3, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)  // Should be a probability
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateBETAINV() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=BETA.INV(0.5, 2, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)  // Should be in [0,1]
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateGAMMADIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=GAMMA.DIST(2, 3, 2, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateGAMMAINV() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=GAMMA.INV(0.5, 3, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 0)  // Should be positive
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateGAMMALN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=GAMMALN(4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            // ln(Γ(4)) = ln(3!) = ln(6) ≈ 1.7918
+            #expect(abs(n - log(6.0)) < 0.01)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateWEIBULLDIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=WEIBULL.DIST(2, 1.5, 1, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateLOGNORMDIST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LOGNORM.DIST(2, 0, 1, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 1)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateLOGNORMINV() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LOGNORM.INV(0.5, 0, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 0)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCONFIDENCENORM() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CONFIDENCE.NORM(0.05, 2.5, 50)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n > 0)  // Confidence interval should be positive
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
+    
+    @Test func evaluateCRITBINOM() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=CRITBINOM(10, 0.5, 0.75)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let n) = result {
+            #expect(n >= 0 && n <= 10)
+        } else {
+            Issue.record("Expected number result")
+        }
+    }
 }

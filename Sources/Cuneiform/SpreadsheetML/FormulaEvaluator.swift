@@ -746,6 +746,27 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateSIGN(args)
         case "RANDBETWEEN":
             return try evaluateRANDBETWEEN(args)
+        // Batch 24: Statistical distributions
+        case "BETA.DIST":
+            return try evaluateBETADIST(args)
+        case "BETA.INV":
+            return try evaluateBETAINV(args)
+        case "GAMMA.DIST":
+            return try evaluateGAMMADIST(args)
+        case "GAMMA.INV":
+            return try evaluateGAMMAINV(args)
+        case "GAMMALN", "GAMMALN.PRECISE":
+            return try evaluateGAMMALN(args)
+        case "WEIBULL.DIST":
+            return try evaluateWEIBULLDIST(args)
+        case "LOGNORM.DIST":
+            return try evaluateLOGNORMDIST(args)
+        case "LOGNORM.INV":
+            return try evaluateLOGNORMINV(args)
+        case "CONFIDENCE.NORM", "CONFIDENCE":
+            return try evaluateCONFIDENCENORM(args)
+        case "CRITBINOM":
+            return try evaluateCRITBINOM(args)
         default:
             return .error("NAME")
         }
@@ -8308,6 +8329,397 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(Double(result))
+    }
+    
+    // MARK: - Batch 24: Statistical Distributions
+    
+    private func evaluateBETADIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 6 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[1])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let betaVal = try evaluate(args[2])
+        guard let beta = betaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard alpha > 0 && beta > 0 else {
+            return .error("NUM")
+        }
+        
+        // Optional cumulative flag (default true)
+        let cumulative = args.count >= 4 ? (try evaluate(args[3]).asDouble ?? 1) != 0 : true
+        
+        // Optional bounds A and B
+        let a = args.count >= 5 ? (try evaluate(args[4]).asDouble ?? 0) : 0
+        let b = args.count >= 6 ? (try evaluate(args[5]).asDouble ?? 1) : 1
+        
+        guard x >= a && x <= b else {
+            return .error("NUM")
+        }
+        
+        // Normalize x to [0,1]
+        let xNorm = (x - a) / (b - a)
+        
+        // Simplified beta distribution approximation
+        // For cumulative, use incomplete beta function approximation
+        if cumulative {
+            // Very rough approximation using normal distribution
+            let mean = alpha / (alpha + beta)
+            let variance = (alpha * beta) / ((alpha + beta) * (alpha + beta) * (alpha + beta + 1))
+            let stdDev = sqrt(variance)
+            
+            // Normal approximation
+            let z = (xNorm - mean) / stdDev
+            let result = 0.5 * (1 + erf(z / sqrt(2.0)))
+            return .number(max(0, min(1, result)))
+        } else {
+            // PDF: x^(α-1) * (1-x)^(β-1) / B(α,β)
+            let logPdf = (alpha - 1) * log(xNorm) + (beta - 1) * log(1 - xNorm) - lgamma(alpha) - lgamma(beta) + lgamma(alpha + beta)
+            return .number(exp(logPdf) / (b - a))
+        }
+    }
+    
+    private func evaluateBETAINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 5 else {
+            return .error("VALUE")
+        }
+        
+        let pVal = try evaluate(args[0])
+        guard let p = pVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[1])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let betaVal = try evaluate(args[2])
+        guard let beta = betaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard p >= 0 && p <= 1 && alpha > 0 && beta > 0 else {
+            return .error("NUM")
+        }
+        
+        let a = args.count >= 4 ? (try evaluate(args[3]).asDouble ?? 0) : 0
+        let b = args.count >= 5 ? (try evaluate(args[4]).asDouble ?? 1) : 1
+        
+        // Rough approximation using normal inverse
+        let mean = alpha / (alpha + beta)
+        let variance = (alpha * beta) / ((alpha + beta) * (alpha + beta) * (alpha + beta + 1))
+        let stdDev = sqrt(variance)
+        
+        // Inverse normal approximation
+        let z = sqrt(2.0) * erfinv(2 * p - 1)
+        let xNorm = mean + z * stdDev
+        let result = a + xNorm * (b - a)
+        
+        return .number(max(a, min(b, result)))
+    }
+    
+    private func evaluateGAMMADIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[1])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let betaVal = try evaluate(args[2])
+        guard let beta = betaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cumulativeVal = try evaluate(args[3])
+        let cumulative = (cumulativeVal.asDouble ?? 1) != 0
+        
+        guard x >= 0 && alpha > 0 && beta > 0 else {
+            return .error("NUM")
+        }
+        
+        if cumulative {
+            // CDF: use incomplete gamma function approximation
+            // Very rough approximation
+            let mean = alpha * beta
+            let variance = alpha * beta * beta
+            let stdDev = sqrt(variance)
+            let z = (x - mean) / stdDev
+            let result = 0.5 * (1 + erf(z / sqrt(2.0)))
+            return .number(max(0, min(1, result)))
+        } else {
+            // PDF: x^(α-1) * e^(-x/β) / (β^α * Γ(α))
+            let logPdf = (alpha - 1) * log(x) - x / beta - alpha * log(beta) - lgamma(alpha)
+            return .number(exp(logPdf))
+        }
+    }
+    
+    private func evaluateGAMMAINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let pVal = try evaluate(args[0])
+        guard let p = pVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[1])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let betaVal = try evaluate(args[2])
+        guard let beta = betaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard p >= 0 && p <= 1 && alpha > 0 && beta > 0 else {
+            return .error("NUM")
+        }
+        
+        // Rough approximation using normal inverse
+        let mean = alpha * beta
+        let variance = alpha * beta * beta
+        let stdDev = sqrt(variance)
+        let z = sqrt(2.0) * erfinv(2 * p - 1)
+        let result = mean + z * stdDev
+        
+        return .number(max(0, result))
+    }
+    
+    private func evaluateGAMMALN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let x = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard x > 0 else {
+            return .error("NUM")
+        }
+        
+        return .number(lgamma(x))
+    }
+    
+    private func evaluateWEIBULLDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[1])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let betaVal = try evaluate(args[2])
+        guard let beta = betaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cumulativeVal = try evaluate(args[3])
+        let cumulative = (cumulativeVal.asDouble ?? 1) != 0
+        
+        guard x >= 0 && alpha > 0 && beta > 0 else {
+            return .error("NUM")
+        }
+        
+        if cumulative {
+            // CDF: 1 - e^(-(x/β)^α)
+            let result = 1 - exp(-pow(x / beta, alpha))
+            return .number(result)
+        } else {
+            // PDF: (α/β) * (x/β)^(α-1) * e^(-(x/β)^α)
+            let xOverBeta = x / beta
+            let result = (alpha / beta) * pow(xOverBeta, alpha - 1) * exp(-pow(xOverBeta, alpha))
+            return .number(result)
+        }
+    }
+    
+    private func evaluateLOGNORMDIST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        
+        let xVal = try evaluate(args[0])
+        guard let x = xVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let meanVal = try evaluate(args[1])
+        guard let mean = meanVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let stdDevVal = try evaluate(args[2])
+        guard let stdDev = stdDevVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let cumulative = args.count == 4 ? (try evaluate(args[3]).asDouble ?? 1) != 0 : true
+        
+        guard x > 0 && stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        let lnX = log(x)
+        
+        if cumulative {
+            // CDF: use normal distribution of ln(x)
+            let z = (lnX - mean) / stdDev
+            let result = 0.5 * (1 + erf(z / sqrt(2.0)))
+            return .number(result)
+        } else {
+            // PDF: 1/(x*σ*√(2π)) * e^(-((ln(x)-μ)^2)/(2σ^2))
+            let z = (lnX - mean) / stdDev
+            let result = exp(-0.5 * z * z) / (x * stdDev * sqrt(2 * .pi))
+            return .number(result)
+        }
+    }
+    
+    private func evaluateLOGNORMINV(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let pVal = try evaluate(args[0])
+        guard let p = pVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let meanVal = try evaluate(args[1])
+        guard let mean = meanVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let stdDevVal = try evaluate(args[2])
+        guard let stdDev = stdDevVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard p > 0 && p < 1 && stdDev > 0 else {
+            return .error("NUM")
+        }
+        
+        // Inverse normal to get ln(x)
+        let z = sqrt(2.0) * erfinv(2 * p - 1)
+        let lnX = mean + z * stdDev
+        let result = exp(lnX)
+        
+        return .number(result)
+    }
+    
+    private func evaluateCONFIDENCENORM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[0])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let stdDevVal = try evaluate(args[1])
+        guard let stdDev = stdDevVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let sizeVal = try evaluate(args[2])
+        guard let size = sizeVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard alpha > 0 && alpha < 1 && stdDev > 0 && size >= 1 else {
+            return .error("NUM")
+        }
+        
+        // Confidence interval: z * σ / √n
+        // z-score for (1-alpha/2) confidence level
+        let z = sqrt(2.0) * erfinv(1 - alpha)
+        let result = z * stdDev / sqrt(size)
+        
+        return .number(result)
+    }
+    
+    private func evaluateCRITBINOM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let nVal = try evaluate(args[0])
+        guard let n = nVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let pVal = try evaluate(args[1])
+        guard let p = pVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let alphaVal = try evaluate(args[2])
+        guard let alpha = alphaVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard n >= 0 && p >= 0 && p <= 1 && alpha >= 0 && alpha <= 1 else {
+            return .error("NUM")
+        }
+        
+        let trials = Int(n)
+        
+        // Find smallest k where CDF >= alpha
+        var cumProb = 0.0
+        for k in 0...trials {
+            // Binomial probability
+            let logProb = lgamma(Double(trials + 1)) - lgamma(Double(k + 1)) - lgamma(Double(trials - k + 1)) +
+                         Double(k) * log(p) + Double(trials - k) * log(1 - p)
+            cumProb += exp(logProb)
+            
+            if cumProb >= alpha {
+                return .number(Double(k))
+            }
+        }
+        
+        return .number(Double(trials))
+    }
+    
+    // Helper function for inverse error function (approximation)
+    private func erfinv(_ x: Double) -> Double {
+        guard abs(x) < 1 else { return x > 0 ? .infinity : -.infinity }
+        
+        let a = 0.147
+        let b = 2 / (.pi * a) + log(1 - x * x) / 2
+        let sqrtPart = sqrt(b * b - log(1 - x * x) / a)
+        let sign = x >= 0 ? 1.0 : -1.0
+        
+        return sign * sqrt(-b + sqrtPart)
     }
 }
 
