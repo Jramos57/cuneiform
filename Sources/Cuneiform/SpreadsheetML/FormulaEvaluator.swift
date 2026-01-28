@@ -455,6 +455,10 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateTOCOL(args)
         case "TOROW":
             return try evaluateTOROW(args)
+        case "WRAPCOLS":
+            return try evaluateWRAPCOLS(args)
+        case "WRAPROWS":
+            return try evaluateWRAPROWS(args)
         // Database functions
         case "DSUM":
             return try evaluateDSUM(args)
@@ -686,12 +690,10 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateFV(args)
         case "RATE":
             return try evaluateRATE(args)
-        case "NPER":
-            return try evaluateNPER(args)
-        case "IPMT":
-            return try evaluateIPMT(args)
-        case "PPMT":
-            return try evaluatePPMT(args)
+        case "PDURATION":
+            return try evaluatePDURATION(args)
+        case "RRI":
+            return try evaluateRRI(args)
         case "NPV":
             return try evaluateNPV(args)
         case "IRR":
@@ -4970,6 +4972,54 @@ public struct FormulaEvaluator: Sendable {
         return .error("NUM") // Did not converge
     }
     
+    /// PDURATION - Periods required for investment to reach target value
+    private func evaluatePDURATION(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let rateVal = try evaluate(args[0])
+        let pvVal = try evaluate(args[1])
+        let fvVal = try evaluate(args[2])
+        
+        guard let rate = rateVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard rate > 0, pv > 0, fv > 0 else {
+            return .error("NUM")
+        }
+        
+        let periods = log(fv / pv) / log(1 + rate)
+        return .number(periods)
+    }
+    
+    /// RRI - Equivalent interest rate for investment growth
+    private func evaluateRRI(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let nperVal = try evaluate(args[0])
+        let pvVal = try evaluate(args[1])
+        let fvVal = try evaluate(args[2])
+        
+        guard let nper = nperVal.asDouble,
+              let pv = pvVal.asDouble,
+              let fv = fvVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard nper > 0, pv != 0 else {
+            return .error("NUM")
+        }
+        
+        let rate = pow(fv / pv, 1 / nper) - 1
+        return .number(rate)
+    }
+    
     /// NPER - Number of periods for an investment
     private func evaluateNPER(_ args: [FormulaExpression]) throws -> FormulaValue {
         guard args.count >= 3 && args.count <= 5 else {
@@ -7700,6 +7750,90 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .array([row])
+    }
+    
+    /// WRAPCOLS - Wraps a row/column of values into columns
+    private func evaluateWRAPCOLS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let vectorVal = try evaluate(args[0])
+        let wrapCountVal = try evaluate(args[1])
+        
+        guard let wrapCount = wrapCountVal.asDouble, wrapCount >= 1 else {
+            return .error("VALUE")
+        }
+        
+        let padValue = args.count == 3 ? try evaluate(args[2]) : .error("N/A")
+        let cols = Int(wrapCount)
+        
+        var values: [FormulaValue] = []
+        if case .array(let rows) = vectorVal {
+            for row in rows {
+                values.append(contentsOf: row)
+            }
+        } else {
+            values = [vectorVal]
+        }
+        
+        var result: [[FormulaValue]] = []
+        var idx = 0
+        while idx < values.count {
+            var row: [FormulaValue] = []
+            for _ in 0..<cols {
+                if idx < values.count {
+                    row.append(values[idx])
+                    idx += 1
+                } else {
+                    row.append(padValue)
+                }
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
+    }
+    
+    /// WRAPROWS - Wraps a row/column of values into rows
+    private func evaluateWRAPROWS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 2 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let vectorVal = try evaluate(args[0])
+        let wrapCountVal = try evaluate(args[1])
+        
+        guard let wrapCount = wrapCountVal.asDouble, wrapCount >= 1 else {
+            return .error("VALUE")
+        }
+        
+        let padValue = args.count == 3 ? try evaluate(args[2]) : .error("N/A")
+        let rowSize = Int(wrapCount)
+        
+        var values: [FormulaValue] = []
+        if case .array(let rows) = vectorVal {
+            for row in rows {
+                values.append(contentsOf: row)
+            }
+        } else {
+            values = [vectorVal]
+        }
+        
+        var result: [[FormulaValue]] = []
+        for i in stride(from: 0, to: values.count, by: rowSize) {
+            var row: [FormulaValue] = []
+            for j in 0..<rowSize {
+                if i + j < values.count {
+                    row.append(values[i + j])
+                } else {
+                    row.append(padValue)
+                }
+            }
+            result.append(row)
+        }
+        
+        return .array(result)
     }
     
     // MARK: - Database Functions
