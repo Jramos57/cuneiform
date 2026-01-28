@@ -17,12 +17,18 @@ public struct CellReference: Hashable, Sendable {
     public let row: Int
 
     /// Parse a cell reference string like "A1" or "BC123"
+    /// Supports absolute references like "$A$1", "$A1", "A$1"
     public init?(_ reference: String) {
         guard !reference.isEmpty else { return nil }
         var letters = ""
         var digits = ""
         for ch in reference {
-            if ch.isLetter { letters.append(ch) } else { digits.append(ch) }
+            if ch.isLetter {
+                letters.append(ch)
+            } else if ch.isNumber {
+                digits.append(ch)
+            }
+            // Skip $ symbols (absolute reference markers)
         }
         guard !letters.isEmpty, !digits.isEmpty, let row = Int(digits) else { return nil }
         self.column = letters.uppercased()
