@@ -552,6 +552,27 @@ public struct FormulaEvaluator: Sendable {
             return try evaluatePERMUT(args)
         case "MULTINOMIAL":
             return try evaluateMULTINOMIAL(args)
+        // Engineering functions
+        case "CONVERT":
+            return try evaluateCONVERT(args)
+        case "DELTA":
+            return try evaluateDELTA(args)
+        case "GESTEP":
+            return try evaluateGESTEP(args)
+        case "DEC2BIN":
+            return try evaluateDEC2BIN(args)
+        case "DEC2OCT":
+            return try evaluateDEC2OCT(args)
+        case "DEC2HEX":
+            return try evaluateDEC2HEX(args)
+        case "BIN2DEC":
+            return try evaluateBIN2DEC(args)
+        case "OCT2DEC":
+            return try evaluateOCT2DEC(args)
+        case "HEX2DEC":
+            return try evaluateHEX2DEC(args)
+        case "BIN2HEX":
+            return try evaluateBIN2HEX(args)
         // Financial functions
         case "PMT":
             return try evaluatePMT(args)
@@ -5807,6 +5828,437 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return matchingValues
+    }
+    
+    // MARK: - Engineering Functions
+    
+    /// CONVERT - Unit conversion
+    private func evaluateCONVERT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 3 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let fromUnitVal = try evaluate(args[1])
+        let toUnitVal = try evaluate(args[2])
+        
+        guard let number = numberVal.asDouble,
+              case .string(let fromUnit) = fromUnitVal,
+              case .string(let toUnit) = toUnitVal else {
+            return .error("VALUE")
+        }
+        
+        // Comprehensive unit conversion table
+        // Format: [unit: (base_unit_multiplier, category)]
+        let units: [String: (Double, String)] = [
+            // Weight and mass
+            "g": (1.0, "weight"), "sg": (1.0, "weight"), "kg": (1000.0, "weight"),
+            "lbm": (453.59237, "weight"), "u": (1.66053906660e-27, "weight"),
+            "ozm": (28.349523125, "weight"), "stone": (6350.29318, "weight"),
+            "ton": (907184.74, "weight"), "grain": (0.06479891, "weight"),
+            "cwt": (45359.237, "weight"), "shweight": (45359.237, "weight"),
+            "uk_cwt": (50802.34544, "weight"), "lcwt": (50802.34544, "weight"),
+            "uk_ton": (1016046.9088, "weight"), "brton": (1016046.9088, "weight"),
+            
+            // Distance
+            "m": (1.0, "distance"), "mi": (1609.344, "distance"), "Nmi": (1852.0, "distance"),
+            "in": (0.0254, "distance"), "ft": (0.3048, "distance"), "yd": (0.9144, "distance"),
+            "ang": (1e-10, "distance"), "ell": (1.143, "distance"), "ly": (9.46073e15, "distance"),
+            "parsec": (3.08568e16, "distance"), "pc": (3.08568e16, "distance"),
+            "Pica": (0.00423333333, "distance"), "pica": (0.00423333333, "distance"),
+            "survey_mi": (1609.347219, "distance"),
+            
+            // Time
+            "yr": (31557600.0, "time"), "day": (86400.0, "time"), "d": (86400.0, "time"),
+            "hr": (3600.0, "time"), "mn": (60.0, "time"), "sec": (1.0, "time"),
+            "s": (1.0, "time"),
+            
+            // Pressure
+            "Pa": (1.0, "pressure"), "p": (1.0, "pressure"), "atm": (101325.0, "pressure"),
+            "at": (98066.5, "pressure"), "mmHg": (133.322387415, "pressure"),
+            "psi": (6894.757293168, "pressure"), "Torr": (133.322368421, "pressure"),
+            
+            // Force
+            "N": (1.0, "force"), "dyn": (1e-5, "force"), "dy": (1e-5, "force"),
+            "lbf": (4.4482216152605, "force"), "pond": (0.00980665, "force"),
+            
+            // Energy
+            "J": (1.0, "energy"), "e": (1.0, "energy"), "c": (4.1868, "energy"),
+            "cal": (4.1868, "energy"), "eV": (1.602176634e-19, "energy"),
+            "ev": (1.602176634e-19, "energy"), "HPh": (2684519.537696172792, "energy"),
+            "hh": (2684519.537696172792, "energy"), "Wh": (3600.0, "energy"),
+            "wh": (3600.0, "energy"), "flb": (1.3558179483314004, "energy"),
+            "BTU": (1055.05585262, "energy"), "btu": (1055.05585262, "energy"),
+            
+            // Power
+            "W": (1.0, "power"), "w": (1.0, "power"), "HP": (745.69987158227022, "power"),
+            "h": (745.69987158227022, "power"), "PS": (735.49875, "power"),
+            
+            // Magnetism
+            "T": (1.0, "magnetism"), "ga": (0.0001, "magnetism"),
+            
+            // Temperature (special handling needed)
+            "C": (1.0, "temp"), "F": (1.0, "temp"), "K": (1.0, "temp"),
+            
+            // Liquid measure
+            "tsp": (0.00492892159375, "liquid"), "tspm": (0.000005, "liquid"),
+            "tbs": (0.01478676478125, "liquid"), "oz": (0.0295735295625, "liquid"),
+            "cup": (0.0002365882365, "liquid"), "pt": (0.000473176473, "liquid"),
+            "us_pt": (0.000473176473, "liquid"), "uk_pt": (0.00056826125, "liquid"),
+            "qt": (0.000946352946, "liquid"), "uk_qt": (0.0011365225, "liquid"),
+            "gal": (0.003785411784, "liquid"), "uk_gal": (0.00454609, "liquid"),
+            "l": (0.001, "liquid"), "L": (0.001, "liquid"), "lt": (0.001, "liquid"),
+            "ang3": (1e-30, "liquid"), "ang^3": (1e-30, "liquid"),
+            "barrel": (0.158987294928, "liquid"), "bushel": (0.03523907016688, "liquid"),
+            "GRT": (2.8316846592, "liquid"), "regton": (2.8316846592, "liquid"),
+            "MTON": (1.13267386368, "liquid"),
+            
+            // Area
+            "m2": (1.0, "area"), "m^2": (1.0, "area"), "mi2": (2589988.110336, "area"),
+            "mi^2": (2589988.110336, "area"), "Nmi2": (3429904.0, "area"),
+            "Nmi^2": (3429904.0, "area"), "in2": (0.00064516, "area"),
+            "in^2": (0.00064516, "area"), "ft2": (0.09290304, "area"),
+            "ft^2": (0.09290304, "area"), "yd2": (0.83612736, "area"),
+            "yd^2": (0.83612736, "area"), "ang2": (1e-20, "area"),
+            "ang^2": (1e-20, "area"), "Picapt2": (1.792111e-5, "area"),
+            "Picapt^2": (1.792111e-5, "area"), "Pica2": (1.792111e-5, "area"),
+            "Pica^2": (1.792111e-5, "area"), "Morgen": (2500.0, "area"),
+            "ar": (100.0, "area"), "acre": (4046.8564224, "area"),
+            "uk_acre": (4046.8564224, "area"), "us_acre": (4046.87261, "area"),
+            "ly2": (8.95054e31, "area"), "ly^2": (8.95054e31, "area"),
+            "ha": (10000.0, "area"),
+            
+            // Information
+            "bit": (1.0, "info"), "byte": (8.0, "info"),
+            
+            // Speed
+            "m/s": (1.0, "speed"), "m/sec": (1.0, "speed"), "m/h": (0.00027777777777778, "speed"),
+            "m/hr": (0.00027777777777778, "speed"), "mph": (0.44704, "speed"),
+            "kn": (0.514444444444444, "speed"), "admkn": (0.514444444444444, "speed")
+        ]
+        
+        // Check if units exist and are in same category
+        guard let fromConv = units[fromUnit], let toConv = units[toUnit] else {
+            return .error("N/A")
+        }
+        
+        let (fromMult, fromCat) = fromConv
+        let (toMult, toCat) = toConv
+        
+        // Temperature requires special handling
+        if fromCat == "temp" || toCat == "temp" {
+            if fromCat != "temp" || toCat != "temp" {
+                return .error("N/A")
+            }
+            
+            var celsius: Double
+            switch fromUnit {
+            case "C": celsius = number
+            case "F": celsius = (number - 32) * 5/9
+            case "K": celsius = number - 273.15
+            default: return .error("N/A")
+            }
+            
+            let result: Double
+            switch toUnit {
+            case "C": result = celsius
+            case "F": result = celsius * 9/5 + 32
+            case "K": result = celsius + 273.15
+            default: return .error("N/A")
+            }
+            
+            return .number(result)
+        }
+        
+        // Check category match
+        guard fromCat == toCat else {
+            return .error("N/A")
+        }
+        
+        // Convert: from -> base -> to
+        let result = number * fromMult / toMult
+        return .number(result)
+    }
+    
+    /// DELTA - Tests if two values are equal (returns 1 if equal, 0 otherwise)
+    private func evaluateDELTA(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let num1Val = try evaluate(args[0])
+        let num2Val = args.count > 1 ? try evaluate(args[1]) : .number(0)
+        
+        guard let num1 = num1Val.asDouble,
+              let num2 = num2Val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(num1 == num2 ? 1 : 0)
+    }
+    
+    /// GESTEP - Tests if number >= step (returns 1 if true, 0 otherwise)
+    private func evaluateGESTEP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let stepVal = args.count > 1 ? try evaluate(args[1]) : .number(0)
+        
+        guard let num = numVal.asDouble,
+              let step = stepVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(num >= step ? 1 : 0)
+    }
+    
+    /// DEC2BIN - Decimal to binary
+    private func evaluateDEC2BIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let placesVal = args.count > 1 ? try evaluate(args[1]) : nil
+        
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        
+        // Binary range: -512 to 511
+        guard intNum >= -512 && intNum <= 511 else {
+            return .error("NUM")
+        }
+        
+        let binary: String
+        if intNum >= 0 {
+            binary = String(intNum, radix: 2)
+        } else {
+            // Two's complement for negative numbers (10-bit)
+            let positive = (1 << 10) + intNum
+            binary = String(positive, radix: 2)
+        }
+        
+        if let placesVal = placesVal, let places = placesVal.asDouble {
+            let p = Int(places)
+            guard p >= 0 else {
+                return .error("NUM")
+            }
+            if binary.count > p {
+                return .error("NUM")
+            }
+            return .string(String(repeating: "0", count: max(0, p - binary.count)) + binary)
+        }
+        
+        return .string(binary)
+    }
+    
+    /// DEC2OCT - Decimal to octal
+    private func evaluateDEC2OCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let placesVal = args.count > 1 ? try evaluate(args[1]) : nil
+        
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        
+        // Octal range: -536870912 to 536870911 (30-bit)
+        guard intNum >= -536870912 && intNum <= 536870911 else {
+            return .error("NUM")
+        }
+        
+        let octal: String
+        if intNum >= 0 {
+            octal = String(intNum, radix: 8)
+        } else {
+            // Two's complement for negative numbers (30-bit)
+            let positive = (1 << 30) + intNum
+            octal = String(positive, radix: 8)
+        }
+        
+        if let placesVal = placesVal, let places = placesVal.asDouble {
+            let p = Int(places)
+            guard p >= 0 else {
+                return .error("NUM")
+            }
+            if octal.count > p {
+                return .error("NUM")
+            }
+            return .string(String(repeating: "0", count: max(0, p - octal.count)) + octal)
+        }
+        
+        return .string(octal)
+    }
+    
+    /// DEC2HEX - Decimal to hexadecimal
+    private func evaluateDEC2HEX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numVal = try evaluate(args[0])
+        let placesVal = args.count > 1 ? try evaluate(args[1]) : nil
+        
+        guard let num = numVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let intNum = Int(num)
+        
+        // Hex range: -549755813888 to 549755813887 (40-bit)
+        guard intNum >= -549755813888 && intNum <= 549755813887 else {
+            return .error("NUM")
+        }
+        
+        let hex: String
+        if intNum >= 0 {
+            hex = String(intNum, radix: 16).uppercased()
+        } else {
+            // Two's complement for negative numbers (40-bit)
+            let positive = (1 << 40) + intNum
+            hex = String(positive, radix: 16).uppercased()
+        }
+        
+        if let placesVal = placesVal, let places = placesVal.asDouble {
+            let p = Int(places)
+            guard p >= 0 else {
+                return .error("NUM")
+            }
+            if hex.count > p {
+                return .error("NUM")
+            }
+            return .string(String(repeating: "0", count: max(0, p - hex.count)) + hex)
+        }
+        
+        return .string(hex)
+    }
+    
+    /// BIN2DEC - Binary to decimal
+    private func evaluateBIN2DEC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let binVal = try evaluate(args[0])
+        
+        guard case .string(let binary) = binVal else {
+            return .error("VALUE")
+        }
+        
+        // Must be 10 digits or fewer
+        guard binary.count <= 10, binary.allSatisfy({ $0 == "0" || $0 == "1" }) else {
+            return .error("NUM")
+        }
+        
+        // Check if negative (starts with 1 in 10-bit two's complement)
+        if binary.count == 10 && binary.first == "1" {
+            // Negative number - two's complement
+            guard let positive = Int(binary, radix: 2) else {
+                return .error("NUM")
+            }
+            let result = positive - (1 << 10)
+            return .number(Double(result))
+        } else {
+            guard let result = Int(binary, radix: 2) else {
+                return .error("NUM")
+            }
+            return .number(Double(result))
+        }
+    }
+    
+    /// OCT2DEC - Octal to decimal
+    private func evaluateOCT2DEC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let octVal = try evaluate(args[0])
+        
+        guard case .string(let octal) = octVal else {
+            return .error("VALUE")
+        }
+        
+        // Must be 10 digits or fewer
+        guard octal.count <= 10, octal.allSatisfy({ "01234567".contains($0) }) else {
+            return .error("NUM")
+        }
+        
+        // Check if negative (starts with 4-7 in 10-digit octal)
+        if octal.count == 10, let firstDigit = octal.first, "4567".contains(firstDigit) {
+            // Negative number - two's complement
+            guard let positive = Int(octal, radix: 8) else {
+                return .error("NUM")
+            }
+            let result = positive - (1 << 30)
+            return .number(Double(result))
+        } else {
+            guard let result = Int(octal, radix: 8) else {
+                return .error("NUM")
+            }
+            return .number(Double(result))
+        }
+    }
+    
+    /// HEX2DEC - Hexadecimal to decimal
+    private func evaluateHEX2DEC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let hexVal = try evaluate(args[0])
+        
+        guard case .string(let hex) = hexVal else {
+            return .error("VALUE")
+        }
+        
+        // Must be 10 digits or fewer
+        let hexUpper = hex.uppercased()
+        guard hexUpper.count <= 10, hexUpper.allSatisfy({ "0123456789ABCDEF".contains($0) }) else {
+            return .error("NUM")
+        }
+        
+        // Check if negative (starts with 8-F in 10-digit hex)
+        if hexUpper.count == 10, let firstDigit = hexUpper.first, "89ABCDEF".contains(firstDigit) {
+            // Negative number - two's complement
+            guard let positive = Int(hexUpper, radix: 16) else {
+                return .error("NUM")
+            }
+            let result = positive - (1 << 40)
+            return .number(Double(result))
+        } else {
+            guard let result = Int(hexUpper, radix: 16) else {
+                return .error("NUM")
+            }
+            return .number(Double(result))
+        }
+    }
+    
+    /// BIN2HEX - Binary to hexadecimal
+    private func evaluateBIN2HEX(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        // Convert binary to decimal first
+        let decVal = try evaluateBIN2DEC([args[0]])
+        
+        guard let dec = decVal.asDouble else {
+            return decVal // Return error from BIN2DEC
+        }
+        
+        // Convert decimal to hex
+        let hexArgs = args.count > 1 ? [FormulaExpression.number(dec), args[1]] : [FormulaExpression.number(dec)]
+        return try evaluateDEC2HEX(hexArgs)
     }
 }
 

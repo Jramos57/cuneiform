@@ -2729,4 +2729,170 @@ struct FormulaEvaluatorTests {
         
         #expect(result == .string("123.45"))
     }
+    
+    // MARK: - Engineering Functions
+    
+    @Test func evaluateCONVERT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test distance conversion: meters to feet
+        let parser1 = FormulaParser("=CONVERT(1, \"m\", \"ft\")")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        if case .number(let val) = result1 {
+            #expect(abs(val - 3.28084) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+        
+        // Test weight conversion: pounds to kilograms
+        let parser2 = FormulaParser("=CONVERT(100, \"lbm\", \"kg\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        if case .number(let val) = result2 {
+            #expect(abs(val - 45.359237) < 0.001)
+        } else {
+            Issue.record("Expected number result")
+        }
+        
+        // Test temperature conversion: Celsius to Fahrenheit
+        let parser3 = FormulaParser("=CONVERT(0, \"C\", \"F\")")
+        let expr3 = try parser3.parse()
+        let result3 = try evaluator.evaluate(expr3)
+        #expect(result3 == .number(32))
+    }
+    
+    @Test func evaluateDELTA() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=DELTA(5, 5)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(1))
+        
+        let parser2 = FormulaParser("=DELTA(5, 4)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(0))
+        
+        // Test with default second argument (0)
+        let parser3 = FormulaParser("=DELTA(0)")
+        let expr3 = try parser3.parse()
+        let result3 = try evaluator.evaluate(expr3)
+        #expect(result3 == .number(1))
+    }
+    
+    @Test func evaluateGESTEP() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=GESTEP(5, 4)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(1))
+        
+        let parser2 = FormulaParser("=GESTEP(3, 4)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(0))
+        
+        let parser3 = FormulaParser("=GESTEP(4, 4)")
+        let expr3 = try parser3.parse()
+        let result3 = try evaluator.evaluate(expr3)
+        #expect(result3 == .number(1))
+    }
+    
+    @Test func evaluateDEC2BIN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=DEC2BIN(9)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .string("1001"))
+        
+        let parser2 = FormulaParser("=DEC2BIN(9, 8)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .string("00001001"))
+        
+        // Test negative number
+        let parser3 = FormulaParser("=DEC2BIN(-100)")
+        let expr3 = try parser3.parse()
+        let result3 = try evaluator.evaluate(expr3)
+        #expect(result3 == .string("1110011100"))
+    }
+    
+    @Test func evaluateDEC2OCT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=DEC2OCT(58)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .string("72"))
+        
+        let parser2 = FormulaParser("=DEC2OCT(58, 5)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .string("00072"))
+    }
+    
+    @Test func evaluateDEC2HEX() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=DEC2HEX(100)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .string("64"))
+        
+        let parser2 = FormulaParser("=DEC2HEX(100, 5)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .string("00064"))
+    }
+    
+    @Test func evaluateBIN2DEC() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=BIN2DEC(\"1001\")")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(9))
+        
+        // Test negative (10-bit two's complement)
+        let parser2 = FormulaParser("=BIN2DEC(\"1111111111\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(-1))
+    }
+    
+    @Test func evaluateOCT2DEC() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=OCT2DEC(\"72\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(58))
+    }
+    
+    @Test func evaluateHEX2DEC() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser1 = FormulaParser("=HEX2DEC(\"64\")")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .number(100))
+        
+        let parser2 = FormulaParser("=HEX2DEC(\"FF\")")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .number(255))
+    }
+    
+    @Test func evaluateBIN2HEX() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=BIN2HEX(\"11111\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1F"))
+    }
 }
