@@ -897,6 +897,33 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateIMDIV(args)
         case "IMPRODUCT":
             return try evaluateIMPRODUCT(args)
+        // Batch 30: More complex number functions
+        case "IMADD":
+            return try evaluateIMADD(args)
+        case "IMSUM":
+            return try evaluateIMSUM(args)
+        case "IMSQRT":
+            return try evaluateIMSQRT(args)
+        case "IMPOWER":
+            return try evaluateIMPOWER(args)
+        case "IMEXP":
+            return try evaluateIMEXP(args)
+        case "IMLN":
+            return try evaluateIMLN(args)
+        case "IMLOG10":
+            return try evaluateIMLOG10(args)
+        case "IMLOG2":
+            return try evaluateIMLOG2(args)
+        case "IMSIN":
+            return try evaluateIMSIN(args)
+        case "IMCOS":
+            return try evaluateIMCOS(args)
+        case "IMTAN":
+            return try evaluateIMTAN(args)
+        case "IMSEC":
+            return try evaluateIMSEC(args)
+        case "IMCSC":
+            return try evaluateIMCSC(args)
         default:
             return .error("NAME")
         }
@@ -10044,6 +10071,289 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return formatComplexNumber(realResult, imagResult)
+    }
+    
+    // MARK: - Batch 30: More Complex Number Functions
+    
+    private func evaluateIMADD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let real1Result = try evaluateIMREAL([args[0]])
+        let imag1Result = try evaluateIMAGINARY([args[0]])
+        let real2Result = try evaluateIMREAL([args[1]])
+        let imag2Result = try evaluateIMAGINARY([args[1]])
+        
+        guard let real1 = real1Result.asDouble,
+              let imag1 = imag1Result.asDouble,
+              let real2 = real2Result.asDouble,
+              let imag2 = imag2Result.asDouble else {
+            return .error("NUM")
+        }
+        
+        return formatComplexNumber(real1 + real2, imag1 + imag2)
+    }
+    
+    private func evaluateIMSUM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 else {
+            return .error("VALUE")
+        }
+        
+        var realSum = 0.0
+        var imagSum = 0.0
+        
+        for arg in args {
+            let realArg = try evaluateIMREAL([arg])
+            let imagArg = try evaluateIMAGINARY([arg])
+            
+            guard let a = realArg.asDouble,
+                  let b = imagArg.asDouble else {
+                return .error("NUM")
+            }
+            
+            realSum += a
+            imagSum += b
+        }
+        
+        return formatComplexNumber(realSum, imagSum)
+    }
+    
+    private func evaluateIMSQRT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // sqrt(a+bi) = sqrt(r) * (cos(θ/2) + i*sin(θ/2))
+        let r = sqrt(a * a + b * b)
+        let theta = atan2(b, a)
+        
+        let sqrtR = sqrt(r)
+        let halfTheta = theta / 2
+        
+        let realPart = sqrtR * cos(halfTheta)
+        let imagPart = sqrtR * sin(halfTheta)
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMPOWER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL([args[0]])
+        let imagResult = try evaluateIMAGINARY([args[0]])
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        let powerVal = try evaluate(args[1])
+        guard let n = powerVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        // (a+bi)^n using polar form: r^n * (cos(nθ) + i*sin(nθ))
+        let r = sqrt(a * a + b * b)
+        let theta = atan2(b, a)
+        
+        let rPowN = pow(r, n)
+        let nTheta = n * theta
+        
+        let realPart = rPowN * cos(nTheta)
+        let imagPart = rPowN * sin(nTheta)
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMEXP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // e^(a+bi) = e^a * (cos(b) + i*sin(b))
+        let expA = exp(a)
+        let realPart = expA * cos(b)
+        let imagPart = expA * sin(b)
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMLN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // ln(a+bi) = ln(r) + i*θ
+        let r = sqrt(a * a + b * b)
+        guard r > 0 else {
+            return .error("NUM")
+        }
+        
+        let theta = atan2(b, a)
+        
+        return formatComplexNumber(log(r), theta)
+    }
+    
+    private func evaluateIMLOG10(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // log10(z) = ln(z) / ln(10)
+        let lnResult = try evaluateIMLN(args)
+        
+        guard case .string(let complexStr) = lnResult else {
+            return .error("NUM")
+        }
+        
+        // Parse the ln result
+        let lnExpr = FormulaExpression.string(complexStr)
+        guard let lnReal = (try evaluateIMREAL([lnExpr])).asDouble,
+              let lnImag = (try evaluateIMAGINARY([lnExpr])).asDouble else {
+            return .error("NUM")
+        }
+        
+        let ln10 = log(10.0)
+        return formatComplexNumber(lnReal / ln10, lnImag / ln10)
+    }
+    
+    private func evaluateIMLOG2(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // log2(z) = ln(z) / ln(2)
+        let lnResult = try evaluateIMLN(args)
+        
+        guard case .string(let complexStr) = lnResult else {
+            return .error("NUM")
+        }
+        
+        // Parse the ln result
+        let lnExpr = FormulaExpression.string(complexStr)
+        guard let lnReal = (try evaluateIMREAL([lnExpr])).asDouble,
+              let lnImag = (try evaluateIMAGINARY([lnExpr])).asDouble else {
+            return .error("NUM")
+        }
+        
+        let ln2 = log(2.0)
+        return formatComplexNumber(lnReal / ln2, lnImag / ln2)
+    }
+    
+    private func evaluateIMSIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // sin(a+bi) = sin(a)cosh(b) + i*cos(a)sinh(b)
+        let realPart = sin(a) * cosh(b)
+        let imagPart = cos(a) * sinh(b)
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMCOS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let realResult = try evaluateIMREAL(args)
+        let imagResult = try evaluateIMAGINARY(args)
+        
+        guard let a = realResult.asDouble,
+              let b = imagResult.asDouble else {
+            return .error("NUM")
+        }
+        
+        // cos(a+bi) = cos(a)cosh(b) - i*sin(a)sinh(b)
+        let realPart = cos(a) * cosh(b)
+        let imagPart = -sin(a) * sinh(b)
+        
+        return formatComplexNumber(realPart, imagPart)
+    }
+    
+    private func evaluateIMTAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // tan(z) = sin(z) / cos(z)
+        let sinResult = try evaluateIMSIN(args)
+        let cosResult = try evaluateIMCOS(args)
+        
+        guard case .string(let sinStr) = sinResult,
+              case .string(let cosStr) = cosResult else {
+            return .error("NUM")
+        }
+        
+        return try evaluateIMDIV([FormulaExpression.string(sinStr), FormulaExpression.string(cosStr)])
+    }
+    
+    private func evaluateIMSEC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // sec(z) = 1 / cos(z)
+        let cosResult = try evaluateIMCOS(args)
+        
+        guard case .string(let cosStr) = cosResult else {
+            return .error("NUM")
+        }
+        
+        let one = FormulaExpression.string("1+0i")
+        return try evaluateIMDIV([one, FormulaExpression.string(cosStr)])
+    }
+    
+    private func evaluateIMCSC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        // csc(z) = 1 / sin(z)
+        let sinResult = try evaluateIMSIN(args)
+        
+        guard case .string(let sinStr) = sinResult else {
+            return .error("NUM")
+        }
+        
+        let one = FormulaExpression.string("1+0i")
+        return try evaluateIMDIV([one, FormulaExpression.string(sinStr)])
     }
 }
 

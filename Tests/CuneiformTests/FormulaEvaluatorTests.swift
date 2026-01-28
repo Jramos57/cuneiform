@@ -4523,4 +4523,156 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .error("CALC"))
     }
+    
+    // MARK: - Batch 30: More Complex Number Functions Tests
+    
+    @Test func evaluateIMADD() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMADD(\"3+4i\", \"1+2i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("4+6i"))
+    }
+    
+    @Test func evaluateIMSUM() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMSUM(\"1+2i\", \"3+4i\", \"5+6i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("9+12i"))
+    }
+    
+    @Test func evaluateIMSQRT() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMSQRT(\"0+4i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // sqrt(4i) = sqrt(4)*e^(i*π/4) ≈ 1.414+1.414i
+        if case .string(let s) = result {
+            #expect(s.contains("+"))  // Has both real and imaginary parts
+        } else {
+            Issue.record("Expected complex number string")
+        }
+    }
+    
+    @Test func evaluateIMPOWER() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMPOWER(\"2+0i\", 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("8+0i"))
+    }
+    
+    @Test func evaluateIMEXP() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=IMEXP(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMLN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // ln(1+0i) = 0+0i
+        let parser = FormulaParser("=IMLN(\"1+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("0+0i"))
+    }
+    
+    @Test func evaluateIMLOG10() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // log10(10+0i) = 1+0i
+        let parser = FormulaParser("=IMLOG10(\"10+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMLOG2() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // log2(2+0i) = 1+0i
+        let parser = FormulaParser("=IMLOG2(\"2+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMSIN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // sin(0+0i) = 0+0i
+        let parser = FormulaParser("=IMSIN(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("0+0i"))
+    }
+    
+    @Test func evaluateIMCOS() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // cos(0+0i) = 1+0i
+        let parser = FormulaParser("=IMCOS(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMTAN() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // tan(0+0i) = 0+0i
+        let parser = FormulaParser("=IMTAN(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("0+0i"))
+    }
+    
+    @Test func evaluateIMSEC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // sec(0+0i) = 1/cos(0+0i) = 1+0i
+        let parser = FormulaParser("=IMSEC(\"0+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .string("1+0i"))
+    }
+    
+    @Test func evaluateIMCSC() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // csc cannot be evaluated at 0, so test at a different value
+        // Just verify it returns a complex number string
+        let parser = FormulaParser("=IMCSC(\"1+0i\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .string(let s) = result {
+            #expect(s.contains("i"))  // Is a complex number
+        } else {
+            Issue.record("Expected complex number string")
+        }
+    }
 }
