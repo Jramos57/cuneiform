@@ -2618,4 +2618,115 @@ struct FormulaEvaluatorTests {
         // 9!/(2!*3!*4!) = 1260
         #expect(result == .number(1260))
     }
+    
+    // MARK: - More Text Functions
+    
+    @Test func evaluateNUMBERVALUE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test with grouping and decimal separators
+        let parser = FormulaParser("=NUMBERVALUE(\"1,234.56\", \".\", \",\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(1234.56))
+    }
+    
+    @Test func evaluateDOLLAR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=DOLLAR(1234.567, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("$1,234.57"))
+    }
+    
+    @Test func evaluateFIXED() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Use direct function call to avoid parsing FALSE
+        let expr = FormulaExpression.functionCall("FIXED", [
+            .number(1234.567),
+            .number(2),
+            .number(0)  // 0 means include commas
+        ])
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("1,234.57"))
+    }
+    
+    @Test func evaluateT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .text("Hello"),
+            "A2": .number(123)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser1 = FormulaParser("=T(A1)")
+        let expr1 = try parser1.parse()
+        let result1 = try evaluator.evaluate(expr1)
+        #expect(result1 == .string("Hello"))
+        
+        let parser2 = FormulaParser("=T(A2)")
+        let expr2 = try parser2.parse()
+        let result2 = try evaluator.evaluate(expr2)
+        #expect(result2 == .string(""))
+    }
+    
+    @Test func evaluateUNICODE() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=UNICODE(\"A\")")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(65))
+    }
+    
+    @Test func evaluateUNICHAR() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=UNICHAR(65)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("A"))
+    }
+    
+    @Test func evaluateARRAYTOTEXT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1),
+            "A2": .number(2),
+            "A3": .number(3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let expr = FormulaExpression.functionCall("ARRAYTOTEXT", [
+            .range(CellReference(column: "A", row: 1), CellReference(column: "A", row: 3))
+        ])
+        let result = try evaluator.evaluate(expr)
+        
+        // Should return array representation
+        if case .string(let str) = result {
+            #expect(str.contains("1"))
+            #expect(str.contains("2"))
+            #expect(str.contains("3"))
+        } else {
+            Issue.record("Expected string result")
+        }
+    }
+    
+    @Test func evaluateVALUETOTEXT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(123.45)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=VALUETOTEXT(A1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .string("123.45"))
+    }
 }

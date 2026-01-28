@@ -328,6 +328,24 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateTEXTAFTER(args)
         case "TEXTSPLIT":
             return try evaluateTEXTSPLIT(args)
+        case "TEXTJOIN":
+            return try evaluateTEXTJOIN(args)
+        case "NUMBERVALUE":
+            return try evaluateNUMBERVALUE(args)
+        case "DOLLAR":
+            return try evaluateDOLLAR(args)
+        case "FIXED":
+            return try evaluateFIXED(args)
+        case "T":
+            return try evaluateT(args)
+        case "UNICODE":
+            return try evaluateUNICODE(args)
+        case "UNICHAR":
+            return try evaluateUNICHAR(args)
+        case "ARRAYTOTEXT":
+            return try evaluateARRAYTOTEXT(args)
+        case "VALUETOTEXT":
+            return try evaluateVALUETOTEXT(args)
         // Conditional aggregates
         case "SUMIF":
             return try evaluateSUMIF(args)
@@ -372,8 +390,6 @@ public struct FormulaEvaluator: Sendable {
         // Excel 365 high-priority functions
         case "XLOOKUP":
             return try evaluateXLOOKUP(args)
-        case "TEXTJOIN":
-            return try evaluateTEXTJOIN(args)
         case "IFS":
             return try evaluateIFS(args)
         case "SWITCH":
@@ -4302,6 +4318,222 @@ public struct FormulaEvaluator: Sendable {
         
         // For now, return as a 1D array (single row)
         return .array([parts])
+    }
+    
+    /// NUMBERVALUE - Converts text to number in locale-independent way
+    private func evaluateNUMBERVALUE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let textVal = try evaluate(args[0])
+        guard case .string(var text) = textVal else {
+            return .error("VALUE")
+        }
+        
+        // Remove whitespace
+        text = text.trimmingCharacters(in: .whitespaces)
+        
+        // Handle optional decimal and group separators
+        if args.count > 1 {
+            let decimalSepVal = try evaluate(args[1])
+            if case .string(let decimalSep) = decimalSepVal {
+                text = text.replacingOccurrences(of: decimalSep, with: ".")
+            }
+        }
+        
+        if args.count > 2 {
+            let groupSepVal = try evaluate(args[2])
+            if case .string(let groupSep) = groupSepVal {
+                text = text.replacingOccurrences(of: groupSep, with: "")
+            }
+        }
+        
+        // Remove currency symbols and percent
+        let cleaned = text.replacingOccurrences(of: "$", with: "")
+                          .replacingOccurrences(of: "€", with: "")
+                          .replacingOccurrences(of: "£", with: "")
+                          .replacingOccurrences(of: "%", with: "")
+        
+        guard let number = Double(cleaned) else {
+            return .error("VALUE")
+        }
+        
+        return .number(number)
+    }
+    
+    /// DOLLAR - Formats a number as currency text
+    private func evaluateDOLLAR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let decimalsVal = args.count > 1 ? try evaluate(args[1]) : .number(2)
+        
+        guard let number = numberVal.asDouble,
+              let decimals = decimalsVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let dec = Int(decimals)
+        let baseFormatted = String(format: "%.\(max(0, dec))f", number)
+        
+        // Add thousands separators
+        let parts = baseFormatted.split(separator: ".")
+        let intPart = String(parts[0])
+        let decPart = parts.count > 1 ? String(parts[1]) : ""
+        
+        var result = ""
+        for (i, char) in intPart.reversed().enumerated() {
+            if i > 0 && i % 3 == 0 {
+                result.insert(",", at: result.startIndex)
+            }
+            result.insert(char, at: result.startIndex)
+        }
+        
+        let formatted = dec > 0 ? "$\(result).\(decPart)" : "$\(result)"
+        return .string(formatted)
+    }
+    
+    /// FIXED - Formats a number as text with fixed decimals
+    private func evaluateFIXED(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 3 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let decimalsVal = args.count > 1 ? try evaluate(args[1]) : .number(2)
+        let noCommasVal = args.count > 2 ? try evaluate(args[2]) : .number(0)
+        
+        guard let number = numberVal.asDouble,
+              let decimals = decimalsVal.asDouble,
+              let noCommas = noCommasVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let dec = Int(decimals)
+        var formatted = String(format: "%.\(max(0, dec))f", number)
+        
+        // Add thousands separators unless noCommas is true
+        if noCommas == 0 {
+            let parts = formatted.split(separator: ".")
+            let intPart = String(parts[0])
+            let decPart = parts.count > 1 ? String(parts[1]) : ""
+            
+            var result = ""
+            for (i, char) in intPart.reversed().enumerated() {
+                if i > 0 && i % 3 == 0 {
+                    result.insert(",", at: result.startIndex)
+                }
+                result.insert(char, at: result.startIndex)
+            }
+            
+            formatted = decPart.isEmpty ? result : "\(result).\(decPart)"
+        }
+        
+        return .string(formatted)
+    }
+    
+    /// T - Returns text or empty string
+    private func evaluateT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        if case .string(let text) = val {
+            return .string(text)
+        } else {
+            return .string("")
+        }
+    }
+    
+    /// UNICODE - Returns Unicode code point of first character
+    private func evaluateUNICODE(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard case .string(let text) = val, !text.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        let scalar = text.unicodeScalars.first!
+        return .number(Double(scalar.value))
+    }
+    
+    /// UNICHAR - Returns character for Unicode code point
+    private func evaluateUNICHAR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let number = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let codePoint = UInt32(number)
+        guard let scalar = Unicode.Scalar(codePoint) else {
+            return .error("VALUE")
+        }
+        
+        return .string(String(scalar))
+    }
+    
+    /// ARRAYTOTEXT - Converts array to text
+    private func evaluateARRAYTOTEXT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        
+        // Convert to text representation
+        func valueToString(_ val: FormulaValue) -> String {
+            switch val {
+            case .number(let n):
+                return String(n)
+            case .string(let s):
+                return "\"\(s)\""
+            case .boolean(let b):
+                return b ? "TRUE" : "FALSE"
+            case .error(let e):
+                return "#\(e)!"
+            case .array(let rows):
+                let rowStrings = rows.map { row in
+                    row.map { valueToString($0) }.joined(separator: ", ")
+                }
+                return "{\(rowStrings.joined(separator: "; "))}"
+            }
+        }
+        
+        return .string(valueToString(arrayVal))
+    }
+    
+    /// VALUETOTEXT - Converts value to text
+    private func evaluateVALUETOTEXT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        
+        switch val {
+        case .number(let n):
+            return .string(String(n))
+        case .string(let s):
+            return .string(s)
+        case .boolean(let b):
+            return .string(b ? "TRUE" : "FALSE")
+        case .error(let e):
+            return .string("#\(e)!")
+        case .array:
+            // For arrays, convert to simple representation
+            return try evaluateARRAYTOTEXT(args)
+        }
     }
     
     // MARK: - Lookup & Reference Functions (Extended)
