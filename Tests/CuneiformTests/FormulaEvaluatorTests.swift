@@ -2483,4 +2483,139 @@ struct FormulaEvaluatorTests {
             Issue.record("Expected number")
         }
     }
+    
+    // MARK: - More Math Functions
+    
+    @Test func evaluatePOWER() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=POWER(5, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(25))
+    }
+    
+    @Test func evaluateMROUND() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=MROUND(10, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // 10 rounded to nearest multiple of 3 is 9
+        #expect(result == .number(9))
+    }
+    
+    @Test func evaluateEVEN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=EVEN(1.5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(2))
+    }
+    
+    @Test func evaluateEVENNegative() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=EVEN(-1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(-2))
+    }
+    
+    @Test func evaluateODD() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=ODD(1.5)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(3))
+    }
+    
+    @Test func evaluateODDNegative() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=ODD(-2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(-3))
+    }
+    
+    @Test func evaluateQUOTIENT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=QUOTIENT(5, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        #expect(result == .number(2))
+    }
+    
+    @Test func evaluateRAND() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=RAND()")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val >= 0 && val < 1)
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateRANDBETWEEN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=RANDBETWEEN(1, 10)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        if case .number(let val) = result {
+            #expect(val >= 1 && val <= 10)
+            #expect(val == floor(val))  // Should be integer
+        } else {
+            Issue.record("Expected number")
+        }
+    }
+    
+    @Test func evaluateCOMBIN() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=COMBIN(8, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // C(8,2) = 8!/(2!*6!) = 28
+        #expect(result == .number(28))
+    }
+    
+    @Test func evaluatePERMUT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=PERMUT(5, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // P(5,3) = 5!/(5-3)! = 60
+        #expect(result == .number(60))
+    }
+    
+    @Test func evaluateMULTINOMIAL() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        let parser = FormulaParser("=MULTINOMIAL(2, 3, 4)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // 9!/(2!*3!*4!) = 1260
+        #expect(result == .number(1260))
+    }
 }

@@ -516,6 +516,26 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateGCD(args)
         case "LCM":
             return try evaluateLCM(args)
+        case "POWER":
+            return try evaluatePOWER(args)
+        case "MROUND":
+            return try evaluateMROUND(args)
+        case "EVEN":
+            return try evaluateEVEN(args)
+        case "ODD":
+            return try evaluateODD(args)
+        case "QUOTIENT":
+            return try evaluateQUOTIENT(args)
+        case "RAND":
+            return evaluateRAND(args)
+        case "RANDBETWEEN":
+            return try evaluateRANDBETWEEN(args)
+        case "COMBIN":
+            return try evaluateCOMBIN(args)
+        case "PERMUT":
+            return try evaluatePERMUT(args)
+        case "MULTINOMIAL":
+            return try evaluateMULTINOMIAL(args)
         // Financial functions
         case "PMT":
             return try evaluatePMT(args)
@@ -3056,6 +3076,227 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(Double(result))
+    }
+    
+    /// POWER - Raises a number to a power
+    private func evaluatePOWER(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let powerVal = try evaluate(args[1])
+        
+        guard let number = numberVal.asDouble,
+              let power = powerVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        return .number(pow(number, power))
+    }
+    
+    /// MROUND - Rounds to the nearest multiple
+    private func evaluateMROUND(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numberVal = try evaluate(args[0])
+        let multipleVal = try evaluate(args[1])
+        
+        guard let number = numberVal.asDouble,
+              let multiple = multipleVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard multiple != 0 else {
+            return .error("DIV/0")
+        }
+        
+        let result = round(number / multiple) * multiple
+        return .number(result)
+    }
+    
+    /// EVEN - Rounds up to nearest even integer
+    private func evaluateEVEN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let sign = num >= 0 ? 1.0 : -1.0
+        let absNum = abs(num)
+        let rounded = ceil(absNum)
+        let even = rounded.truncatingRemainder(dividingBy: 2) == 0 ? rounded : rounded + 1
+        
+        return .number(sign * even)
+    }
+    
+    /// ODD - Rounds up to nearest odd integer
+    private func evaluateODD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            return .error("VALUE")
+        }
+        
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let sign = num >= 0 ? 1.0 : -1.0
+        let absNum = abs(num)
+        let rounded = ceil(absNum)
+        let odd = rounded.truncatingRemainder(dividingBy: 2) == 1 ? rounded : rounded + 1
+        
+        return .number(sign * odd)
+    }
+    
+    /// QUOTIENT - Integer portion of a division
+    private func evaluateQUOTIENT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let numeratorVal = try evaluate(args[0])
+        let denominatorVal = try evaluate(args[1])
+        
+        guard let numerator = numeratorVal.asDouble,
+              let denominator = denominatorVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        guard denominator != 0 else {
+            return .error("DIV/0")
+        }
+        
+        return .number(Double(Int(numerator / denominator)))
+    }
+    
+    /// RAND - Random number between 0 and 1
+    private func evaluateRAND(_ args: [FormulaExpression]) -> FormulaValue {
+        return .number(Double.random(in: 0..<1))
+    }
+    
+    /// RANDBETWEEN - Random integer between two values
+    private func evaluateRANDBETWEEN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let bottomVal = try evaluate(args[0])
+        let topVal = try evaluate(args[1])
+        
+        guard let bottom = bottomVal.asDouble,
+              let top = topVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let min = Int(bottom)
+        let max = Int(top)
+        
+        guard min <= max else {
+            return .error("NUM")
+        }
+        
+        return .number(Double(Int.random(in: min...max)))
+    }
+    
+    /// COMBIN - Number of combinations
+    private func evaluateCOMBIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let nVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let n = nVal.asDouble,
+              let k = kVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let nInt = Int(n)
+        let kInt = Int(k)
+        
+        guard nInt >= 0, kInt >= 0, kInt <= nInt else {
+            return .error("NUM")
+        }
+        
+        func factorial(_ n: Int) -> Double {
+            guard n > 1 else { return 1 }
+            return (2...n).map(Double.init).reduce(1, *)
+        }
+        
+        let result = factorial(nInt) / (factorial(kInt) * factorial(nInt - kInt))
+        return .number(result)
+    }
+    
+    /// PERMUT - Number of permutations
+    private func evaluatePERMUT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let nVal = try evaluate(args[0])
+        let kVal = try evaluate(args[1])
+        
+        guard let n = nVal.asDouble,
+              let k = kVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        let nInt = Int(n)
+        let kInt = Int(k)
+        
+        guard nInt >= 0, kInt >= 0, kInt <= nInt else {
+            return .error("NUM")
+        }
+        
+        func factorial(_ n: Int) -> Double {
+            guard n > 1 else { return 1 }
+            return (2...n).map(Double.init).reduce(1, *)
+        }
+        
+        let result = factorial(nInt) / factorial(nInt - kInt)
+        return .number(result)
+    }
+    
+    /// MULTINOMIAL - Multinomial coefficient
+    private func evaluateMULTINOMIAL(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Int] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            for num in flattenToNumbers(val) {
+                guard num >= 0 else { return .error("NUM") }
+                numbers.append(Int(num))
+            }
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        func factorial(_ n: Int) -> Double {
+            guard n > 1 else { return 1 }
+            return (2...n).map(Double.init).reduce(1, *)
+        }
+        
+        let sum = numbers.reduce(0, +)
+        var result = factorial(sum)
+        
+        for num in numbers {
+            result /= factorial(num)
+        }
+        
+        return .number(result)
     }
     
     // MARK: - Financial Functions
