@@ -4804,4 +4804,67 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(20))
     }
+    
+    // MARK: - Batch 32: Statistical and Regression Functions Tests
+    
+    @Test func evaluateGROWTH() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=GROWTH(1, 2, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))  // Stub
+    }
+    
+    @Test func evaluateTREND() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=TREND(1, 2, 3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))  // Stub
+    }
+    
+    @Test func evaluateLINEST() throws {
+        let cells: [String: CellValue] = [:]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        let parser = FormulaParser("=LINEST(1, 2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .error("CALC"))  // Stub
+    }
+    
+    @Test func evaluatePROB() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(0), "A2": .number(1), "A3": .number(2),
+            "B1": .number(0.2), "B2": .number(0.5), "B3": .number(0.3)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Probability that value is between 0 and 1
+        let parser = FormulaParser("=PROB(A1:A3, B1:B3, 0, 1)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(0.7))  // 0.2 + 0.5
+    }
+    
+    @Test func evaluateTRIMMEAN() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "A4": .number(4), "A5": .number(5), "A6": .number(6),
+            "A7": .number(7), "A8": .number(8), "A9": .number(9), "A10": .number(100)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Trim 20% (remove top and bottom 10% = 1 value from each end)
+        let parser = FormulaParser("=TRIMMEAN(A1:A10, 0.2)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        
+        // After sorting: [1,2,3,4,5,6,7,8,9,100], trim 1 from each end -> [2,3,4,5,6,7,8,9], mean = 5.5
+        #expect(result == .number(5.5))
+    }
 }

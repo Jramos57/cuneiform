@@ -951,6 +951,21 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateSUBTOTAL(args)
         case "AGGREGATE":
             return try evaluateAGGREGATE(args)
+        // Batch 32: Statistical and regression functions
+        case "FORECAST.LINEAR":
+            return try evaluateFORECAST(args)  // Alias for existing FORECAST
+        case "GROWTH":
+            return try evaluateGROWTH(args)
+        case "TREND":
+            return try evaluateTREND(args)
+        case "LINEST":
+            return try evaluateLINEST(args)
+        case "LOGEST":
+            return try evaluateLOGEST(args)
+        case "PROB":
+            return try evaluatePROB(args)
+        case "TRIMMEAN":
+            return try evaluateTRIMMEAN(args)
         default:
             return .error("NAME")
         }
@@ -10659,6 +10674,95 @@ public struct FormulaEvaluator: Sendable {
         default:
             return .error("VALUE")
         }
+    }
+    
+    // MARK: - Batch 32: Statistical and Regression Functions
+    
+    private func evaluateGROWTH(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Exponential growth - stub
+        guard args.count >= 1 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub - requires exponential regression
+    }
+    
+    private func evaluateTREND(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Linear trend - stub (returns array)
+        guard args.count >= 1 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub - requires array output
+    }
+    
+    private func evaluateLINEST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Linear regression statistics - stub (returns array)
+        guard args.count >= 1 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub - requires array output
+    }
+    
+    private func evaluateLOGEST(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Exponential regression statistics - stub (returns array)
+        guard args.count >= 1 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        return .error("CALC")  // Stub - requires array output
+    }
+    
+    private func evaluatePROB(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Probability that values fall between limits
+        guard args.count >= 3 && args.count <= 4 else {
+            return .error("VALUE")
+        }
+        
+        let xRangeVal = try evaluate(args[0])
+        let probRangeVal = try evaluate(args[1])
+        let lowerLimitVal = try evaluate(args[2])
+        let upperLimitVal = args.count == 4 ? try evaluate(args[3]) : lowerLimitVal
+        
+        let xValues = flattenToNumbers(xRangeVal)
+        let probValues = flattenToNumbers(probRangeVal)
+        
+        guard xValues.count == probValues.count,
+              let lowerLimit = lowerLimitVal.asDouble,
+              let upperLimit = upperLimitVal.asDouble else {
+            return .error("VALUE")
+        }
+        
+        var totalProb = 0.0
+        for (x, p) in zip(xValues, probValues) {
+            if x >= lowerLimit && x <= upperLimit {
+                totalProb += p
+            }
+        }
+        
+        return .number(totalProb)
+    }
+    
+    private func evaluateTRIMMEAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        // Mean of dataset excluding outliers
+        guard args.count == 2 else {
+            return .error("VALUE")
+        }
+        
+        let arrayVal = try evaluate(args[0])
+        let fractionVal = try evaluate(args[1])
+        
+        let numbers = flattenToNumbers(arrayVal).sorted()
+        guard let fraction = fractionVal.asDouble, fraction >= 0 && fraction < 1, !numbers.isEmpty else {
+            return .error("NUM")
+        }
+        
+        let trimCount = Int(Double(numbers.count) * fraction / 2.0)
+        guard trimCount * 2 < numbers.count else {
+            return .error("NUM")
+        }
+        
+        let trimmed = Array(numbers.dropFirst(trimCount).dropLast(trimCount))
+        let mean = trimmed.reduce(0, +) / Double(trimmed.count)
+        
+        return .number(mean)
     }
 }
 
