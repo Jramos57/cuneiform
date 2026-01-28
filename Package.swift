@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "Cuneiform",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v13),
         .iOS(.v16),
