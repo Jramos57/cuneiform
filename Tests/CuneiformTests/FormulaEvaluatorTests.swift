@@ -780,4 +780,233 @@ struct FormulaEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .number(1))  // Perfect positive correlation
     }
+    
+    // MARK: - Math & Trigonometric Functions
+    
+    @Test func evaluateTrigonometricFunctions() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test PI()
+        let piParser = FormulaParser("=PI()")
+        let piExpr = try piParser.parse()
+        let piResult = try evaluator.evaluate(piExpr)
+        if case .number(let val) = piResult {
+            #expect(abs(val - 3.14159265358979) < 0.00001)
+        }
+        
+        // Test SIN(PI()/2) = 1
+        let sinParser = FormulaParser("=SIN(PI()/2)")
+        let sinExpr = try sinParser.parse()
+        let sinResult = try evaluator.evaluate(sinExpr)
+        if case .number(let val) = sinResult {
+            #expect(abs(val - 1.0) < 0.00001)
+        }
+        
+        // Test COS(0) = 1
+        let cosParser = FormulaParser("=COS(0)")
+        let cosExpr = try cosParser.parse()
+        let cosResult = try evaluator.evaluate(cosExpr)
+        #expect(cosResult == .number(1.0))
+        
+        // Test TAN(PI()/4) ≈ 1
+        let tanParser = FormulaParser("=TAN(PI()/4)")
+        let tanExpr = try tanParser.parse()
+        let tanResult = try evaluator.evaluate(tanExpr)
+        if case .number(let val) = tanResult {
+            #expect(abs(val - 1.0) < 0.00001)
+        }
+    }
+    
+    @Test func evaluateInverseTrigFunctions() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test ASIN(1) = PI/2
+        let asinParser = FormulaParser("=ASIN(1)")
+        let asinExpr = try asinParser.parse()
+        let asinResult = try evaluator.evaluate(asinExpr)
+        if case .number(let val) = asinResult {
+            #expect(abs(val - Double.pi / 2) < 0.00001)
+        }
+        
+        // Test ACOS(0) = PI/2
+        let acosParser = FormulaParser("=ACOS(0)")
+        let acosExpr = try acosParser.parse()
+        let acosResult = try evaluator.evaluate(acosExpr)
+        if case .number(let val) = acosResult {
+            #expect(abs(val - Double.pi / 2) < 0.00001)
+        }
+        
+        // Test ATAN(1) = PI/4
+        let atanParser = FormulaParser("=ATAN(1)")
+        let atanExpr = try atanParser.parse()
+        let atanResult = try evaluator.evaluate(atanExpr)
+        if case .number(let val) = atanResult {
+            #expect(abs(val - Double.pi / 4) < 0.00001)
+        }
+        
+        // Test ATAN2(1, 1) = PI/4
+        let atan2Parser = FormulaParser("=ATAN2(1, 1)")
+        let atan2Expr = try atan2Parser.parse()
+        let atan2Result = try evaluator.evaluate(atan2Expr)
+        if case .number(let val) = atan2Result {
+            #expect(abs(val - Double.pi / 4) < 0.00001)
+        }
+    }
+    
+    @Test func evaluateAngleConversion() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test RADIANS(180) = PI
+        let radParser = FormulaParser("=RADIANS(180)")
+        let radExpr = try radParser.parse()
+        let radResult = try evaluator.evaluate(radExpr)
+        if case .number(let val) = radResult {
+            #expect(abs(val - Double.pi) < 0.00001)
+        }
+        
+        // Test DEGREES(PI) = 180
+        let degParser = FormulaParser("=DEGREES(PI())")
+        let degExpr = try degParser.parse()
+        let degResult = try evaluator.evaluate(degExpr)
+        if case .number(let val) = degResult {
+            #expect(abs(val - 180.0) < 0.00001)
+        }
+    }
+    
+    @Test func evaluateLogarithmicFunctions() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test LN(E) = 1 (E ≈ 2.71828)
+        let lnParser = FormulaParser("=LN(2.71828182845905)")
+        let lnExpr = try lnParser.parse()
+        let lnResult = try evaluator.evaluate(lnExpr)
+        if case .number(let val) = lnResult {
+            #expect(abs(val - 1.0) < 0.00001)
+        }
+        
+        // Test LOG10(100) = 2
+        let log10Parser = FormulaParser("=LOG10(100)")
+        let log10Expr = try log10Parser.parse()
+        let log10Result = try evaluator.evaluate(log10Expr)
+        #expect(log10Result == .number(2.0))
+        
+        // Test LOG(8, 2) = 3
+        let logParser = FormulaParser("=LOG(8, 2)")
+        let logExpr = try logParser.parse()
+        let logResult = try evaluator.evaluate(logExpr)
+        #expect(logResult == .number(3.0))
+        
+        // Test EXP(1) ≈ E
+        let expParser = FormulaParser("=EXP(1)")
+        let expExpr = try expParser.parse()
+        let expResult = try evaluator.evaluate(expExpr)
+        if case .number(let val) = expResult {
+            #expect(abs(val - 2.71828182845905) < 0.00001)
+        }
+    }
+    
+    @Test func evaluateRoundingFunctions() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test CEILING(2.3, 1) = 3
+        let ceilParser = FormulaParser("=CEILING(2.3, 1)")
+        let ceilExpr = try ceilParser.parse()
+        let ceilResult = try evaluator.evaluate(ceilExpr)
+        #expect(ceilResult == .number(3.0))
+        
+        // Test FLOOR(2.7, 1) = 2
+        let floorParser = FormulaParser("=FLOOR(2.7, 1)")
+        let floorExpr = try floorParser.parse()
+        let floorResult = try evaluator.evaluate(floorExpr)
+        #expect(floorResult == .number(2.0))
+        
+        // Test TRUNC(8.9) = 8
+        let truncParser = FormulaParser("=TRUNC(8.9)")
+        let truncExpr = try truncParser.parse()
+        let truncResult = try evaluator.evaluate(truncExpr)
+        #expect(truncResult == .number(8.0))
+        
+        // Test TRUNC(-8.9) = -8
+        let truncNegParser = FormulaParser("=TRUNC(-8.9)")
+        let truncNegExpr = try truncNegParser.parse()
+        let truncNegResult = try evaluator.evaluate(truncNegExpr)
+        #expect(truncNegResult == .number(-8.0))
+        
+        // Test SIGN(10) = 1
+        let signPosParser = FormulaParser("=SIGN(10)")
+        let signPosExpr = try signPosParser.parse()
+        let signPosResult = try evaluator.evaluate(signPosExpr)
+        #expect(signPosResult == .number(1.0))
+        
+        // Test SIGN(-5) = -1
+        let signNegParser = FormulaParser("=SIGN(-5)")
+        let signNegExpr = try signNegParser.parse()
+        let signNegResult = try evaluator.evaluate(signNegExpr)
+        #expect(signNegResult == .number(-1.0))
+        
+        // Test SIGN(0) = 0
+        let signZeroParser = FormulaParser("=SIGN(0)")
+        let signZeroExpr = try signZeroParser.parse()
+        let signZeroResult = try evaluator.evaluate(signZeroExpr)
+        #expect(signZeroResult == .number(0.0))
+    }
+    
+    @Test func evaluateFACT() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test FACT(5) = 120
+        let factParser = FormulaParser("=FACT(5)")
+        let factExpr = try factParser.parse()
+        let factResult = try evaluator.evaluate(factExpr)
+        #expect(factResult == .number(120.0))
+        
+        // Test FACT(0) = 1
+        let fact0Parser = FormulaParser("=FACT(0)")
+        let fact0Expr = try fact0Parser.parse()
+        let fact0Result = try evaluator.evaluate(fact0Expr)
+        #expect(fact0Result == .number(1.0))
+    }
+    
+    @Test func evaluateSUMPRODUCT() throws {
+        let cells: [String: CellValue] = [
+            "A1": .number(3), "B1": .number(4),
+            "A2": .number(8), "B2": .number(6),
+            "A3": .number(1), "B3": .number(9)
+        ]
+        let evaluator = makeTestEvaluator(cells: cells)
+        
+        // Test SUMPRODUCT(A1:A3, B1:B3) = 3*4 + 8*6 + 1*9 = 12 + 48 + 9 = 69
+        let parser = FormulaParser("=SUMPRODUCT(A1:A3, B1:B3)")
+        let expr = try parser.parse()
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .number(69.0))
+    }
+    
+    @Test func evaluateGCDandLCM() throws {
+        let evaluator = makeTestEvaluator(cells: [:])
+        
+        // Test GCD(12, 18) = 6
+        let gcdParser = FormulaParser("=GCD(12, 18)")
+        let gcdExpr = try gcdParser.parse()
+        let gcdResult = try evaluator.evaluate(gcdExpr)
+        #expect(gcdResult == .number(6.0))
+        
+        // Test GCD(24, 36, 48) = 12
+        let gcd3Parser = FormulaParser("=GCD(24, 36, 48)")
+        let gcd3Expr = try gcd3Parser.parse()
+        let gcd3Result = try evaluator.evaluate(gcd3Expr)
+        #expect(gcd3Result == .number(12.0))
+        
+        // Test LCM(4, 6) = 12
+        let lcmParser = FormulaParser("=LCM(4, 6)")
+        let lcmExpr = try lcmParser.parse()
+        let lcmResult = try evaluator.evaluate(lcmExpr)
+        #expect(lcmResult == .number(12.0))
+        
+        // Test LCM(3, 4, 6) = 12
+        let lcm3Parser = FormulaParser("=LCM(3, 4, 6)")
+        let lcm3Expr = try lcm3Parser.parse()
+        let lcm3Result = try evaluator.evaluate(lcm3Expr)
+        #expect(lcm3Result == .number(12.0))
+    }
 }

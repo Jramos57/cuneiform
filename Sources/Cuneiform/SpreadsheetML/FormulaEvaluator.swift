@@ -317,6 +317,51 @@ public struct FormulaEvaluator: Sendable {
             return try evaluateRANK(args)
         case "CORREL":
             return try evaluateCORREL(args)
+        // Math and trigonometric functions
+        case "SIN":
+            return try evaluateSIN(args)
+        case "COS":
+            return try evaluateCOS(args)
+        case "TAN":
+            return try evaluateTAN(args)
+        case "ASIN":
+            return try evaluateASIN(args)
+        case "ACOS":
+            return try evaluateACOS(args)
+        case "ATAN":
+            return try evaluateATAN(args)
+        case "ATAN2":
+            return try evaluateATAN2(args)
+        case "PI":
+            return evaluatePI(args)
+        case "RADIANS":
+            return try evaluateRADIANS(args)
+        case "DEGREES":
+            return try evaluateDEGREES(args)
+        case "LOG":
+            return try evaluateLOG(args)
+        case "LOG10":
+            return try evaluateLOG10(args)
+        case "LN":
+            return try evaluateLN(args)
+        case "EXP":
+            return try evaluateEXP(args)
+        case "CEILING", "CEILING.MATH":
+            return try evaluateCEILING(args)
+        case "FLOOR", "FLOOR.MATH":
+            return try evaluateFLOOR(args)
+        case "TRUNC":
+            return try evaluateTRUNC(args)
+        case "SIGN":
+            return try evaluateSIGN(args)
+        case "FACT":
+            return try evaluateFACT(args)
+        case "SUMPRODUCT":
+            return try evaluateSUMPRODUCT(args)
+        case "GCD":
+            return try evaluateGCD(args)
+        case "LCM":
+            return try evaluateLCM(args)
         default:
             return .error("NAME")
         }
@@ -2191,6 +2236,340 @@ public struct FormulaEvaluator: Sendable {
         }
         
         return .number(sumProduct / sqrt(sumSq1 * sumSq2))
+    }
+    
+    // MARK: - Math and Trigonometric Functions
+    
+    /// SIN - Sine of an angle (in radians)
+    private func evaluateSIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "SIN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        return .number(sin(num))
+    }
+    
+    /// COS - Cosine of an angle (in radians)
+    private func evaluateCOS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "COS", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        return .number(cos(num))
+    }
+    
+    /// TAN - Tangent of an angle (in radians)
+    private func evaluateTAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "TAN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        return .number(tan(num))
+    }
+    
+    /// ASIN - Arcsine (in radians)
+    private func evaluateASIN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ASIN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        guard num >= -1 && num <= 1 else { return .error("NUM") }
+        return .number(asin(num))
+    }
+    
+    /// ACOS - Arccosine (in radians)
+    private func evaluateACOS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ACOS", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        guard num >= -1 && num <= 1 else { return .error("NUM") }
+        return .number(acos(num))
+    }
+    
+    /// ATAN - Arctangent (in radians)
+    private func evaluateATAN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "ATAN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        return .number(atan(num))
+    }
+    
+    /// ATAN2 - Arctangent of x and y coordinates
+    private func evaluateATAN2(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 2 else {
+            throw FormulaError.invalidArgumentCount(function: "ATAN2", expected: 2, got: args.count)
+        }
+        let xVal = try evaluate(args[0])
+        let yVal = try evaluate(args[1])
+        guard let x = xVal.asDouble, let y = yVal.asDouble else { return .error("VALUE") }
+        guard x != 0 || y != 0 else { return .error("DIV/0") }
+        return .number(atan2(y, x))
+    }
+    
+    /// PI - Returns π
+    private func evaluatePI(_ args: [FormulaExpression]) -> FormulaValue {
+        return .number(Double.pi)
+    }
+    
+    /// RADIANS - Convert degrees to radians
+    private func evaluateRADIANS(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "RADIANS", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let degrees = val.asDouble else { return .error("VALUE") }
+        return .number(degrees * Double.pi / 180)
+    }
+    
+    /// DEGREES - Convert radians to degrees
+    private func evaluateDEGREES(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "DEGREES", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let radians = val.asDouble else { return .error("VALUE") }
+        return .number(radians * 180 / Double.pi)
+    }
+    
+    /// LOG - Logarithm to specified base (default 10)
+    private func evaluateLOG(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "LOG", expected: 1, got: args.count)
+        }
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble, num > 0 else { return .error("NUM") }
+        
+        let base = args.count == 2 ? (try evaluate(args[1]).asDouble ?? 10) : 10
+        guard base > 0 && base != 1 else { return .error("NUM") }
+        
+        return .number(log(num) / log(base))
+    }
+    
+    /// LOG10 - Base-10 logarithm
+    private func evaluateLOG10(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "LOG10", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble, num > 0 else { return .error("NUM") }
+        return .number(log10(num))
+    }
+    
+    /// LN - Natural logarithm (base e)
+    private func evaluateLN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "LN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble, num > 0 else { return .error("NUM") }
+        return .number(log(num))
+    }
+    
+    /// EXP - e raised to a power
+    private func evaluateEXP(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "EXP", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        return .number(exp(num))
+    }
+    
+    /// CEILING - Round up to nearest multiple
+    private func evaluateCEILING(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "CEILING", expected: 1, got: args.count)
+        }
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else { return .error("VALUE") }
+        
+        let significance = args.count == 2 ? (try evaluate(args[1]).asDouble ?? 1) : 1
+        guard significance != 0 else { return .error("DIV/0") }
+        
+        return .number(ceil(num / significance) * significance)
+    }
+    
+    /// FLOOR - Round down to nearest multiple
+    private func evaluateFLOOR(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "FLOOR", expected: 1, got: args.count)
+        }
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else { return .error("VALUE") }
+        
+        let significance = args.count == 2 ? (try evaluate(args[1]).asDouble ?? 1) : 1
+        guard significance != 0 else { return .error("DIV/0") }
+        
+        return .number(floor(num / significance) * significance)
+    }
+    
+    /// TRUNC - Truncate to integer
+    private func evaluateTRUNC(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count >= 1 && args.count <= 2 else {
+            throw FormulaError.invalidArgumentCount(function: "TRUNC", expected: 1, got: args.count)
+        }
+        let numVal = try evaluate(args[0])
+        guard let num = numVal.asDouble else { return .error("VALUE") }
+        
+        let digits = args.count == 2 ? Int(try evaluate(args[1]).asDouble ?? 0) : 0
+        let multiplier = pow(10.0, Double(digits))
+        
+        return .number(trunc(num * multiplier) / multiplier)
+    }
+    
+    /// SIGN - Sign of a number (-1, 0, or 1)
+    private func evaluateSIGN(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "SIGN", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble else { return .error("VALUE") }
+        
+        if num > 0 { return .number(1) }
+        if num < 0 { return .number(-1) }
+        return .number(0)
+    }
+    
+    /// FACT - Factorial
+    private func evaluateFACT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard args.count == 1 else {
+            throw FormulaError.invalidArgumentCount(function: "FACT", expected: 1, got: args.count)
+        }
+        let val = try evaluate(args[0])
+        guard let num = val.asDouble, num >= 0 else { return .error("NUM") }
+        
+        let n = Int(num)
+        guard n <= 170 else { return .error("NUM") } // Overflow protection
+        
+        if n <= 1 {
+            return .number(1)  // 0! = 1, 1! = 1
+        }
+        
+        var result: Double = 1
+        for i in 2...n {
+            result *= Double(i)
+        }
+        return .number(result)
+    }
+    
+    /// SUMPRODUCT - Sum of products of corresponding ranges
+    private func evaluateSUMPRODUCT(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        // Evaluate all arrays
+        var arrays: [[Double]] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            guard case .array(let rows) = val else {
+                return .error("VALUE")
+            }
+            let numbers = rows.flatMap { $0 }.compactMap { $0.asDouble }
+            arrays.append(numbers)
+        }
+        
+        // Check all arrays have same length
+        guard let firstCount = arrays.first?.count else {
+            return .error("VALUE")
+        }
+        guard arrays.allSatisfy({ $0.count == firstCount }) else {
+            return .error("VALUE")
+        }
+        
+        // Calculate sum of products
+        var sum: Double = 0
+        for i in 0..<firstCount {
+            var product: Double = 1
+            for array in arrays {
+                product *= array[i]
+            }
+            sum += product
+        }
+        
+        return .number(sum)
+    }
+    
+    /// GCD - Greatest common divisor
+    private func evaluateGCD(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Int] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            for num in flattenToNumbers(val) {
+                guard num >= 0 else { return .error("NUM") }
+                numbers.append(Int(num))
+            }
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        func gcd(_ a: Int, _ b: Int) -> Int {
+            var a = a, b = b
+            while b != 0 {
+                (a, b) = (b, a % b)
+            }
+            return abs(a)
+        }
+        
+        var result = numbers[0]
+        for num in numbers.dropFirst() {
+            result = gcd(result, num)
+        }
+        
+        return .number(Double(result))
+    }
+    
+    /// LCM - Least common multiple
+    private func evaluateLCM(_ args: [FormulaExpression]) throws -> FormulaValue {
+        guard !args.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        var numbers: [Int] = []
+        for arg in args {
+            let val = try evaluate(arg)
+            for num in flattenToNumbers(val) {
+                guard num >= 0 else { return .error("NUM") }
+                numbers.append(Int(num))
+            }
+        }
+        
+        guard !numbers.isEmpty else {
+            return .error("VALUE")
+        }
+        
+        func gcd(_ a: Int, _ b: Int) -> Int {
+            var a = a, b = b
+            while b != 0 {
+                (a, b) = (b, a % b)
+            }
+            return abs(a)
+        }
+        
+        func lcm(_ a: Int, _ b: Int) -> Int {
+            return abs(a * b) / gcd(a, b)
+        }
+        
+        var result = numbers[0]
+        for num in numbers.dropFirst() {
+            result = lcm(result, num)
+        }
+        
+        return .number(Double(result))
     }
 }
 
