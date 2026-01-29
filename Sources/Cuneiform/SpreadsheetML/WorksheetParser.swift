@@ -1,23 +1,185 @@
 import Foundation
 
-/// A cell reference like "A1" or "BC123"
+/// A cell reference like "A1" or "BC123".
 ///
-/// Cell references consist of a column (letters) and row (1-based number).
+/// `CellReference` represents a specific cell location in a spreadsheet using the standard
+/// A1 notation. It consists of a column identifier (letters) and a row number.
+///
+/// ## Overview
+///
+/// Cell references are fundamental to working with spreadsheets. They uniquely identify
+/// cells using a combination of column letters (A, B, C, ..., Z, AA, AB, ...) and
+/// 1-based row numbers.
+///
+/// `CellReference` handles parsing of cell reference strings, including absolute references
+/// with `$` symbols, and provides convenient access to both the string representation
+/// and numeric indices needed for array-based cell lookups.
+///
+/// ## Creating Cell References
+///
+/// Create cell references from strings or component parts:
 ///
 /// ```swift
-/// let ref = CellReference("A1")
-/// print(ref?.columnIndex)  // 0
-/// print(ref?.row)          // 1
+/// // From a string (returns optional)
+/// if let ref = CellReference("A1") {
+///     print(ref.column)  // "A"
+///     print(ref.row)     // 1
+/// }
+///
+/// // From components
+/// let ref = CellReference(column: "B", row: 5)
+/// print(ref) // "B5"
+///
+/// // Using string literal (crashes if invalid)
+/// let ref: CellReference = "C10"
 /// ```
+///
+/// ## Absolute References
+///
+/// The parser handles absolute references (with `$` symbols) commonly used in formulas:
+///
+/// ```swift
+/// let ref1 = CellReference("$A$1")   // Absolute column and row
+/// let ref2 = CellReference("$A1")    // Absolute column only
+/// let ref3 = CellReference("A$1")    // Absolute row only
+///
+/// // All produce the same reference:
+/// ref1?.column // "A"
+/// ref1?.row    // 1
+/// ```
+///
+/// ## Column Indexing
+///
+/// Convert column letters to 0-based indices for array access:
+///
+/// ```swift
+/// let ref = CellReference("AA10")!
+/// print(ref.column)      // "AA"
+/// print(ref.columnIndex) // 26 (0-based)
+///
+/// // Column conversion examples:
+/// // A  → 0
+/// // B  → 1
+/// // Z  → 25
+/// // AA → 26
+/// // AB → 27
+/// // BA → 52
+/// ```
+///
+/// ## Accessing Cells
+///
+/// Use cell references to look up cell values in a sheet:
+///
+/// ```swift
+/// let workbook = try Cuneiform.loadWorkbook(from: url)
+/// let sheet = workbook.sheets[0]
+///
+/// // Using string directly
+/// if let value = sheet.cell(at: "A1") {
+///     print(value)
+/// }
+///
+/// // Using CellReference
+/// let ref = CellReference(column: "B", row: 2)
+/// if let value = sheet.cell(at: ref) {
+///     print(value)
+/// }
+/// ```
+///
+/// ## Iterating Over Ranges
+///
+/// Construct references programmatically to iterate over ranges:
+///
+/// ```swift
+/// // Iterate over a column
+/// for row in 1...10 {
+///     let ref = CellReference(column: "A", row: row)
+///     if let value = sheet.cell(at: ref) {
+///         print("Row \(row): \(value)")
+///     }
+/// }
+///
+/// // Iterate over a grid
+/// let columns = ["A", "B", "C"]
+/// for col in columns {
+///     for row in 1...5 {
+///         let ref = CellReference(column: col, row: row)
+///         // Process cell at ref
+///     }
+/// }
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating References
+///
+/// - ``init(_:)``
+/// - ``init(column:row:)``
+/// - ``init(stringLiteral:)``
+///
+/// ### Reference Components
+///
+/// - ``column``
+/// - ``row``
+/// - ``columnIndex``
+///
+/// ## See Also
+///
+/// - ``Sheet/cell(at:)-8xu7x``
+/// - ``Sheet/cell(at:)-6aipv``
+/// - ``CellValue``
 public struct CellReference: Hashable, Sendable {
-    /// Column letters (e.g., "A", "B", "AA", "AB")
+    /// Column letters (e.g., "A", "B", "AA", "AB").
+    ///
+    /// The column component of the cell reference, always stored in uppercase.
+    /// Excel columns use a base-26 letter system: A-Z, then AA-ZZ, AAA-ZZZ, etc.
+    ///
+    /// ```swift
+    /// let ref = CellReference("B5")!
+    /// print(ref.column) // "B"
+    ///
+    /// let ref2 = CellReference("aa10")!
+    /// print(ref2.column) // "AA" (normalized to uppercase)
+    /// ```
     public let column: String
 
-    /// 1-based row number
+    /// 1-based row number.
+    ///
+    /// The row component of the cell reference. Rows in Excel are 1-based, meaning the
+    /// first row is row 1 (not 0).
+    ///
+    /// ```swift
+    /// let ref = CellReference("C7")!
+    /// print(ref.row) // 7
+    /// ```
+    ///
+    /// - Note: This is different from ``columnIndex``, which is 0-based.
     public let row: Int
 
-    /// Parse a cell reference string like "A1" or "BC123"
-    /// Supports absolute references like "$A$1", "$A1", "A$1"
+    /// Parse a cell reference string like "A1" or "BC123".
+    ///
+    /// Creates a cell reference from a standard A1-notation string. Returns `nil` if the
+    /// string is empty or doesn't match a valid cell reference format.
+    ///
+    /// This initializer automatically strips `$` symbols used for absolute references in
+    /// formulas, so "$A$1", "$A1", "A$1", and "A1" all produce the same reference.
+    ///
+    /// ```swift
+    /// // Valid references
+    /// let ref1 = CellReference("A1")      // column: "A", row: 1
+    /// let ref2 = CellReference("Z100")    // column: "Z", row: 100
+    /// let ref3 = CellReference("AA5")     // column: "AA", row: 5
+    /// let ref4 = CellReference("$B$2")    // column: "B", row: 2 (absolute)
+    ///
+    /// // Invalid references
+    /// let ref5 = CellReference("")        // nil (empty)
+    /// let ref6 = CellReference("123")     // nil (no column)
+    /// let ref7 = CellReference("ABC")     // nil (no row)
+    /// let ref8 = CellReference("A-1")     // nil (negative row)
+    /// ```
+    ///
+    /// - Parameter reference: A cell reference string in A1 notation.
+    /// - Returns: A `CellReference` if the string is valid, otherwise `nil`.
     public init?(_ reference: String) {
         guard !reference.isEmpty else { return nil }
         var letters = ""
@@ -35,13 +197,63 @@ public struct CellReference: Hashable, Sendable {
         self.row = row
     }
 
-    /// Create a cell reference from column and row components
+    /// Create a cell reference from column and row components.
+    ///
+    /// Creates a cell reference by directly specifying the column letters and row number.
+    /// The column is automatically normalized to uppercase.
+    ///
+    /// ```swift
+    /// let ref = CellReference(column: "A", row: 1)
+    /// print(ref) // "A1"
+    ///
+    /// let ref2 = CellReference(column: "aa", row: 10)
+    /// print(ref2.column) // "AA" (normalized)
+    ///
+    /// // Build references programmatically
+    /// for row in 1...10 {
+    ///     let ref = CellReference(column: "B", row: row)
+    ///     // Use ref...
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - column: The column letters (e.g., "A", "B", "AA"). Will be uppercased.
+    ///   - row: The 1-based row number.
     public init(column: String, row: Int) {
         self.column = column.uppercased()
         self.row = row
     }
 
-    /// Column as 0-based index (A=0, B=1, ..., Z=25, AA=26)
+    /// Column as 0-based index (A=0, B=1, ..., Z=25, AA=26).
+    ///
+    /// Converts the column letters to a 0-based integer index suitable for array lookups.
+    /// This is useful when you need to access cells in a data structure organized by indices.
+    ///
+    /// The conversion follows Excel's base-26 column system:
+    /// - Single letters: A=0, B=1, ..., Z=25
+    /// - Double letters: AA=26, AB=27, ..., AZ=51, BA=52, ..., ZZ=701
+    /// - Triple letters: AAA=702, and so on
+    ///
+    /// ```swift
+    /// let ref1 = CellReference("A1")!
+    /// print(ref1.columnIndex) // 0
+    ///
+    /// let ref2 = CellReference("Z1")!
+    /// print(ref2.columnIndex) // 25
+    ///
+    /// let ref3 = CellReference("AA1")!
+    /// print(ref3.columnIndex) // 26
+    ///
+    /// let ref4 = CellReference("AB1")!
+    /// print(ref4.columnIndex) // 27
+    ///
+    /// // Use for array access
+    /// let row = sheet.rows[ref.row - 1]  // Convert 1-based to 0-based
+    /// let cell = row.cells[ref.columnIndex]
+    /// ```
+    ///
+    /// - Note: This property is 0-based, unlike ``row`` which is 1-based. Remember to
+    ///   subtract 1 from ``row`` when using both for array indexing.
     public var columnIndex: Int {
         var value = 0
         for ch in column {

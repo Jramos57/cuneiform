@@ -1,13 +1,118 @@
 import Foundation
 
-/// Result of evaluating a formula expression
+/// The result value produced by evaluating a spreadsheet formula expression.
+///
+/// `FormulaValue` represents the strongly-typed result of formula evaluation,
+/// supporting Excel's core data types including numbers, strings, booleans, errors,
+/// and multi-dimensional arrays.
+///
+/// ## Overview
+///
+/// Formula evaluation produces one of five value types that mirror Excel's type system:
+/// - Numeric values (stored as `Double`)
+/// - Text strings
+/// - Boolean values (`TRUE` or `FALSE`)
+/// - Error values (like `#REF!`, `#VALUE!`, `#DIV/0!`)
+/// - Multi-dimensional arrays (for dynamic array formulas)
+///
+/// ## Type Conversion
+///
+/// `FormulaValue` provides convenient conversion methods to coerce values between types:
+///
+/// ```swift
+/// let result = try evaluator.evaluate(expression)
+///
+/// // Convert to Double (nil if not convertible)
+/// if let number = result.asDouble {
+///     print("Numeric result: \(number)")
+/// }
+///
+/// // Convert to String (always succeeds)
+/// let text = result.asString
+///
+/// // Convert to Boolean (nil if not convertible)
+/// if let flag = result.asBoolean {
+///     print("Boolean result: \(flag)")
+/// }
+/// ```
+///
+/// ## Error Handling
+///
+/// Excel error values are represented as `.error(String)` cases with standard error codes:
+/// - `REF` - Invalid cell reference
+/// - `VALUE` - Wrong value type for operation
+/// - `DIV/0` - Division by zero
+/// - `N/A` - Value not available
+/// - `NAME` - Unrecognized function name
+/// - `CALC` - Calculation error (unsupported feature)
+///
+/// ## Dynamic Arrays
+///
+/// The `.array` case supports Excel's dynamic array formulas, storing values as
+/// a two-dimensional array structure:
+///
+/// ```swift
+/// // Evaluate a SEQUENCE formula
+/// let expr = try parser.parse("=SEQUENCE(3,2)")
+/// let result = try evaluator.evaluate(expr)
+///
+/// if case .array(let rows) = result {
+///     // rows = [[1, 2], [3, 4], [5, 6]]
+///     for row in rows {
+///         print(row)
+///     }
+/// }
+/// ```
+///
+/// - SeeAlso: ``FormulaEvaluator``
+/// - SeeAlso: ``FormulaExpression``
 public enum FormulaValue: Sendable, Equatable {
+    /// A numeric value stored as a double-precision floating-point number.
+    ///
+    /// Numeric values represent all Excel numbers, including integers, decimals,
+    /// dates (as serial numbers), and times (as fractional days).
     case number(Double)
+    
+    /// A text string value.
+    ///
+    /// String values represent text content, including empty strings.
     case string(String)
+    
+    /// A boolean logical value.
+    ///
+    /// Boolean values represent `TRUE` or `FALSE`, typically from logical functions
+    /// or comparison operations.
     case boolean(Bool)
+    
+    /// An error value with a standard Excel error code.
+    ///
+    /// Common error codes include:
+    /// - `REF` - Invalid cell reference
+    /// - `VALUE` - Wrong value type
+    /// - `DIV/0` - Division by zero
+    /// - `N/A` - Value not available
+    /// - `NAME` - Unrecognized function name
+    /// - `CALC` - Calculation error
     case error(String)
+    
+    /// A multi-dimensional array of values for dynamic array formulas.
+    ///
+    /// Arrays are stored as rows of columns: `[[row1col1, row1col2], [row2col1, row2col2]]`.
+    /// Used by functions like `SEQUENCE`, `FILTER`, `SORT`, and array operations.
     case array([[FormulaValue]])
     
+    /// Attempts to convert this value to a `Double`.
+    ///
+    /// - Returns: The numeric value, or `nil` if the conversion is not possible.
+    ///
+    /// ## Conversion Rules
+    ///
+    /// - `.number(n)` - Returns `n` directly
+    /// - `.boolean(true)` - Returns `1.0`
+    /// - `.boolean(false)` - Returns `0.0`
+    /// - `.string(s)` - Attempts to parse `s` as a number, returns `nil` if parsing fails
+    /// - `.error` - Returns `nil`
+    /// - `.array` - Returns `nil`
     public var asDouble: Double? {
         switch self {
         case .number(let n): return n
@@ -17,6 +122,20 @@ public enum FormulaValue: Sendable, Equatable {
         }
     }
     
+    /// Converts this value to a string representation.
+    ///
+    /// - Returns: A string representation of the value.
+    ///
+    /// ## Conversion Rules
+    ///
+    /// - `.number(n)` - Returns the string representation of `n`
+    /// - `.string(s)` - Returns `s` directly
+    /// - `.boolean(true)` - Returns `"TRUE"`
+    /// - `.boolean(false)` - Returns `"FALSE"`
+    /// - `.error(e)` - Returns `"#e!"` (e.g., `"#REF!"`, `"#VALUE!"`)
+    /// - `.array` - Returns `"#ARRAY!"`
+    ///
+    /// This conversion always succeeds and never returns `nil`.
     public var asString: String {
         switch self {
         case .number(let n): return String(n)
@@ -27,6 +146,19 @@ public enum FormulaValue: Sendable, Equatable {
         }
     }
     
+    /// Attempts to convert this value to a `Bool`.
+    ///
+    /// - Returns: The boolean value, or `nil` if the conversion is not possible.
+    ///
+    /// ## Conversion Rules
+    ///
+    /// - `.boolean(b)` - Returns `b` directly
+    /// - `.number(n)` - Returns `true` if `n != 0`, otherwise `false`
+    /// - `.string("TRUE")` - Returns `true` (case-insensitive)
+    /// - `.string("FALSE")` - Returns `false` (case-insensitive)
+    /// - `.string(other)` - Returns `nil`
+    /// - `.error` - Returns `nil`
+    /// - `.array` - Returns `nil`
     public var asBoolean: Bool? {
         switch self {
         case .boolean(let b): return b
@@ -37,16 +169,358 @@ public enum FormulaValue: Sendable, Equatable {
     }
 }
 
-/// Evaluates parsed formula expressions in the context of a worksheet
+/// A high-performance formula evaluation engine supporting 467 Excel-compatible functions.
+///
+/// `FormulaEvaluator` executes parsed formula expressions within the context of a spreadsheet,
+/// resolving cell references and performing calculations using Excel's computation model.
+///
+/// ## Overview
+///
+/// The evaluator processes ``FormulaExpression`` trees produced by ``FormulaParser``,
+/// computing results while maintaining Excel compatibility for numeric precision,
+/// type coercion, and error propagation.
+///
+/// ## Basic Usage
+///
+/// ```swift
+/// // Create an evaluator with a cell resolver
+/// let evaluator = FormulaEvaluator { cellRef in
+///     return worksheet.cell(at: cellRef)
+/// }
+///
+/// // Parse and evaluate a formula
+/// let parser = FormulaParser()
+/// let expression = try parser.parse("=SUM(A1:A10)")
+/// let result = try evaluator.evaluate(expression)
+///
+/// if case .number(let sum) = result {
+///     print("Sum: \(sum)")
+/// }
+/// ```
+///
+/// ## Cell Resolution
+///
+/// The evaluator delegates cell value lookups to a user-provided closure, enabling
+/// integration with any data source:
+///
+/// ```swift
+/// let evaluator = FormulaEvaluator { cellRef in
+///     // Look up cell value from your data model
+///     if let value = myDataSource.getValue(column: cellRef.column, row: cellRef.row) {
+///         return value
+///     }
+///     return .empty
+/// }
+/// ```
+///
+/// ## Supported Function Categories
+///
+/// The evaluator implements **467 Excel functions** across these categories:
+///
+/// ### Core Functions (100+)
+/// - **Math & Trig**: `SUM`, `AVERAGE`, `ROUND`, `SIN`, `COS`, `TAN`, `SQRT`, `ABS`, `MOD`
+/// - **Statistical**: `MEDIAN`, `STDEV`, `VAR`, `PERCENTILE`, `QUARTILE`, `RANK`
+/// - **Logical**: `IF`, `AND`, `OR`, `NOT`, `XOR`, `IFS`, `SWITCH`
+/// - **Lookup & Reference**: `VLOOKUP`, `HLOOKUP`, `XLOOKUP`, `INDEX`, `MATCH`, `OFFSET`
+///
+/// ### Text Functions (40+)
+/// - **Manipulation**: `LEFT`, `RIGHT`, `MID`, `CONCAT`, `TEXTJOIN`, `REPLACE`
+/// - **Analysis**: `LEN`, `FIND`, `SEARCH`, `EXACT`
+/// - **Formatting**: `UPPER`, `LOWER`, `PROPER`, `TRIM`, `CLEAN`
+/// - **Excel 365**: `TEXTBEFORE`, `TEXTAFTER`, `TEXTSPLIT`
+///
+/// ### Date & Time (25+)
+/// - **Current**: `TODAY`, `NOW`
+/// - **Construction**: `DATE`, `TIME`, `DATEVALUE`, `TIMEVALUE`
+/// - **Extraction**: `YEAR`, `MONTH`, `DAY`, `HOUR`, `MINUTE`, `SECOND`
+/// - **Calculations**: `NETWORKDAYS`, `WORKDAY`, `DATEDIF`, `YEARFRAC`
+///
+/// ### Dynamic Arrays (20+) - Excel 365
+/// - **Array Generation**: `SEQUENCE`, `RANDARRAY`
+/// - **Array Manipulation**: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `TRANSPOSE`
+/// - **Array Shaping**: `TAKE`, `DROP`, `EXPAND`, `VSTACK`, `HSTACK`, `WRAPCOLS`
+///
+/// ### Financial (40+)
+/// - **Loans & Annuities**: `PMT`, `PV`, `FV`, `RATE`, `NPER`
+/// - **Investment Analysis**: `NPV`, `IRR`, `XNPV`, `XIRR`, `MIRR`
+/// - **Depreciation**: `SLN`, `DB`, `DDB`, `SYD`, `VDB`
+/// - **Securities**: `PRICE`, `YIELD`, `DURATION`, `MDURATION`
+///
+/// ### Statistical Distributions (50+)
+/// - **Normal**: `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`
+/// - **Probability**: `BINOM.DIST`, `POISSON.DIST`, `EXPON.DIST`, `WEIBULL.DIST`
+/// - **Hypothesis Testing**: `T.DIST`, `T.INV`, `CHISQ.DIST`, `F.DIST`
+/// - **Forecasting**: `FORECAST`, `TREND`, `GROWTH`, `FORECAST.ETS`
+///
+/// ### Engineering (40+)
+/// - **Base Conversion**: `DEC2BIN`, `DEC2HEX`, `DEC2OCT`, `BIN2DEC`, `HEX2DEC`
+/// - **Bitwise Operations**: `BITAND`, `BITOR`, `BITXOR`, `BITLSHIFT`, `BITRSHIFT`
+/// - **Complex Numbers**: `COMPLEX`, `IMREAL`, `IMAGINARY`, `IMABS`, `IMPOWER`
+/// - **Unit Conversion**: `CONVERT`
+///
+/// ### Database Functions (10+)
+/// - **Aggregation**: `DSUM`, `DAVERAGE`, `DCOUNT`, `DMAX`, `DMIN`
+///
+/// ### Information Functions (20+)
+/// - **Type Checking**: `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISLOGICAL`
+/// - **Error Handling**: `IFERROR`, `IFNA`, `ERROR.TYPE`
+///
+/// ## Error Handling
+///
+/// Formula evaluation can fail in two ways:
+///
+/// 1. **Swift Errors** - Thrown for structural problems:
+///    ```swift
+///    do {
+///        let result = try evaluator.evaluate(expression)
+///    } catch {
+///        // Handle parsing or evaluation errors
+///    }
+///    ```
+///
+/// 2. **Formula Errors** - Returned as `.error()` values:
+///    ```swift
+///    let result = try evaluator.evaluate(expression)
+///    if case .error(let code) = result {
+///        print("Formula error: #\(code)!")
+///    }
+///    ```
+///
+/// Common error codes match Excel's error system:
+/// - `#REF!` - Invalid cell reference
+/// - `#VALUE!` - Wrong value type
+/// - `#DIV/0!` - Division by zero
+/// - `#N/A` - Value not available
+/// - `#NAME?` - Unrecognized function name
+///
+/// ## Performance Characteristics
+///
+/// - **Function Lookup**: O(1) switch-based dispatch
+/// - **Cell Resolution**: Depends on resolver implementation
+/// - **Array Operations**: O(n) for n-element arrays
+/// - **Statistical Functions**: O(n log n) for sorting operations
+///
+/// ## Thread Safety
+///
+/// `FormulaEvaluator` conforms to `Sendable` and is safe to use across threads
+/// when the provided cell resolver is also thread-safe (`@Sendable`).
+///
+/// ## Advanced Example
+///
+/// ```swift
+/// // Multi-step evaluation with error handling
+/// let evaluator = FormulaEvaluator { cellRef in
+///     guard let cell = sheet.getCell(cellRef) else {
+///         return .empty
+///     }
+///     return cell
+/// }
+///
+/// let parser = FormulaParser()
+///
+/// // Evaluate a complex nested formula
+/// let formula = "=IF(SUM(A1:A10) > 100, AVERAGE(B1:B10), MEDIAN(C1:C10))"
+/// let expression = try parser.parse(formula)
+/// let result = try evaluator.evaluate(expression)
+///
+/// switch result {
+/// case .number(let value):
+///     print("Result: \(value)")
+/// case .string(let text):
+///     print("Text: \(text)")
+/// case .boolean(let flag):
+///     print("Boolean: \(flag)")
+/// case .error(let code):
+///     print("Error: #\(code)!")
+/// case .array(let rows):
+///     print("Array with \(rows.count) rows")
+/// }
+/// ```
+///
+/// - SeeAlso: ``FormulaValue``
+/// - SeeAlso: ``FormulaExpression``
+/// - SeeAlso: ``FormulaParser``
+/// - SeeAlso: ``CellReference``
+/// - SeeAlso: ``CellValue``
 public struct FormulaEvaluator: Sendable {
     private let cellResolver: @Sendable (CellReference) -> CellValue?
     
-    /// Create evaluator with a cell resolver function
+    /// Creates a new formula evaluator with a custom cell value resolver.
+    ///
+    /// The cell resolver is called whenever the evaluator needs to look up the value
+    /// of a cell reference during formula evaluation. It should return the current
+    /// value of the cell, or `nil` if the cell does not exist.
+    ///
+    /// - Parameter cellResolver: A closure that resolves cell references to their values.
+    ///   The closure receives a ``CellReference`` and should return the corresponding
+    ///   ``CellValue``, or `nil` if the cell is empty or does not exist.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // Simple in-memory cell store
+    /// var cells: [String: CellValue] = [
+    ///     "A1": .number(10),
+    ///     "A2": .number(20),
+    ///     "B1": .text("Hello")
+    /// ]
+    ///
+    /// let evaluator = FormulaEvaluator { cellRef in
+    ///     let key = "\(cellRef.column)\(cellRef.row)"
+    ///     return cells[key]
+    /// }
+    ///
+    /// // Now formulas can reference cells A1, A2, B1, etc.
+    /// let expr = try parser.parse("=SUM(A1:A2)")
+    /// let result = try evaluator.evaluate(expr)
+    /// // result = .number(30.0)
+    /// ```
+    ///
+    /// ## Thread Safety
+    ///
+    /// The cell resolver is marked `@Sendable`, meaning it must be safe to call
+    /// from multiple threads concurrently. Ensure your resolver implementation
+    /// uses appropriate synchronization if it accesses mutable shared state.
+    ///
+    /// - Note: The resolver will be called multiple times for range references.
+    ///   For example, `A1:A10` will trigger 10 separate calls to the resolver.
+    ///
+    /// - SeeAlso: ``CellReference``
+    /// - SeeAlso: ``CellValue``
     public init(cellResolver: @escaping @Sendable (CellReference) -> CellValue?) {
         self.cellResolver = cellResolver
     }
     
-    /// Evaluate a formula expression
+    /// Evaluates a parsed formula expression and returns the result.
+    ///
+    /// This method recursively evaluates the expression tree, resolving cell references,
+    /// executing function calls, and applying operators according to Excel's computation rules.
+    ///
+    /// - Parameter expression: The parsed formula expression to evaluate.
+    ///
+    /// - Returns: A ``FormulaValue`` containing the evaluation result, which may be
+    ///   a number, string, boolean, error, or array.
+    ///
+    /// - Throws: ``FormulaError`` if the expression structure is invalid (e.g., wrong
+    ///   number of function arguments, stack overflow from excessive recursion).
+    ///
+    /// ## Expression Types
+    ///
+    /// The evaluator handles these expression types:
+    ///
+    /// - **Literals**: Numbers (`42`), strings (`"text"`), booleans (`TRUE`)
+    /// - **Cell References**: Single cells (`A1`) or ranges (`A1:B10`)
+    /// - **Binary Operations**: Arithmetic (`+`, `-`, `*`, `/`, `^`), comparison (`=`, `<>`, `<`, `>`),
+    ///   and concatenation (`&`)
+    /// - **Function Calls**: Any of the 467 supported functions (e.g., `SUM(A1:A10)`)
+    /// - **Errors**: Error literals like `#REF!` or `#VALUE!`
+    ///
+    /// ## Basic Evaluation
+    ///
+    /// ```swift
+    /// let parser = FormulaParser()
+    /// let evaluator = FormulaEvaluator(cellResolver: cellResolver)
+    ///
+    /// // Evaluate a simple arithmetic expression
+    /// let expr1 = try parser.parse("=2 + 3")
+    /// let result1 = try evaluator.evaluate(expr1)
+    /// // result1 = .number(5.0)
+    ///
+    /// // Evaluate a cell reference
+    /// let expr2 = try parser.parse("=A1")
+    /// let result2 = try evaluator.evaluate(expr2)
+    /// // result2 = value from cell A1
+    ///
+    /// // Evaluate a function call
+    /// let expr3 = try parser.parse("=SUM(A1:A10)")
+    /// let result3 = try evaluator.evaluate(expr3)
+    /// // result3 = .number(sum of A1:A10)
+    /// ```
+    ///
+    /// ## Range References
+    ///
+    /// When evaluating range references like `A1:B3`, the evaluator:
+    /// 1. Calls the cell resolver for each cell in the range
+    /// 2. Constructs a 2D array of values
+    /// 3. Returns `.array([[row1], [row2], ...]))`
+    ///
+    /// ```swift
+    /// let expr = try parser.parse("=A1:B2")
+    /// let result = try evaluator.evaluate(expr)
+    /// // result = .array([[.number(1), .number(2)],
+    /// //                  [.number(3), .number(4)]])
+    /// ```
+    ///
+    /// ## Error Propagation
+    ///
+    /// Excel-style errors propagate through calculations:
+    ///
+    /// ```swift
+    /// // If A1 contains an error, formulas referencing it inherit the error
+    /// let expr = try parser.parse("=A1 + 10")
+    /// let result = try evaluator.evaluate(expr)
+    /// // If A1 = .error("REF"), then result = .error("VALUE")
+    /// ```
+    ///
+    /// ## Type Coercion
+    ///
+    /// The evaluator applies Excel's type coercion rules:
+    ///
+    /// ```swift
+    /// // Strings coerce to numbers in arithmetic
+    /// let expr1 = try parser.parse("=\"5\" + 3")
+    /// let result1 = try evaluator.evaluate(expr1)
+    /// // result1 = .number(8.0)
+    ///
+    /// // Booleans coerce to 0/1 in arithmetic
+    /// let expr2 = try parser.parse("=TRUE + FALSE")
+    /// let result2 = try evaluator.evaluate(expr2)
+    /// // result2 = .number(1.0)
+    ///
+    /// // Non-numeric strings produce errors
+    /// let expr3 = try parser.parse("=\"Hello\" + 3")
+    /// let result3 = try evaluator.evaluate(expr3)
+    /// // result3 = .error("VALUE")
+    /// ```
+    ///
+    /// ## Function Evaluation
+    ///
+    /// Function arguments are evaluated lazily (except for special forms like `IF`):
+    ///
+    /// ```swift
+    /// // Arguments evaluated before function execution
+    /// let expr = try parser.parse("=SUM(A1, A2, A3)")
+    /// // 1. Evaluates A1, A2, A3
+    /// // 2. Calls SUM with the values
+    /// // 3. Returns the sum
+    /// ```
+    ///
+    /// Special forms like `IF` use short-circuit evaluation:
+    ///
+    /// ```swift
+    /// // Only one branch is evaluated
+    /// let expr = try parser.parse("=IF(A1>0, B1, C1)")
+    /// // If A1 > 0, only B1 is evaluated (C1 is skipped)
+    /// // If A1 <= 0, only C1 is evaluated (B1 is skipped)
+    /// ```
+    ///
+    /// ## Performance Considerations
+    ///
+    /// - **Recursive Evaluation**: Deep expression trees may cause stack growth
+    /// - **Range Operations**: Large ranges (e.g., `A1:Z1000`) evaluate all cells
+    /// - **Array Functions**: Dynamic array functions allocate result arrays
+    /// - **Cell Resolution**: Resolver performance affects overall evaluation speed
+    ///
+    /// ## Unsupported Features
+    ///
+    /// Some advanced Excel features return calculation errors:
+    /// - `LAMBDA`, `LET`, `MAP`, `REDUCE`, `SCAN` - Return `#CALC!` (require dynamic functions)
+    /// - `CUBEVALUE`, `CUBEMEMBER` - Return `#N/A` (require OLAP connections)
+    /// - `WEBSERVICE`, `FILTERXML` - Return `#N/A` (require external data)
+    ///
+    /// - SeeAlso: ``FormulaValue``
+    /// - SeeAlso: ``FormulaExpression``
+    /// - SeeAlso: ``FormulaError``
     public func evaluate(_ expression: FormulaExpression) throws -> FormulaValue {
         switch expression {
         case .number(let value):
