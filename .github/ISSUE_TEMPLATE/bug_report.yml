@@ -1,0 +1,105 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: When I try to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Open workbook with '...'
+        2. Call method '....'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: The method should return...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: Instead, it throws...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code Sample
+      description: Minimal code sample that reproduces the issue
+      render: swift
+      placeholder: |
+        let workbook = try Workbook.open(url: fileURL)
+        let sheet = try workbook.sheet(at: 0)
+        // ...
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Cuneiform Version
+      description: Which version of Cuneiform are you using?
+      placeholder: e.g., 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform(s) does this occur on?
+      placeholder: e.g., macOS 14.2, iOS 17.2
+    validations:
+      required: true
+
+  - type: input
+    id: swift
+    attributes:
+      label: Swift Version
+      description: Which Swift version are you using?
+      placeholder: e.g., Swift 6.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: This might be related to...
+    validations:
+      required: false
+
+  - type: textarea
+    id: file
+    attributes:
+      label: Sample File
+      description: If possible, attach or describe the Excel file that causes the issue
+      placeholder: The file has 3 sheets with...
+    validations:
+      required: false

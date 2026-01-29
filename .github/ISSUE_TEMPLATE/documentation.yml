@@ -1,0 +1,59 @@
+name: Documentation Issue
+description: Report an issue with the documentation
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Cuneiform's documentation!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Typo or grammar error
+        - Missing documentation
+        - Incorrect or outdated information
+        - Example code doesn't work
+        - Unclear explanation
+        - Broken link
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue? (URL or file path)
+      placeholder: https://jramos57.github.io/cuneiform/documentation/... or Workbook.swift
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's Wrong?
+      description: Describe the documentation issue
+      placeholder: The example code for... doesn't compile because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Fix
+      description: If you have a suggestion for how to fix it, describe it here
+      placeholder: Change "..." to "..." or add documentation for...
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+    validations:
+      required: false

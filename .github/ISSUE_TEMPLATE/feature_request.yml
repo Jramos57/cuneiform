@@ -1,0 +1,77 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving Cuneiform! Please describe the feature you'd like to see.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem would this feature solve?
+      placeholder: I'm trying to... but currently there's no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you envision this feature working
+      placeholder: Add a new method that...
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: API Design (Optional)
+      description: If you have ideas about the API, describe them here
+      render: swift
+      placeholder: |
+        // Proposed API
+        let result = workbook.someNewMethod(...)
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other solutions have you considered?
+      placeholder: I considered... but it doesn't work because...
+    validations:
+      required: false
+
+  - type: textarea
+    id: excel
+    attributes:
+      label: Excel Compatibility
+      description: Does Excel have a similar feature? If so, describe it.
+      placeholder: Excel supports this via...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would significantly improve my workflow
+        - High - Critical for my use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other information that would help evaluate this feature
+      placeholder: This would be useful for...
+    validations:
+      required: false
