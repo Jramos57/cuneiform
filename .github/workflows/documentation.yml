@@ -18,26 +18,39 @@ permissions:
 # Allow only one concurrent deployment
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-documentation:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Build Documentation
         run: |
-          swift package --allow-writing-to-directory ./docs \
-            generate-documentation \
-            --target Cuneiform \
-            --output-path ./docs \
-            --transform-for-static-hosting \
-            --hosting-base-path cuneiform
+          xcodebuild docbuild \
+            -scheme Cuneiform \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath ./docc-build \
+            OTHER_DOCC_FLAGS="--transform-for-static-hosting --hosting-base-path cuneiform"
+          
+          # Find and copy the doccarchive
+          ARCHIVE=$(find ./docc-build -name "*.doccarchive" -type d | head -1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "No doccarchive found"
+            exit 1
+          fi
+          echo "Found archive: $ARCHIVE"
+          cp -R "$ARCHIVE" ./docs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
