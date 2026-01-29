@@ -5,7 +5,7 @@ Use this checklist to verify work is complete and correct.
 ## Quick Verification Commands
 
 ```bash
-cd /Users/jonathan/Desktop/garden/cuneiform
+cd cuneiform  # or wherever you cloned the repository
 swift build   # Must succeed with no errors
 swift test    # All tests must pass
 ```

@@ -4,7 +4,7 @@ import Testing
 
 @Suite struct WorkbookIntegrationTests {
     /// Path to the sample XLSX from the ISO spec materials
-    static let sampleXlsxPath = "/Users/jonathan/Desktop/garden/cuneiform/Documentation/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
+    static let sampleXlsxPath = "Documentation/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
 
     @Test func openAndListSheets() throws {
         let url = URL(fileURLWithPath: Self.sampleXlsxPath)

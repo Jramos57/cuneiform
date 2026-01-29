@@ -571,7 +571,7 @@ You are implementing SpreadsheetML parsers for the Cuneiform library. The OPC pa
 
 **Build/Test Commands:**
 ```bash
-cd /Users/jonathan/Desktop/garden/cuneiform
+cd cuneiform  # or wherever you cloned the repository
 swift build
 swift test
 ```

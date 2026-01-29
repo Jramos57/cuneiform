@@ -4,7 +4,7 @@ import Foundation
 
 @Suite struct OPCPackageTests {
     // Path to the sample xlsx file from the ISO spec materials
-    static let sampleXlsxPath = "/Users/jonathan/Desktop/garden/cuneiform/Documentation/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
+    static let sampleXlsxPath = "Documentation/iEC 29500/ISO_IEC_29500-1_2016(en)_einsert/OfficeOpenXML-SpreadsheetMLStyles/PivotTableFormats.xlsx"
 
     /// Helper to skip tests when fixture file is missing
     private static func requireFixture() throws -> URL {
