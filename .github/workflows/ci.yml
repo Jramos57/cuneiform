@@ -12,7 +12,7 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        xcode: ['15.2']
+        xcode: ['16.2']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
       - name: Build DataAnalysis Example
         run: |
