@@ -68,10 +68,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modular builder architecture (XML generation for .xlsx creation)
 
 #### Documentation
-- Complete DocC documentation catalog
-- Getting Started guide with installation and basic usage
-- Comprehensive API documentation
-- 5 open source governance files (LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CHANGELOG)
+- **Complete DocC documentation catalog** with Apple-style formatting
+- **Getting Started guide** with installation and quick start examples
+- **7 comprehensive articles**:
+  - Architecture: System design and layer overview
+  - Formula Engine: 467 functions organized in 12 categories
+  - Performance Tuning: Memory optimization and benchmarking
+  - Writing Workbooks: Complete guide to creating Excel files
+  - Advanced Queries: Filtering, searching, and range operations
+  - Error Handling: Error patterns and recovery strategies
+  - Migration Guide: Transitioning from CoreXLSX to Cuneiform
+- **2 interactive tutorials**:
+  - Data Analysis: Reading and analyzing spreadsheet data
+  - Report Generation: Creating multi-sheet reports with formulas
+- **13 formula reference files** documenting all 467 functions:
+  - Complete syntax, parameters, return values for every function
+  - Practical Swift code examples
+  - Excel compatibility notes
+  - Implementation status indicators
+- **Comprehensive API documentation** for all public types:
+  - Workbook, Sheet, WorkbookWriter with 100+ code examples
+  - CellValue, CellReference, CuneiformError with usage patterns
+  - FormulaEvaluator, FormulaParser with detailed explanations
+  - Topics organization for DocC navigation
+- **5 open source governance files** (LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CHANGELOG)
+- **GitHub Actions workflows** for CI and documentation deployment
+- **Issue templates** for bug reports, feature requests, and documentation issues
+- **Example projects** with complete source code:
+  - DataAnalysis: Extract and compute statistics
+  - ReportGeneration: Create structured reports
 
 #### Testing
 - 834 passing tests across 45 test files

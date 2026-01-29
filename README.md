@@ -1,40 +1,62 @@
 # Cuneiform
 
-Pure Swift library for reading Office Open XML SpreadsheetML (.xlsx) files.
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20visionOS%20%7C%20Linux-lightgrey.svg)](https://github.com/jramos57/cuneiform)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/jramos57/cuneiform/workflows/CI/badge.svg)](https://github.com/jramos57/cuneiform/actions)
+[![Documentation](https://img.shields.io/badge/docs-DocC-blue.svg)](https://jramos57.github.io/cuneiform/documentation/cuneiform/)
+
+Pure Swift library for reading and writing Office Open XML SpreadsheetML (.xlsx) files with comprehensive formula support.
+
+---
+
+## Features
+
+✅ **Read & Write** - Open existing workbooks and create new ones  
+✅ **467 Excel Functions** - Comprehensive formula engine (97% full implementations)  
+✅ **Advanced Queries** - Built-in filtering, searching, and range operations  
+✅ **High Performance** - Lazy loading and memory-efficient streaming  
+✅ **Type Safety** - Swift 6 with Sendable types and typed throws  
+✅ **Cross-Platform** - macOS, iOS, tvOS, watchOS, visionOS, and Linux  
+✅ **Zero Dependencies** - Pure Swift with no external libraries  
+✅ **Well-Tested** - 834 passing tests ensuring reliability  
+
+---
 
 ## Quick Start
+
+### Reading Workbooks
 
 ```swift
 import Cuneiform
 
 // Open an .xlsx file
-let workbook = try Workbook.open(url: URL(fileURLWithPath: "data.xlsx"))
+let workbook = try Workbook.open(url: fileURL)
 
-// List all sheets
-for sheet in workbook.sheets {
-    print("Sheet: \(sheet.name)")
-}
-
-// Access a sheet by name
+// Access a sheet and read cells
 if let sheet = try workbook.sheet(named: "Sheet1") {
-    // Get a cell value
+    // Get a cell value (type-safe enum)
     if let value = sheet.cell(at: "A1") {
-        print("A1: \(value)")  // text, number, date, boolean, error, or empty
+        switch value {
+        case .text(let text): print("Text: \(text)")
+        case .number(let num): print("Number: \(num)")
+        case .date(let date): print("Date: \(date)")
+        case .boolean(let bool): print("Boolean: \(bool)")
+        case .error(let err): print("Error: \(err)")
+        case .empty: print("Empty cell")
+        }
     }
     
-    // Get a row
-    let row = sheet.row(1)
-    print("Row 1: \(row)")
-}
-
-// Or access by index
-if let sheet = try workbook.sheet(at: 0) {
-    // Resolved cell values with types
-    let cellA1 = sheet.cell(at: "A1")  // CellValue (text, number, date, etc.)
+    // Iterate rows efficiently
+    for row in sheet.rows() {
+        for (ref, value) in row {
+            print("\(ref): \(value)")
+        }
+    }
 }
 ```
 
-## Writing Workbooks
+### Writing Workbooks
 
 ```swift
 import Cuneiform
@@ -43,289 +65,338 @@ import Cuneiform
 var writer = WorkbookWriter()
 let sheetIndex = writer.addSheet(named: "Data")
 
-// Write cells
+// Write cells with various types
 writer.modifySheet(at: sheetIndex) { sheet in
     sheet.writeText("Name", to: "A1")
     sheet.writeNumber(42, to: "B1")
     sheet.writeBoolean(true, to: "C1")
-    sheet.writeFormula("B1*2", cachedValue: 84, to: "D1")
+    sheet.writeFormula("SUM(B1:B10)", to: "B11")
+    sheet.writeDate(Date(), to: "D1")
 }
 
-// Save to file
-try writer.save(to: URL(fileURLWithPath: "output.xlsx"))
+// Save to disk
+try writer.save(to: outputURL)
 ```
 
-## Advanced Queries
+### Advanced Queries
 
 ```swift
-// Range access
-let range = sheet.range("A1:C10")
-for (ref, value) in range {
-    print("\(ref): \(value)")
+// Filter rows by condition
+let activeRows = sheet.rows { cells in
+    cells.contains { $0.value == .text("Active") }
 }
 
-// Column access
-let columnA = sheet.column("A")
-let columnB = sheet.column(at: 1) // 0-based index
-
-// Row filtering
-let nycRows = sheet.rows { cells in
-    cells.contains { $0.value == .text("NYC") }
-}
-
-// Find cells
-if let cell = sheet.find(where: { _, value in value == .number(100) }) {
-    print("Found at \(cell.reference)")
-}
-
-let allMatches = sheet.findAll { _, value in
-    if case .number(let n) = value { return n > 50 }
+// Find cells matching criteria
+let highValues = sheet.findAll { ref, value in
+    if case .number(let num) = value {
+        return num > 100
+    }
     return false
 }
+
+// Access entire columns
+let columnB = sheet.column("B")
+let total = columnB.reduce(0.0) { sum, (_, value) in
+    if case .number(let num) = value {
+        return sum + num
+    }
+    return sum
+}
+
+// Work with ranges
+let range = sheet.range("A1:C10")
+for (ref, value) in range {
+    // Process each cell
+}
 ```
+
+### Formula Evaluation
+
+```swift
+// Evaluate formulas programmatically
+let evaluator = FormulaEvaluator(workbook: workbook)
+
+// Simple calculations
+let result = try evaluator.evaluate("=SUM(1, 2, 3)")  // 6.0
+
+// Reference cells
+let total = try evaluator.evaluate("=SUM(A1:A10)")
+
+// Complex formulas with nested functions
+let analysis = try evaluator.evaluate(
+    "=IF(AVERAGE(A1:A10) > 50, \"High\", \"Low\")"
+)
+```
+
+---
+
+## Documentation
+
+Comprehensive documentation is available:
+
+- 📚 **[API Documentation](https://jramos57.github.io/cuneiform/documentation/cuneiform/)** - Complete API reference
+- 🚀 **[Getting Started Guide](https://jramos57.github.io/cuneiform/documentation/cuneiform/gettingstarted)** - Installation and quick start
+- 📖 **[Architecture Overview](https://jramos57.github.io/cuneiform/documentation/cuneiform/architecture)** - System design and layers
+- ⚡️ **[Performance Tuning](https://jramos57.github.io/cuneiform/documentation/cuneiform/performancetuning)** - Optimization strategies
+- ✍️ **[Writing Workbooks](https://jramos57.github.io/cuneiform/documentation/cuneiform/writingworkbooks)** - Creating Excel files
+- 🔍 **[Advanced Queries](https://jramos57.github.io/cuneiform/documentation/cuneiform/advancedqueries)** - Filtering and searching
+- 🧮 **[Formula Engine](https://jramos57.github.io/cuneiform/documentation/cuneiform/formulaengine)** - 467 supported functions
+- 📊 **[Formula Reference](https://jramos57.github.io/cuneiform/documentation/cuneiform/formulareference)** - Complete function catalog
+- ⚠️ **[Error Handling](https://jramos57.github.io/cuneiform/documentation/cuneiform/errorhandling)** - Error patterns and recovery
+- 🔄 **[Migration Guide](https://jramos57.github.io/cuneiform/documentation/cuneiform/migrationguide)** - Migrate from CoreXLSX
+
+### Tutorials
+
+Step-by-step tutorials for common tasks:
+
+- 📊 **[Data Analysis Tutorial](https://jramos57.github.io/cuneiform/tutorials/cuneiform/dataanalysis)** - Reading and analyzing data
+- 📝 **[Report Generation Tutorial](https://jramos57.github.io/cuneiform/tutorials/cuneiform/reportgeneration)** - Creating multi-sheet reports
+
+### Examples
+
+Complete example projects:
+
+- 💡 **[Data Analysis Example](Examples/DataAnalysis/)** - Extract and compute statistics
+- 📈 **[Report Generation Example](Examples/ReportGeneration/)** - Create structured reports
+
+---
+
+## Installation
+
+### Swift Package Manager
+
+Add Cuneiform to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/jramos57/cuneiform.git", from: "0.1.0")
+]
+```
+
+Then add it to your target:
+
+```swift
+targets: [
+    .target(
+        name: "YourTarget",
+        dependencies: ["Cuneiform"]
+    )
+]
+```
+
+### Xcode
+
+1. File → Add Package Dependencies
+2. Enter: `https://github.com/jramos57/cuneiform.git`
+3. Select version: `0.1.0` or higher
+
+---
+
+## Requirements
+
+- Swift 6.0 or later
+- macOS 13.0+ / iOS 16.0+ / tvOS 16.0+ / watchOS 9.0+ / visionOS 1.0+
+- Linux (Ubuntu 20.04+ or similar)
+
+---
+
+## Formula Support
+
+Cuneiform includes a comprehensive formula engine with **467 Excel-compatible functions** across 12 categories:
+
+| Category | Functions | Examples |
+|----------|-----------|----------|
+| **Mathematical** | 75+ | SUM, AVERAGE, ROUND, SIN, COS, SQRT, POWER |
+| **Statistical** | 100+ | MIN, MAX, MEDIAN, STDEV, PERCENTILE, CORREL |
+| **Text** | 40 | LEFT, RIGHT, MID, CONCAT, FIND, SUBSTITUTE |
+| **Date & Time** | 27 | TODAY, DATE, YEAR, MONTH, WEEKDAY, EOMONTH |
+| **Financial** | 55 | PMT, PV, FV, IRR, NPV, PRICE, YIELD |
+| **Logical** | 11 | IF, AND, OR, NOT, IFS, SWITCH, IFERROR |
+| **Lookup** | 35 | VLOOKUP, XLOOKUP, INDEX, MATCH, FILTER, SORT |
+| **Engineering** | 60+ | CONVERT, HEX2DEC, COMPLEX, BESSELI, ERF |
+| **Database** | 10 | DSUM, DAVERAGE, DCOUNT, DMAX, DMIN |
+| **Information** | 28 | ISBLANK, ISERROR, TYPE, CELL, INFO |
+| **Compatibility** | 23 | Legacy functions + LAMBDA, LET, MAP, REDUCE |
+| **Web Service** | 8 | HYPERLINK, WEBSERVICE, ENCODEURL |
+
+**Implementation Status**: 97% full implementations, 2% partial, 1% stubs
+
+See the [Formula Reference](https://jramos57.github.io/cuneiform/documentation/cuneiform/formulareference) for complete documentation.
+
+---
 
 ## Performance
 
-### Streaming Large Files
-
-For large spreadsheets, use lazy iteration to minimize memory usage:
-
-```swift
-// Streaming iteration (memory-efficient)
-for row in sheet.rows() {
-    for (ref, value) in row {
-        process(ref, value)
-    }
-}
-```
-
-### Lazy Sheet Loading
-
-Sheets are loaded on-demand—only when accessed via `sheet(named:)` or `sheet(at:)`. This defers parsing until needed, improving startup time for workbooks with many sheets.
-
 ### Benchmark Results
 
-From test suite on typical hardware:
-- Read 1,000 rows: ~34ms
-- Write 1,000 rows (10 columns): ~50ms
-- Round-trip 500 rows: ~80ms
-- Find operations in 1,000 rows: <1ms
-- Range query 2,600 cells: ~660ms
+Typical performance on modern hardware:
 
-### Performance Tips
+| Operation | Performance |
+|-----------|-------------|
+| Read 1,000 rows | ~34ms |
+| Write 1,000 rows (10 columns) | ~50ms |
+| Round-trip 500 rows | ~80ms |
+| Find operations (1,000 rows) | <1ms |
+| Range query (2,600 cells) | ~660ms |
 
-1. **Use streaming**: `sheet.rows()` for large files (lower memory)
-2. **Batch operations**: Write many cells at once rather than saving repeatedly
-3. **Limit queries**: Use `find()` instead of `findAll()` when you only need the first match
-4. **Defer loading**: Access sheets only when needed
+### Optimization Tips
 
-## Resolving Cell Values
+1. **Use lazy iteration** - `sheet.rows()` for memory-efficient processing
+2. **Batch writes** - Modify multiple cells before saving
+3. **Limit queries** - Use `find()` instead of `findAll()` when appropriate
+4. **Defer loading** - Access sheets only when needed (automatic lazy loading)
 
-The `CellValue` enum represents fully-resolved cell content:
-- `.text(String)` – text and inline strings
-- `.number(Double)` – numbers
-- `.date(String)` – dates (ISO 8601 format; numeric conversion is caller's responsibility)
-- `.boolean(Bool)` – booleans
-- `.error(String)` – spreadsheet errors
-- `.empty` – empty cells
+See the [Performance Tuning Guide](https://jramos57.github.io/cuneiform/documentation/cuneiform/performancetuning) for detailed optimization strategies.
 
-Cell values are resolved using:
-1. **SharedStrings** for shared string cell references
-2. **Styles** for date detection (numeric values with date formats become `.date()`)
-3. **RawCellValue** for direct cell types and values
+---
 
-## Build & Test
+## Advanced Features
 
-```bash
-cd /Users/jonathan/Desktop/garden/cuneiform
-swift build
-swift test
-```
-
-**Status:** All 146 tests pass.
-
-## Components
-
-### Read API
-- **Workbook** – High-level API to open .xlsx files, access sheets, and resolve cells
-- **Sheet** – Worksheet wrapper with cell value resolution, formulas, and advanced queries
-- **Parsers:**
-  - `SharedStringsParser` – Parse `/xl/sharedStrings.xml`
-  - `WorkbookParser` – Parse `/xl/workbook.xml` for sheet metadata
-  - `WorksheetParser` – Parse `/xl/worksheets/sheet*.xml` for cell data and formulas
-  - `StylesParser` – Parse `/xl/styles.xml` for number formats and date detection
-
-### Write API
-- **WorkbookWriter** – Create new .xlsx files with multiple sheets
-- **Builders:**
-  - `ContentTypesBuilder` – Generate `[Content_Types].xml`
-  - `RelationshipsBuilder` – Generate `.rels` files
-  - `SharedStringsBuilder` – Manage string deduplication
-  - `WorkbookBuilder` – Build workbook XML
-  - `WorksheetBuilder` – Build worksheet XML with cells and formulas
-- **ZipWriter** – Create ZIP archives for .xlsx output
-
-### Core
-- **OPC** – Package layer: opening ZIP archives, reading parts, relationships, content types
-
-## Migration Notes: Swift 6 Testing
-
-Swift 6 includes built-in Swift Testing, replacing the external `swift-testing` package. This project currently keeps the external dependency to ensure the test suite runs across toolchains that don't yet expose the built-in `Testing` module.
-
-- Current state: All tests pass. You may see deprecation warnings from `swift-testing`.
-- Rationale: Removing the dependency caused `_TestingInternals` errors on this toolchain.
-
-### Migrate when your toolchain supports built-in Testing
-
-1. Edit `Package.swift`:
-   - Remove the `.package(url: "https://github.com/swiftlang/swift-testing.git", ...)` entry.
-   - Remove `.product(name: "Testing", package: "swift-testing")` from the `CuneiformTests` target dependencies.
-   - If needed for early toolchains, add `swiftSettings: [.enableExperimentalFeature("Testing")]` to the test target.
-2. Run:
-   ```bash
-   swift build
-   swift test
-   ```
-3. If you encounter errors like `missing required module '_TestingInternals'`, revert the changes and retain the external dependency until the toolchain exposes the built-in module.
-
-## Ergonomic Helpers
-
-### Named Ranges
+### Sheet Protection
 
 ```swift
-// Resolve a named range like "MyRange" → (sheet, range)
-if let (sheet, range) = workbook.definedNameRange("MyRange") {
-    for (ref, value) in range { print("\(ref): \(value)") }
+// Protect a sheet with custom permissions
+writer.modifySheet(at: sheetIndex) { sheet in
+    var options = SheetProtectionOptions()
+    options.formatCells = false
+    options.insertRows = false
+    sheet.protectSheet(password: "secret", options: options)
 }
-
-// Or fetch the raw defined name
-if let name = workbook.definedName("MyRange") {
-    print(name.name, name.refersTo)
-}
-```
-
-### Data Validations
-
-```swift
-// All validations that intersect a range
-let v = sheet.validations(for: "A2:B2")
-
-// Validations that apply to a single cell
-let atB2 = sheet.validations(at: "B2")
-
-// Example: check kinds present (e.g., .list, .whole)
-let kinds = Set(v.map(\.kind))
-print(kinds)
 ```
 
 ### Hyperlinks
 
 ```swift
 // External hyperlink
-writer.modifySheet(at: sheetIndex) { sheet in
-    sheet.addHyperlinkExternal(at: "B2",
-                               url: "https://example.com",
-                               display: "Example",
-                               tooltip: "Open example.com")
-}
+sheet.addHyperlinkExternal(
+    at: "A1",
+    url: "https://example.com",
+    display: "Visit Site"
+)
 
-### Sheet Protection
+// Internal hyperlink
+sheet.addHyperlinkInternal(
+    at: "B1",
+    location: "Sheet2!A1",
+    display: "Go to Sheet2"
+)
+```
+
+### Data Validations
 
 ```swift
-// Protect a sheet with optional password
-writer.modifySheet(at: sheetIndex) { sheet in
-    sheet.protectSheet(password: "secret123")
-}
-
-// Use preset options: default, strict (locks all), readonly
-writer.modifySheet(at: sheetIndex) { sheet in
-    sheet.protectSheet(password: "pwd", options: .strict)
-}
-
-// Custom protection options
-writer.modifySheet(at: sheetIndex) { sheet in
-    var options = SheetProtectionOptions()
-    options.formatCells = false   // Prevent cell formatting
-    options.insertRows = false    // Prevent row insertion
-    options.deleteColumns = true  // Allow column deletion
-    sheet.protectSheet(password: "pwd", options: options)
-}
-
-// Read protection state
-let workbook = try Workbook.open(url: url)
-let sheet = try workbook.sheet(at: 0)
-if let protection = sheet.protection {
-    print("Sheet is protected")
-    if protection.passwordHash != nil { print("Password-protected") }
+// Read validations from a sheet
+let validations = sheet.validations(at: "A2")
+for validation in validations {
+    print("Type: \(validation.kind)")
+    print("Formula: \(validation.formula1 ?? "")")
 }
 ```
 
-### Workbook Protection
+### Named Ranges
 
 ```swift
-// Protect workbook structure to prevent sheet insertion/deletion
-var writer = WorkbookWriter()
-_ = writer.addSheet(named: "Sheet1")
-writer.protectWorkbook(password: "secret")
+// Access defined names
+if let (sheet, range) = workbook.definedNameRange("SalesData") {
+    for (ref, value) in range {
+        print("\(ref): \(value)")
+    }
+}
+```
 
-// Use preset options: default (no protection), structureOnly, strict
-writer.protectWorkbook(options: .structureOnly)  // Protect structure only
-writer.protectWorkbook(options: .strict)         // Protect both structure and windows
+### Merge Cells
 
-// Custom protection options
-var options = WorkbookProtectionOptions()
-options.structure = true   // Prevent sheet operations
-options.windows = true     // Prevent window/size changes
-writer.protectWorkbook(password: "pwd", options: options)
+```swift
+// Merge a range of cells
+sheet.mergeCells(range: "A1:C1")
+```
 
-// Read workbook protection state
-let workbook = try Workbook.open(url: url)
-if let protection = workbook.protection {
-    print("Workbook is protected")
-    if protection.structureProtected { print("Structure protected") }
-    if protection.windowsProtected { print("Windows protected") }
-    if protection.passwordHash != nil { print("Password-protected") }
+### Comments
+
+```swift
+// Read comments from cells
+let comments = sheet.comments(at: "A1")
+for comment in comments {
+    print("Author: \(comment.author)")
+    print("Text: \(comment.text)")
 }
 ```
 
 ### Charts
 
 ```swift
-// Access charts embedded in a worksheet
-let sheet = try workbook.sheet(named: "Dashboard")
-
-// Get all charts in the sheet
+// Access chart data (read-only)
 for chart in sheet.charts {
     print("Chart: \(chart.title ?? "Untitled")")
-    print("  Type: \(chart.type)")
-    print("  Series: \(chart.seriesCount)")
-}
-
-// Charts are read-side only (parsing from `/xl/charts/chartN.xml`).
-// Chart data includes:
-// - type: The chart classification (column, bar, line, pie, area, etc.)
-// - title: Optional chart title
-// - seriesCount: Number of data series
-// - dataRange: Optional reference to data source
-
-// Internal hyperlink (to a location within the workbook)
-writer.modifySheet(at: sheetIndex) { sheet in
-    sheet.addHyperlinkInternal(at: "C3",
-                               location: "Sheet2!A1",
-                               display: "Go to Sheet2 A1",
-                               tooltip: "Jump to cell")
+    print("Type: \(chart.type)")
 }
 ```
 
-## Documentation
+---
 
-- 📖 [Performance Tuning Guide](Documentation/PERFORMANCE.md) - Optimize for your use case
-- 🔄 [Migration Guide](Documentation/MIGRATION.md) - Migrate from other libraries
-- 💡 [Data Analysis Example](Examples/DataAnalysis/) - Extract and analyze data
-- 📊 [Report Generation Example](Examples/ReportGeneration/) - Create structured reports
+## Architecture
 
-## Notes
+Cuneiform is built with a clean, layered architecture:
 
-- Requires Swift 6 toolchain.
-- macOS 13+ targets; iOS/tvOS/watchOS/visionOS supported via Swift Package.
-- Built with modern idiomatic Swift: Sendable types, value semantics, typed throws, comprehensive error handling.
+### Layer 1: OPC Package
+- ZIP archive management
+- Part reading and relationships
+- Content type resolution
+
+### Layer 2: Parsers
+- XML parsing for all SpreadsheetML parts
+- Shared strings, styles, workbooks, worksheets
+- Charts, pivot tables, comments
+
+### Layer 3: Domain
+- High-level `Workbook` and `Sheet` APIs
+- Cell value resolution
+- Query and filtering operations
+
+### Layer 4: Builders
+- XML generation for all parts
+- Workbook and worksheet construction
+- ZIP packaging for output
+
+### Layer 5: Formula Engine
+- Formula parsing (tokenization + AST)
+- Expression evaluation (467 functions)
+- Cell reference resolution
+
+See the [Architecture Guide](https://jramos57.github.io/cuneiform/documentation/cuneiform/architecture) for detailed information.
+
+---
+
+## Contributing
+
+Bug reports are welcome! Please use the [issue tracker](https://github.com/jramos57/cuneiform/issues) to report bugs.
+
+**Note**: This project does not accept pull requests. If you have a feature suggestion, please open a [feature request](https://github.com/jramos57/cuneiform/issues/new/choose) instead.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
+
+---
+
+## License
+
+Cuneiform is released under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Credits
+
+Created by [Jonathan Ramos](https://github.com/jramos57)
+
+---
+
+## Resources
+
+- **Documentation**: https://jramos57.github.io/cuneiform/documentation/cuneiform/
+- **GitHub**: https://github.com/jramos57/cuneiform
+- **Issues**: https://github.com/jramos57/cuneiform/issues
+- **Discussions**: https://github.com/jramos57/cuneiform/discussions
+- **OOXML Standard**: [ECMA-376](https://www.ecma-international.org/publications-and-standards/standards/ecma-376/)
+
+---
+
+Made with ❤️ using Swift
